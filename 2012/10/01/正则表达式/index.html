@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT">
+  <meta name="keywords" content="Java,正则表达式,">
 
 
 
@@ -79,17 +79,18 @@
 
 
 
-<meta name="description" content="求知若饥,虚心若愚">
-<meta name="keywords" content="Java,中间件,分布式">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Jack&#39;s Notes">
-<meta property="og:url" content="https://changbo.tech/index.html">
+<meta name="description" content="Java中的正则表达式工具包包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类接口：MatchResult:匹配操作的结果类：  Matcher:通过解释 Pattern 对 character sequence 执行匹配操作的引擎 Pattern:正则表达式的编译表示形式。 示例：123Pattern p = Pattern.compile(&quot;a*b&quot;);Matche">
+<meta name="keywords" content="Java,正则表达式">
+<meta property="og:type" content="article">
+<meta property="og:title" content="正则表达式">
+<meta property="og:url" content="https://changbo.tech/2012/10/01/正则表达式/index.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="求知若饥,虚心若愚">
+<meta property="og:description" content="Java中的正则表达式工具包包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类接口：MatchResult:匹配操作的结果类：  Matcher:通过解释 Pattern 对 character sequence 执行匹配操作的引擎 Pattern:正则表达式的编译表示形式。 示例：123Pattern p = Pattern.compile(&quot;a*b&quot;);Matche">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-12-19T01:08:56.446Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Jack&#39;s Notes">
-<meta name="twitter:description" content="求知若饥,虚心若愚">
+<meta name="twitter:title" content="正则表达式">
+<meta name="twitter:description" content="Java中的正则表达式工具包包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类接口：MatchResult:匹配操作的结果类：  Matcher:通过解释 Pattern 对 character sequence 执行匹配操作的引擎 Pattern:正则表达式的编译表示形式。 示例：123Pattern p = Pattern.compile(&quot;a*b&quot;);Matche">
 
 
 
@@ -119,13 +120,13 @@
 
 
 
-  <link rel="canonical" href="https://changbo.tech/">
+  <link rel="canonical" href="https://changbo.tech/2012/10/01/正则表达式/">
 
 
 
 
 
-  <title>Jack's Notes</title>
+  <title>正则表达式 | Jack's Notes</title>
   
 
 
@@ -144,8 +145,7 @@
     
   
 
-  <div class="container sidebar-position-left 
-  page-home">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
@@ -280,682 +280,9 @@
         <div class="content-wrap">
           <div id="content" class="content">
             
-  <section id="posts" class="posts-expand">
+
+  <div id="posts" class="posts-expand">
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/2018/12/13/工作中如何做好技术积累/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2018/12/13/工作中如何做好技术积累/" itemprop="url">工作中如何做好技术积累</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-12-13T19:49:20+08:00">
-                2018-12-13
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/技术管理/" itemprop="url" rel="index">
-                    <span itemprop="name">技术管理</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-             <span id="/2018/12/13/工作中如何做好技术积累/" class="leancloud_visitors" data-flag-title="工作中如何做好技术积累">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <p><strong>文章转自：<a href="https://tech.meituan.com/study_vs_work.html" target="_blank" rel="noopener">美团技术团队</a> @ 刘丁</strong></p>
-<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>古人云：“活到老，学到老。”互联网算是最辛苦的行业之一，“加班”对工程师来说已是“家常便饭”，同时互联网技术又日新月异，很多工程师都疲于应付，叫苦不堪。以至于长期以来流传一个很广的误解：35岁是程序员工作的终点。</p>
-<p>如何在繁忙的工作中做好技术积累，构建个人核心竞争力，相信是很多工程师同行都在思考的问题。本文是我自己的一些总结，试图从三个方面来解答：</p>
-<ul>
-<li><p>第一部分阐述了一些学习的原则。任何时候，遵循一些经过检验的原则，都是影响效率的重要因素，正确的方法是成功的秘诀。</p>
-</li>
-<li><p>提升工作和学习效率的另一个重要因素是释惑和良好心态。第二部分分析了我在工作中碰到和看到的一些典型困惑。</p>
-</li>
-<li><p>成为优秀的架构师是大部分初中级工程师的阶段性目标。第三部分剖析架构师的能力模型，让大家对目标所需能力有一个比较清晰的认知。</p>
-</li>
-</ul>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2018/12/13/工作中如何做好技术积累/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/2014/05/20/我的书单/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2014/05/20/我的书单/" itemprop="url">我的书单</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2014-05-20T13:20:00+08:00">
-                2014-05-20
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/读书笔记/" itemprop="url" rel="index">
-                    <span itemprop="name">读书笔记</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-             <span id="/2014/05/20/我的书单/" class="leancloud_visitors" data-flag-title="我的书单">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          
-            <h2 id="在读"><a href="#在读" class="headerlink" title="在读"></a>在读</h2><ul>
-<li><a href="http://product.dangdang.com/25184920.html" target="_blank" rel="noopener">Kafka入门与实践</a></li>
-<li><a href="http://e.dangdang.com/products/1900396912.html" target="_blank" rel="noopener">大规模分布式存储系统:原理解析与架构实战</a></li>
-<li><a href="http://product.dangdang.com/25107115.html" target="_blank" rel="noopener">大数据之路：阿里巴巴大数据实践</a></li>
-<li><a href="http://product.dangdang.com/25346848.html" target="_blank" rel="noopener">码出高效：Java开发手册</a></li>
-<li><a href="http://product.dangdang.com/23690515.html" target="_blank" rel="noopener">Netty权威指南(第2版)</a></li>
-</ul>
-<h2 id="已读"><a href="#已读" class="headerlink" title="已读"></a>已读</h2><ul>
-<li><a href="http://book.douban.com/subject/24868904/" target="_blank" rel="noopener">高效能程序员的修炼</a></li>
-<li><a href="http://book.douban.com/subject/6522893/" target="_blank" rel="noopener">深入理解Java虚拟机：JVM高级特性与最佳实践</a></li>
-</ul>
-<h2 id="收藏-amp-待读"><a href="#收藏-amp-待读" class="headerlink" title="收藏&amp;待读"></a>收藏&amp;待读</h2><ul>
-<li><a href="http://e.dangdang.com/products/1900679392.html" target="_blank" rel="noopener">企业IT架构转型之道：阿里巴巴中台战略思想与架构实战</a></li>
-<li><a href="http://e.dangdang.com/products/1900752857.html" target="_blank" rel="noopener">淘宝技术这十年</a></li>
-<li><a href="http://product.dangdang.com/23462041.html" target="_blank" rel="noopener">大型网站系统与Java中间件实践</a></li>
-</ul>
-
-          
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/2014/05/17/Ubuntu-linux学习笔记/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2014/05/17/Ubuntu-linux学习笔记/" itemprop="url">Ubuntu-linux学习笔记</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2014-05-17T13:00:27+08:00">
-                2014-05-17
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/读书笔记/" itemprop="url" rel="index">
-                    <span itemprop="name">读书笔记</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-             <span id="/2014/05/17/Ubuntu-linux学习笔记/" class="leancloud_visitors" data-flag-title="Ubuntu-linux学习笔记">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h1 id="Ubuntu-linux学习笔记"><a href="#Ubuntu-linux学习笔记" class="headerlink" title="Ubuntu linux学习笔记"></a>Ubuntu linux学习笔记</h1><hr>
-<h1 id="一、ubuntu的安装"><a href="#一、ubuntu的安装" class="headerlink" title="一、ubuntu的安装"></a>一、ubuntu的安装</h1><ol>
-<li><strong>所需资源</strong>：（1）Ubuntu的iso文件，可从<a href="http://www.ubuntu.com/" target="_blank" rel="noopener">ubuntu官网</a>下载；(2)u盘刻录软件<a href="http://dl.pconline.com.cn/download/58150.html" target="_blank" rel="noopener">unetbootin</a>。</li>
-<li><strong>安装步骤</strong>：<ol>
-<li>进入bois界面，设置usb优先启动，进入ubuntu的安装界面；</li>
-<li>一些简单的前期设置这里直接忽略，主要说明一下磁盘分区。<blockquote>
-<p>1）至少需要两个磁盘分区，分别用于创建”/“文件系统与交换分区。其中，linux系统使用交换分区提供虚拟内存，在一个32位的pc中，不超过2GB。2）若磁盘存储空间较大，可划分多个磁盘分区，在每一个磁盘分区中创建一个单独的文件系统，如/usr,/var,/home等文件系统，但不能把/bin,/dev/,/etc/,/lib,/root和/sbin目录作为单独的文件系统分区，这些目录应位于”/“文件系统分区中。3）若要创建多个磁盘分区，查阅分区要求与建议。</p>
-</blockquote>
-</li>
-</ol>
-</li>
-</ol>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2014/05/17/Ubuntu-linux学习笔记/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/2013/05/01/Hadoop-Ecosystem介绍/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2013/05/01/Hadoop-Ecosystem介绍/" itemprop="url">Hadoop Ecosystem介绍</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2013-05-01T13:07:05+08:00">
-                2013-05-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/Hadoop/" itemprop="url" rel="index">
-                    <span itemprop="name">Hadoop</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-             <span id="/2013/05/01/Hadoop-Ecosystem介绍/" class="leancloud_visitors" data-flag-title="Hadoop Ecosystem介绍">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h3 id="什么是Hadoop"><a href="#什么是Hadoop" class="headerlink" title="什么是Hadoop"></a>什么是Hadoop</h3><ol>
-<li><p>Hadoop是Apache基金会下的一个开源分布式计算平台，以Hadoop分布式文件系统（Hadoop distributed file system, HDFS）和MapReduce分布式计算框架为核心，为用户提供了底层细节透明的分布式基础设施。</p>
-</li>
-<li><p>经过几年的快速发展，Hadoop现在已经发展成为包含多个相关项目的软件生态系统。<strong>侠义的Hadoop核心</strong>：</p>
-<ul>
-<li><p><strong>Hadoop Common</strong>：0.20+版本中，从core更名为common，提供一些常用的工具，包括系统配置工具Configuration、远程过程调用RPC、序列化机制和Hadoop抽象文件系统FileSystem等。</p>
-</li>
-<li><p><strong>Hadoop HDFS</strong>：是一个高度容错的系统、能检测和应对硬件故障，用于在低成本的通用硬件上运行。HDFS简化了文件的一致性模型，通过流式数据访问，提供高吞吐量应用程序数据访问功能，适合带有大型数据集的应用程序。</p>
-</li>
-<li><p><strong>Hadoop MapReduce</strong>：是一种编程模型，用以进行大数据量的计算。将应用划分为Map和Reduce两个步骤，其中Map对数据集上的独立元素进行指定的操作，生成键-值对形式中间结果，Reduce对中间结果中相同的“键”的所有“值”进行规约，得到最终结果。</p>
-</li>
-</ul>
-</li>
-</ol>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2013/05/01/Hadoop-Ecosystem介绍/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
 
   
 
@@ -985,9 +312,7 @@
 
         
         
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2012/10/01/正则表达式/" itemprop="url">正则表达式</a></h1>
+          <h1 class="post-title" itemprop="name headline">正则表达式</h1>
         
 
         <div class="post-meta">
@@ -1070,23 +395,327 @@
       
 
       
-        
-          <h3 id="Java中的正则表达式工具包"><a href="#Java中的正则表达式工具包" class="headerlink" title="Java中的正则表达式工具包"></a>Java中的正则表达式工具包</h3><p>包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类<br>接口：MatchResult:匹配操作的结果<br>类：</p>
+        <h3 id="Java中的正则表达式工具包"><a href="#Java中的正则表达式工具包" class="headerlink" title="Java中的正则表达式工具包"></a>Java中的正则表达式工具包</h3><p>包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类<br>接口：MatchResult:匹配操作的结果<br>类：</p>
 <ul>
 <li>Matcher:通过解释 Pattern 对 character sequence 执行匹配操作的引擎</li>
 <li>Pattern:正则表达式的编译表示形式。</li>
 <li>示例：<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Pattern p = Pattern.compile(<span class="string">"a*b"</span>);</span><br><span class="line">Matcher m = p.matcher(<span class="string">"aaaaab"</span>);</span><br><span class="line"><span class="keyword">boolean</span> b = m.matches();</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
-<h3 id="正则表达式的基本语法-（部分参考）"><a href="#正则表达式的基本语法-（部分参考）" class="headerlink" title="正则表达式的基本语法 （部分参考）"></a>正则表达式的基本语法 （部分<a href="http://doslin.com/learn-regular-expressions-in-about-55-minutes/" target="_blank" rel="noopener">参考</a>）</h3>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2012/10/01/正则表达式/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
+<h3 id="正则表达式的基本语法-（部分参考）"><a href="#正则表达式的基本语法-（部分参考）" class="headerlink" title="正则表达式的基本语法 （部分参考）"></a>正则表达式的基本语法 （部分<a href="http://doslin.com/learn-regular-expressions-in-about-55-minutes/" target="_blank" rel="noopener">参考</a>）</h3><a id="more"></a>
+<p>由只代表自身的 <strong>字面值</strong> 和代表特定含义的 <strong>元字符</strong> 组成。  </p>
+<p>字面值：大部分字符，包括 <strong>字母数字字符</strong>，会以字面值的形式出现。这意味着它们 <strong>查找的是自身</strong>。比如，正则表达式 <code>bobo</code>，就是先找到b，接着o，然后是b，最后找到o。</p>
+<h4 id="元字符"><a href="#元字符" class="headerlink" title="元字符"></a>元字符</h4><ul>
+<li><code>.</code> 表示匹配任何单字符（与 <strong>行结束符</strong> 可能匹配也可能不匹配）</li>
+<li>任何 <strong>元字符</strong> 如果用一个 <strong>反斜杆</strong> <code>\</code> 进行转义就会变成字面值</li>
+<li><p>如果未指定 DOTALL 标志，则正则表达式 <code>.</code> 可以与任何字符（<strong>行结束符除外</strong>）匹配</p>
+</li>
+<li><p><strong>行结束符</strong></p>
+<ul>
+<li>一个或两个字符的序列，标记输入字符序列的行结尾。</li>
+<li>新行（换行）符 (‘\n’)</li>
+<li>后面紧跟新行符的回车符 (“\r\n”)</li>
+<li>单独的回车符 (‘\r’)</li>
+<li>下一行字符 (‘\u0085’)</li>
+<li>行分隔符 (‘\u2028’)</li>
+<li>段落分隔符 (‘\u2029)</li>
+</ul>
+</li>
+<li><p><code>\</code> <strong>反斜杠</strong> 是一个元字符，这意味着它也可以使用反斜杠转义。示例：</p>
+<ul>
+<li><code>b.b.</code> 能够匹配bobo,  b b</li>
+<li><code>b\.b\.</code> 只能匹配b.b. 这里的.是字面值，不是元字符；</li>
+<li><code>b\\</code> 只能匹配<code>b\</code> 这里 <code>\</code> 也是字面值。上述. <code>\</code>  都已经通过 <code>\</code> 进行转义,把元字符变为字面值</li>
+<li><code>\t</code> 制表符 (‘\u0009’)</li>
+<li><code>\n</code> 新行（换行）符 (‘\u000A’)</li>
+<li><code>\r</code> 回车符 (‘\u000D’)</li>
+<li><code>\f</code> 换页符 (‘\u000C’)</li>
+<li><code>\a</code> 报警 (bell) 符 (‘\u0007’)</li>
+<li><code>\e</code> 转义符 (‘\u001B’)</li>
+<li><code>\\</code> 反斜线字符</li>
+<li><code>x</code> 字符 x</li>
+</ul>
+</li>
+</ul>
+<h4 id="字符类"><a href="#字符类" class="headerlink" title="字符类"></a>字符类</h4><p><strong>字符类</strong> 是字符在方括号<code>[ ]</code>中的集合，表示“找到集合里任意一个字符”。<br>存在一些字符，在[ ]中和外面，有的含义是不一样的，有的含义一致。</p>
+<ul>
+<li>比如，<code>.</code>表示匹配任意字符，<code>[.]</code>表示匹配字面值<code>.</code></li>
+<li><code>[a-z]</code>表示匹配<code>a-z</code>范围中任意字符，<code>a</code>表示匹配<code>a</code></li>
+<li><code>a|b</code>表示匹配<code>a</code>或者<code>b</code>，<code>[a|b]</code>表示匹配字符<code>a</code>，字符<code>|</code>，字符<code>b</code></li>
+</ul>
+<p>常用字符类表</p>
+<table>
+<thead>
+<tr>
+<th>字符类</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>[abc]</code></td>
+<td>a、b 或 c（简单类）</td>
+</tr>
+<tr>
+<td> <code>[^abc]</code></td>
+<td>任何字符，除了 a、b 或 c（否定），其中<code>^</code>表示否定，通过<code>\^</code>可转义成字面值，如<code>[^\^]</code>表示找到除了插入符外的任意字符。</td>
+</tr>
+<tr>
+<td> <code>[a-zA-Z]</code></td>
+<td>a 到 z 或 A 到 Z，两头的字母包括在内（范围）</td>
+</tr>
+<tr>
+<td> <code>[a-d[m-p]]</code></td>
+<td>a 到 d <strong>或</strong> m 到 p：[a-dm-p]（并集）</td>
+</tr>
+<tr>
+<td> <code>[a-z&amp;&amp;[^bc]]</code></td>
+<td>a 到 z，<strong>除了 b 和 c</strong>：[ad-z]（减去）</td>
+</tr>
+<tr>
+<td> <code>[a-z&amp;&amp;[^m-p]]</code></td>
+<td>a 到 z，而非 m 到 p：[a-lq-z]（减去）</td>
+</tr>
+<tr>
+<td> <code>[0-9.,]</code></td>
+<td>匹配一个数字或者一个句点或者一个逗号</td>
+</tr>
+<tr>
+<td> <code>[0-9a-fA-F]</code></td>
+<td>匹配一位十六进制数</td>
+</tr>
+<tr>
+<td> <code>[a-zA-Z0-9\-]</code></td>
+<td>匹配一个字母数字字符或连字符</td>
+</tr>
+<tr>
+<td> <code>[0-9]</code></td>
+<td>表示匹配0-9中的一个数字，但是<code>[1-31]</code>并不是匹配1-31之间的数字，而是1或2或3，当成了<code>[1-3][1]</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="预定义字符类"><a href="#预定义字符类" class="headerlink" title="预定义字符类"></a>预定义字符类</h4><p> 用一些元字符来预先定义字符的范围。常见的对应关系：</p>
+<table>
+<thead>
+<tr>
+<th>预定义字符</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>  <code>\d</code></td>
+<td>数字：<code>[0-9]</code></td>
+</tr>
+<tr>
+<td>  <code>\D</code></td>
+<td>非数字： <code>[^0-9]</code></td>
+</tr>
+<tr>
+<td>  <code>\w</code></td>
+<td>单词字符：<code>[a-zA-Z_0-9]</code>，<strong>字母</strong> 或 <strong>数字</strong> 或 <strong>下划线</strong></td>
+</tr>
+<tr>
+<td>  <code>\W</code></td>
+<td>非单词字符：<code>[^\w]</code></td>
+</tr>
+<tr>
+<td>  <code>\s</code></td>
+<td>空白字符：<code>[ \t\n\x0B\f\r]</code> 空格，tab，回车或者换行等</td>
+</tr>
+<tr>
+<td>  <code>\S</code></td>
+<td>非空白字符：<code>[^\s]</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="乘法器"><a href="#乘法器" class="headerlink" title="乘法器"></a>乘法器</h4><p> 可以在一个<strong>字面值</strong>或者<strong>字符类</strong>后跟着一个<strong>大括号</strong>来使用乘法器。常见用法:</p>
+<table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>X{n}</code></td>
+<td>X，恰好 n 次</td>
+</tr>
+<tr>
+<td><code>X{n,}</code></td>
+<td>X，至少 n 次</td>
+</tr>
+<tr>
+<td><code>X{n,m}</code></td>
+<td>X，至少 n 次，但是不超过 m 次  </td>
+</tr>
+<tr>
+<td><code>X?</code></td>
+<td>X，一次或一次也没有，相当于<code>X{0,1}</code></td>
+</tr>
+<tr>
+<td><code>X*</code></td>
+<td>X，零次或多次，相当于<code>X{0,}</code></td>
+</tr>
+<tr>
+<td><code>X+</code></td>
+<td>X，一次或多次 ，相当于<code>X{1,}</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p> <strong>注意</strong>：表格中出现的{，}，?，+，<em>等符号，放在[ ]中，就变为了字面值[{}+?]，{}+\?也都变为字面值了</em>。</p>
+</blockquote>
+<h4 id="惰性Non-greedy，勉强Reluctant"><a href="#惰性Non-greedy，勉强Reluctant" class="headerlink" title="惰性Non-greedy，勉强Reluctant"></a>惰性Non-greedy，勉强Reluctant</h4><p> 乘法器可通过<strong>追加问号?</strong>来实现惰性。这里对优先顺序进行了反转，优先匹配字符少的。示例：</p>
+<ul>
+<li><code>\d{4,5}?</code>表示“匹配<code>\d\d\d\d</code>或<code>\d\d\d\d\d</code>”。其实跟<code>\d{4}</code>行为一致。</li>
+<li><code>&quot;.*?&quot;</code>表示“匹配一个双引号，跟着一个<strong>尽可能少的字符</strong>，再跟着一个双引号”。</li>
+</ul>
+<p>常见用法</p>
+<table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>X{n}?</code></td>
+<td>X，恰好 n 次</td>
+</tr>
+<tr>
+<td> <code>X{n,}?</code></td>
+<td>X，至少 n 次</td>
+</tr>
+<tr>
+<td> <code>X{n,m}?</code></td>
+<td>X，至少 n 次，但是不超过 m 次  </td>
+</tr>
+<tr>
+<td> <code>X??</code></td>
+<td>X，一次或一次也没有，相当于<code>X{0,1}</code></td>
+</tr>
+<tr>
+<td> <code>X*?</code></td>
+<td>X，零次或多次，相当于<code>X{0,}</code></td>
+</tr>
+<tr>
+<td> <code>X+?</code></td>
+<td>X，一次或多次 ，相当于<code>X{1,}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="逻辑运算"><a href="#逻辑运算" class="headerlink" title="逻辑运算"></a>逻辑运算</h4><p>主要分类</p>
+<ul>
+<li><code>XY</code> 表示X 后跟 Y</li>
+<li><code>X|Y</code>表示 X 或 Y ，分支，你可以使用<strong>管道符号</strong>来实现匹配多种选择</li>
+<li><code>(X)</code> 表示X，作为捕获组。</li>
+</ul>
+<p>X|Y</p>
+<ul>
+<li><code>cat|dog</code>表示“匹配cat或dog”。</li>
+<li><code>red|blue|</code>和<code>red||blue</code>以及<code>|red|blue</code>都是同样的意思，“匹配<strong>red</strong>或<strong>blue</strong>或<strong>空字符串</strong>”</li>
+<li><code>a|b|c</code>跟<code>[abc]</code>一样</li>
+<li>cat|dog|\ |表示“匹配<code>cat</code>或<code>dog</code>或<code>|</code>符号”。其中 \ | 被转义了，<code>|</code>属于字面字符。</li>
+<li><code>[cat|dog]</code>表示“找到a或c或d或d或g或o或t或一个管道符号|”.</li>
+</ul>
+<p>(X)</p>
+<ul>
+<li>在一周中找到一天，使用<code>(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day</code></li>
+<li><code>\(\)</code>表示“匹配一个左圆括号后，再匹配一个右圆括号”</li>
+<li><code>[()]</code>表示“匹配一个左圆括号或一个右圆括号”</li>
+<li><code>(red|blue)?</code>等同于<code>(red|blue|)</code></li>
+<li><code>\w+(\s+\w+)*</code>代表“找到一个或多个单词，它们以空格隔开”</li>
+<li>主要用途：括号是用来表示<strong>组</strong>的，也可以用来<strong>捕获子串</strong>。</li>
+<li><p>捕获组：可以拥有<strong>多个捕获组</strong>，它们甚至可以<strong>嵌套使用</strong>。捕获组从左到右进行编号。只要计算左圆括号。    </p>
+<p>示例1：<code>(\w+) had a ((\w+) \w+)</code>，从左往右的话，共3个组，分别为<code>(\w+)</code>、<code>((\w+) \w+)</code>和<code>(\w+)</code>。 代码：</p>
+  <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"> regex=<span class="string">"(\\w+) had a ((\\w+) \\w+)"</span>;</span><br><span class="line">str=<span class="string">"I had a nice day"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line">System.out.println(matcher.matches());</span><br><span class="line">System.out.println(matcher.groupCount());<span class="comment">//返回组的总数</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">0</span>));<span class="comment">//表示完整匹配</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">1</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">2</span>));<span class="comment">//匹配((\\w+) \\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">3</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line"><span class="comment">//System.out.println(matcher.group(4));</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//结果</span></span><br><span class="line"><span class="keyword">true</span></span><br><span class="line"><span class="comment">//从一个成功返回的匹配中捕获组数量总是等于原来正则表达式中捕获组的数量</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line">I had a nice day</span><br><span class="line">I</span><br><span class="line">nice day</span><br><span class="line">nice</span><br></pre></td></tr></table></figure>
+<p>  示例2：正则表达式((cat)|dog)表示“匹配cat或dog”。这里总是存在两组捕获组。如果我们的输入文本是dog，那么捕获组1是dog，捕获组2是空字符串，因为另一个选择未被使用。代码：</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">regex=<span class="string">"((cat)|dog)"</span>;</span><br><span class="line">str=<span class="string">"dog"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line">System.out.println(matcher.matches());</span><br><span class="line">System.out.println(matcher.groupCount());<span class="comment">//返回组的总数</span></span><br><span class="line"><span class="comment">//System.out.println(matcher.group(0));//表示完整匹配</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">1</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">2</span>));<span class="comment">//匹配((\\w+) \\w+)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//结果</span></span><br><span class="line"><span class="keyword">true</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line">dog</span><br><span class="line"><span class="keyword">null</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>替换<br> 一旦你用了正则表达式来查找字符串，你可以指定另一个字符串来替换它。第二个字符串时替换表达式。你尝试去用ISO 8691格式的日期（YYYY-MM-DD）去替换美式日期（MM/DD/YY）</p>
+<ul>
+<li>通过正则表达式<code>(\d\d)/(\d\d)/(\d\d)</code>开始。注意这里有三个捕获组：月，日和两个数字表示的年。通过使用一<strong>一个反斜</strong>和一个<strong>捕获组号</strong>来引用一个捕获组。所以，你的替换表达式为<code>20\3-\1-\2</code>。<code>\3</code>表示引用<code>YY</code>,<code>\1</code>表示引用<code>MM</code>,<code>\2</code>表示引用<code>DD</code>。</li>
+<li>代码（调试中?）</li>
+</ul>
+</li>
+<li><p>向后引用<br> <code>([abc])\1</code>表示“匹配aa或bb或cc”。其中<code>\1</code>表示引用第一个捕获组号，如果捕获组中匹配的是a，那么<code>\1</code>就表示a。代码示例：</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"> regex=<span class="string">"([abc])([cd])\\1\\2"</span>;</span><br><span class="line">str=<span class="string">"cdcd"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span>(matcher.matches()) &#123;</span><br><span class="line">   <span class="comment">//一定要先执行匹配成功了，才能统计下面的组</span></span><br><span class="line">	System.out.println(matcher.matches());</span><br><span class="line">	System.out.println(matcher.groupCount());</span><br><span class="line">	System.out.println(matcher.group(<span class="number">1</span>));</span><br><span class="line">	System.out.println(matcher.group(<span class="number">2</span>));</span><br><span class="line">	<span class="comment">//System.out.println(matcher.group(3));</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//结果</span></span><br><span class="line">	<span class="keyword">true</span></span><br><span class="line">	<span class="number">2</span></span><br><span class="line">	c</span><br><span class="line">	d</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h4 id="边界匹配器"><a href="#边界匹配器" class="headerlink" title="边界匹配器"></a>边界匹配器</h4><p>分类  </p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>     <code>^</code></td>
+<td>行的开头，<strong>行头</strong></td>
+</tr>
+<tr>
+<td>     <code>$</code></td>
+<td>行的结尾，<strong>行尾</strong></td>
+</tr>
+<tr>
+<td>     <code>\b</code></td>
+<td>单词边界</td>
+</tr>
+<tr>
+<td>     <code>\B</code></td>
+<td>非单词边界</td>
+</tr>
+<tr>
+<td>     <code>\A</code></td>
+<td>输入的开头</td>
+</tr>
+<tr>
+<td>     <code>\G</code></td>
+<td>上一个匹配的结尾</td>
+</tr>
+<tr>
+<td>     <code>\Z</code></td>
+<td>输入的结尾，仅用于最后的结束符（如果有的话）</td>
+</tr>
+<tr>
+<td>     <code>\z</code></td>
+<td>输入的结尾</td>
+</tr>
+</tbody>
+</table>
+<p><strong>单词</strong> 边界</p>
+<ul>
+<li>单词边界是 <strong>一个单词字符</strong>和<strong>非单词字符</strong> 之间的位置。</li>
+<li>单词边界不是字符。它们宽度为零。</li>
+<li>输入的文本it’s a cat有八个单词边界。如果我们在cat后追加一个空格，这里就会有九个单词边界。</li>
+<li><code>\b\w\w\w\b</code>表示“匹配一个三个字母的单词”。</li>
+</ul>
+<p><strong>行</strong> 边界</p>
+<ul>
+<li>每一块文本会分解成一个或多个行，用换行符分隔。</li>
+<li>像单词边界一样，行边界也不是字符。它们宽度为零。</li>
+<li>文本不是以换行符结束，而是<strong>以行结束</strong>。然而，任何行，包括最后一行，可以包含零个字符。</li>
+<li><strong>行头位置</strong> 是在一个换行符和下一行的第一个字符之间。与单词边界一样，在文本的开头也算作一个起始的行。</li>
+<li><strong>行尾位置</strong> 是在行的最后一个字符和换行符之间。与单词边界一样，文本结束也算作行结束。</li>
+<li>用法：<ul>
+<li><code>^$</code>表示“匹配空行”。</li>
+<li><code>^.*$</code>将会匹配整个文本，因为换行符是一个字符，所以<code>.</code>会匹配它。为了匹配单行，要使用惰性乘法器，<code>^.*?$</code>。</li>
+<li><code>\^\$</code>表示“匹配尖符号后跟着一个美元符号”</li>
+<li><code>[$]</code>表示“匹配一个美元符”。然而，<code>[^]</code>是非法单正则表达式。要记住的是尖符号在方括号中时有不同的特殊含义。把尖符号放在字符类中，这么用<code>[\^]</code>。</li>
+</ul>
+</li>
+</ul>
+<p><strong>文本</strong> 边界</p>
+<ul>
+<li>从“行开始”和“行结束”变成“文本开始”和“文本结束”。</li>
+<li>元字符<code>\A</code>和<code>\z</code></li>
+</ul>
+
       
     </div>
     
@@ -1101,171 +730,42 @@
 
     <footer class="post-footer">
       
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/2009/05/25/5种开源协议的用途和比较/">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h1 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/2009/05/25/5种开源协议的用途和比较/" itemprop="url">5种开源协议的用途和比较</a></h1>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2009-05-25T12:52:37+08:00">
-                2009-05-25
-              </time>
-            
-
-            
-
-            
-          </span>
-
+        <div class="post-tags">
           
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/开源/" itemprop="url" rel="index">
-                    <span itemprop="name">开源</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
+            <a href="/tags/Java/" rel="tag"># Java</a>
           
-
+            <a href="/tags/正则表达式/" rel="tag"># 正则表达式</a>
           
-            
-          
-
-          
-          
-             <span id="/2009/05/25/5种开源协议的用途和比较/" class="leancloud_visitors" data-flag-title="5种开源协议的用途和比较">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
         </div>
-      </header>
-    
+      
 
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
+      
       
       
 
       
-        
-          <p>本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自<a href="http://www.copu.org.cn/node/25" target="_blank" rel="noopener">中国开源软件推进联盟OPU</a>。</p>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/2009/05/25/5种开源协议的用途和比较/#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2009/05/25/5种开源协议的用途和比较/" rel="next" title="5种开源协议的用途和比较">
+                <i class="fa fa-chevron-left"></i> 5种开源协议的用途和比较
+              </a>
+            
           </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
 
-    
+          <span class="post-nav-divider"></span>
 
-    
-
-    
-
-    <footer class="post-footer">
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2013/05/01/Hadoop-Ecosystem介绍/" rel="prev" title="Hadoop Ecosystem介绍">
+                Hadoop Ecosystem介绍 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
       
 
       
-
-      
-
-      
-      
-        <div class="post-eof"></div>
       
     </footer>
   </div>
@@ -1275,10 +775,11 @@
   </article>
 
 
-    
-  </section>
 
-  
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -1286,6 +787,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -1306,8 +811,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
@@ -1385,6 +899,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#Java中的正则表达式工具包"><span class="nav-number">1.</span> <span class="nav-text">Java中的正则表达式工具包</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#正则表达式的基本语法-（部分参考）"><span class="nav-number">2.</span> <span class="nav-text">正则表达式的基本语法 （部分参考）</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#元字符"><span class="nav-number">2.1.</span> <span class="nav-text">元字符</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#字符类"><span class="nav-number">2.2.</span> <span class="nav-text">字符类</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#预定义字符类"><span class="nav-number">2.3.</span> <span class="nav-text">预定义字符类</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#乘法器"><span class="nav-number">2.4.</span> <span class="nav-text">乘法器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#惰性Non-greedy，勉强Reluctant"><span class="nav-number">2.5.</span> <span class="nav-text">惰性Non-greedy，勉强Reluctant</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#逻辑运算"><span class="nav-number">2.6.</span> <span class="nav-text">逻辑运算</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#边界匹配器"><span class="nav-number">2.7.</span> <span class="nav-text">边界匹配器</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -1519,6 +1049,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
