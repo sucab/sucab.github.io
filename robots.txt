@@ -1,0 +1,5 @@
+User-agent: * Allow: /
+Allow: /archives/
+Disallow: /vendors/
+Disallow: /categories/
+Sitemap: https://changbo.tech/baidusitemap.xml
