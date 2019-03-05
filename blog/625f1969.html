@@ -14,13 +14,6 @@
 
 
 
-  
-  
-    
-    
-  <script src="/lib/pace/pace.min.js?v=1.0.2"></script>
-  <link href="/lib/pace/pace-theme-center-simple.min.css?v=1.0.2" rel="stylesheet">
-
 
 
 
@@ -77,7 +70,7 @@
 
 
 
-  <meta name="keywords" content="开源,">
+  <meta name="keywords" content="jvm,垃圾回收,">
 
 
 
@@ -88,18 +81,20 @@
 
 
 
-<meta name="description" content="本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自中国开源软件推进联盟OPU。">
-<meta name="keywords" content="开源">
+<meta name="description" content="本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。">
+<meta name="keywords" content="jvm,垃圾回收">
 <meta property="og:type" content="article">
-<meta property="og:title" content="5种开源协议的用途和比较">
-<meta property="og:url" content="https://changbo.tech/5种开源协议的用途和比较.html">
+<meta property="og:title" content="JVM-GC机制详解">
+<meta property="og:url" content="https://changbo.tech/blog/625f1969.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自中国开源软件推进联盟OPU。">
+<meta property="og:description" content="本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:updated_time" content="2018-12-17T05:07:34.144Z">
+<meta property="og:image" content="https://changbo.tech/uploads/jvm-gc-structure.jpg">
+<meta property="og:updated_time" content="2019-03-05T05:47:25.098Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="5种开源协议的用途和比较">
-<meta name="twitter:description" content="本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自中国开源软件推进联盟OPU。">
+<meta name="twitter:title" content="JVM-GC机制详解">
+<meta name="twitter:description" content="本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。">
+<meta name="twitter:image" content="https://changbo.tech/uploads/jvm-gc-structure.jpg">
 
 
 
@@ -129,13 +124,13 @@
 
 
 
-  <link rel="canonical" href="https://changbo.tech/5种开源协议的用途和比较.html">
+  <link rel="canonical" href="https://changbo.tech/blog/625f1969.html">
 
 
 
 
 
-  <title>5种开源协议的用途和比较 | Jack's Notes</title>
+  <title>JVM-GC机制详解 | Jack's Notes</title>
   
 
 
@@ -304,7 +299,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/5种开源协议的用途和比较.html">
+    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/625f1969.html">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Jack Shu">
@@ -321,7 +316,7 @@
 
         
         
-          <h2 class="post-title" itemprop="name headline">5种开源协议的用途和比较</h2>
+          <h2 class="post-title" itemprop="name headline">JVM-GC机制详解</h2>
         
 
         <div class="post-meta">
@@ -333,8 +328,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2009-05-25T12:52:37+08:00">
-                2009-05-25
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-03-05T10:51:35+08:00">
+                2019-03-05
               </time>
             
 
@@ -356,8 +351,8 @@
               
               
                 <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/开源/" itemprop="url" rel="index">
-                    <span itemprop="name">开源</span>
+                  <a href="/categories/Java/" itemprop="url" rel="index">
+                    <span itemprop="name">Java</span>
                   </a>
                 </span>
 
@@ -373,7 +368,7 @@
 
           
           
-             <span id="/5种开源协议的用途和比较.html" class="leancloud_visitors" data-flag-title="5种开源协议的用途和比较">
+             <span id="/blog/625f1969.html" class="leancloud_visitors" data-flag-title="JVM-GC机制详解">
                <span class="post-meta-divider">|</span>
                <span class="post-meta-item-icon">
                  <i class="fa fa-eye"></i>
@@ -390,6 +385,10 @@
           
 
           
+              <div class="post-description">
+                  本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。
+              </div>
+          
 
         </div>
       </header>
@@ -402,62 +401,49 @@
 
       
       
+        <div class="post-gallery" itemscope="" itemtype="http://schema.org/ImageGallery">
+          
+          
+            <div class="post-gallery-row">
+              <a class="post-gallery-img fancybox" href="/uploads/jvm-gc-structure.jpg" rel="gallery_cjsv7q70t0000j4cs1oamcrz0" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
+                <img src="/uploads/jvm-gc-structure.jpg" itemprop="contentUrl">
+              </a>
+            
+          
+
+          
+          </div>
+        </div>
+      
 
       
-        <p>本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自<a href="http://www.copu.org.cn/node/25" target="_blank" rel="noopener">中国开源软件推进联盟OPU</a>。</p>
-<a id="more"></a>
-<p>一、<a href="http://baike.baidu.com/view/209692.htm" target="_blank" rel="noopener">BSD (Berkeley Software Distribution，伯克利软件套件)</a></p>
-<p>BSD开源协议是一个给予使用者很大自由的协议。基本上使用者可以”为所欲为”，可以自由的使用，修改源代码，也可以将修改后的代码作为开源或者专有软件再发布。但”为所欲为”的前提当你发布使用了BSD协议的代码，或则以BSD协议代码为基础做二次开发自己的产品时，需要满足三个条件：</p>
-<blockquote>
-<ol>
-<li>如果再发布的产品中包含源代码，则在源代码中必须带有原来代码中的BSD协议；</li>
-<li>如果再发布的只是二进制类库/软件，则需要在类库/软件的文档和版权声明中包含原来代码中的BSD协议；</li>
-<li>不可以用开源代码的作者/机构名字和原来产品的名字做市场推广。</li>
-</ol>
-</blockquote>
-<p><span class="green-back">BSD 代码鼓励代码共享，但需要尊重代码作者的著作权。BSD由于允许使用者修改和重新发布代码，也允许使用或在BSD代码上开发商业软件发布和销售，因此是对 商业集成很友好的协议。而很多的公司企业在选用开源产品的时候都首选BSD协议，因为可以完全控制这些第三方的代码，在必要的时候可以修改或者二次开发。</span></p>
-<p>二、<a href="http://www.apache.org/licenses/LICENSE-2.0.html" target="_blank" rel="noopener">Apache Licence 2.0</a></p>
-<p>Apache Licence是著名的非盈利开源组织Apache采用的协议。该协议和BSD类似，同样鼓励代码共享和尊重原作者的著作权，同样允许代码修改，再发布（作为开源或商业软件）。需要满足的条件也和BSD类似：</p>
-<blockquote>
-<ol>
-<li>需要给代码的用户一份Apache Licence；</li>
-<li>如果你修改了代码，需要再被修改的文件中说明；</li>
-<li>在延伸的代码中（修改和有源代码衍生的代码中）需要带有原来代码中的协议，商标，专利声明和其他原来作者规定需要包含的说明；</li>
-<li>如果再发布的产品中包含一个Notice文件，则在Notice文件中需要带有Apache Licence。你可以在Notice中增加自己的许可，但不可以表现为对Apache Licence构成更改。</li>
-</ol>
-</blockquote>
-<p><span class="green-back">Apache Licence也是对商业应用友好的许可。使用者也可以在需要的时候修改代码来满足需要并作为开源或商业产品发布/销售。</span></p>
-<p>三、<a href="http://baike.baidu.com/view/130692.htm" target="_blank" rel="noopener">GPL(General Public License)</a></p>
-<ol>
-<li><p>我们很熟悉的Linux就是采用了GPL。<span class="red-back">GPL协议和BSD, Apache Licence等鼓励代码重用的许可很不一样。</span>GPL的出发点是代码的开源/免费使用和引用/修改/衍生代码的开源/免费使用，但不允许修改后和衍生的代 码做为闭源的商业软件发布和销售。这也就是为什么我们能用免费的各种linux，包括商业公司的linux和linux上各种各样的由个人，组织，以及商 业软件公司开发的免费软件了。</p>
-</li>
-<li><p><span class="green-back">GPL协议的主要内容是只要在一个软件中使用(”使用”指类库引用，修改后的代码或者衍生代码)GPL 协议的产品，则该软件产品必须也采用GPL协议，既必须也是开源和免费。这就是所谓的”传染性”。</span>GPL协议的产品作为一个单独的产品使用没有任何问题， 还可以享受免费的优势。</p>
-</li>
-<li><p>由于GPL严格要求使用了GPL类库的软件产品必须使用GPL协议，对于使用GPL协议的开源代码，商业软件或者对代码有保密要求的部门就不适合集成/采用作为类库和二次开发的基础。</p>
-</li>
-<li><p>其它细节如再发布的时候需要伴随GPL协议等和BSD/Apache等类似。</p>
-</li>
-</ol>
-<p>四、<a href="http://baike.baidu.com/view/606545.htm" target="_blank" rel="noopener">LGPL(Lesser General Public License，宽松通用公共许可证)</a></p>
-<ol>
-<li><p>LGPL是GPL的一个为主要为类库使用设计的开源协议。<span class="red-back">和GPL要求任何使用/修改/衍生之GPL类库的的软件必须采用GPL协议不同。</span>LGPL 允许商业软件通过类库引用(link)方式使用LGPL类库而不需要开源商业软件的代码。这使得采用LGPL协议的开源代码可以被商业软件作为类库引用并发布和销售。</p>
-</li>
-<li><p><span class="green-back">但是如果修改LGPL协议的代码或者衍生，则所有修改的代码，涉及修改部分的额外代码和衍生的代码都必须采用LGPL协议。</span>因此LGPL协议的开源 代码很适合作为第三方类库被商业软件引用，但不适合希望以LGPL协议代码为基础，通过修改和衍生的方式做二次开发的商业软件采用。</p>
-</li>
-<li><p>GPL/LGPL都保障原作者的知识产权，避免有人利用开源代码复制并开发类似的产品。</p>
-</li>
-</ol>
-<p>五、<a href="http://baike.baidu.com/link?url=zutM1OedqgcqvqxI75UAVcbdcH_E5p3HQAdcGfnTlDkb1l8I7Mr70MQBDsusxBfNS_8xLwCCForigD1gkQHr0K" target="_blank" rel="noopener">MIT</a><br><span class="green-back">MIT是和BSD一样宽范的许可协议，作者只想保留版权，而无任何其他了限制。</span>也就是说，你必须在你的发行版里包含原许可协议的声明，无论你是以二进制发布的还是以源代码发布的。</p>
-<style type="text/css">
-    .red-back {
-        background:#D9534F;
-        color:#FFF;
-    }
-    .green-back {
-        background:#228B22;
-        color:#FFF;
-    }
-</style>
+        <h3 id="需要管理和回收的内存"><a href="#需要管理和回收的内存" class="headerlink" title="需要管理和回收的内存"></a>需要管理和回收的内存</h3><h4 id="堆内存"><a href="#堆内存" class="headerlink" title="堆内存"></a>堆内存</h4><p>python等语言采用“引用计数法”来确定堆内存中的对像是否被使用，计数为0则回收。该方法实现简单效率高，但不能解决java中对象间相互“循环引用”的问题，故引入“可达性分析算法”，任何对象和GC Roots之间必须存在一个“引用链”，否则该对象不可用。</p>
+<p>无论哪种方式，关键还是在“引用”。JDK1.2+，引用分为强引用（不会回收）、软引用（SoftReference类，第二次gc时内存紧张会回收）、弱引用（WeakReference类，无论内存是否紧张下一次gc前都会回收）、虚引用（PhantomReference类，用于回收时接收系统通知）。</p>
+<p>对象确定死亡前，需要经过“两次标记过程”。可达性分析确定对象和GC Roots之间没有引用链则进行第一次标记，并将需要执行finalize()方法的对象放入F-queue中，等待jvm的finalizer线程去执行，对F-queue中的对象进行第二次标记，仍然没有引用链则被真正回收。</p>
+<h4 id="方法区"><a href="#方法区" class="headerlink" title="方法区"></a>方法区</h4><p>这部分主要回收废弃常量和无用的类。</p>
+<h3 id="典型垃圾回收算法"><a href="#典型垃圾回收算法" class="headerlink" title="典型垃圾回收算法"></a>典型垃圾回收算法</h3><h4 id="Mark-Sweep（标记清除算法）"><a href="#Mark-Sweep（标记清除算法）" class="headerlink" title="Mark-Sweep（标记清除算法）"></a>Mark-Sweep（标记清除算法）</h4><p>首先标记出所有需要回收的对象，然后统一回收所有被标记的对象。不足之处，标记和清除效率低下，其次产生大量内存碎片导致分配大对象时没有足够的连续空间而再次触发GC操作。</p>
+<h4 id="Copy（复制算法）"><a href="#Copy（复制算法）" class="headerlink" title="Copy（复制算法）"></a>Copy（复制算法）</h4><p>为了解决“Mark-Sweep”的缺陷，将可用内存分为两半，其中一块内存用完将存活的对象复制到另外一块内存依次存放，不产生碎片。不足之处，内存牺牲掉一半，其次存活对象较多导致复制的数据量大，效率低下。</p>
+<h4 id="Mark-Compact（标记整理算法）"><a href="#Mark-Compact（标记整理算法）" class="headerlink" title="Mark-Compact（标记整理算法）"></a>Mark-Compact（标记整理算法）</h4><p>为了解决“Copy”的缺陷，标记过程和Mark-Sweep的标记过程类似，回收阶段主要是将存活的对象都向一端移动，然后端边界以外的（一端最后一个存活的对象内存之后的部分）内存直接清除。</p>
+<h4 id="Generation-Collection（分代收集）"><a href="#Generation-Collection（分代收集）" class="headerlink" title="Generation-Collection（分代收集）"></a>Generation-Collection（分代收集）</h4><p>将java堆内存分为新生代和老年代，根据各个年代的特点采用适当的算法。如新生代对象“朝生夕灭”，故采用copy算法；老年代对象存活率高、没有格外空间对其分配担保，故采用Mark-Compact算法。  </p>
+<p>hotspot将新生代分为两个较小的survivor空间和一个较大的eden空间，每次只使用其中一个survivor和eden空间，默认比例为8:1。当上一次回收后存活的对象，在另一个survivor空间放不下的话，老年代可以进行分配担保（Handle promotion），使得这些存活对象进入老年代。</p>
+<h3 id="hotspot垃圾收集器"><a href="#hotspot垃圾收集器" class="headerlink" title="hotspot垃圾收集器"></a>hotspot垃圾收集器</h3><p>jdk7u14+的hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。（备注：并发：垃圾收集和用户线程同时工作；并行：多个垃圾收集，用户线程等待）<br><img src="/blog/JVM-GC机制详解/jvm-gc-structure.jpg" alt=""></p>
+<h4 id="Serial-Serial-old收集器"><a href="#Serial-Serial-old收集器" class="headerlink" title="Serial/Serial old收集器"></a>Serial/Serial old收集器</h4><p>Serial负责新生代（复制算法），Serialold负责老年代（标记整理算法）。两者都是单线程方式进行垃圾回收，需要暂停所有用户线程（Stop the world）。Serial是client模式下的默认新生代收集器，简单高效，单cpu下没有线程交互开销，收集效率高。Serial Old收集器可与ParallelScavenge搭配使用，同时可作为CMS在并发收集发生Concurrent Mode Failure时使用的后备方案。</p>
+<h4 id="ParNew-CMS收集器"><a href="#ParNew-CMS收集器" class="headerlink" title="ParNew/CMS收集器"></a>ParNew/CMS收集器</h4><p>ParNew收集器是Serial的多线程版本，其他控制参数和Serial一样。ParNew是Server模式下的首选新生代收集器，可与CMS（并发收集，垃圾收集和用户线程基本同时工作）搭配使用。ParNew在单cpu下，效果没有Serial好。Cpu数量添加，默认开启收集线程数和cpu数量相同。</p>
+<p>CMS是一种获取最短回收提顿时间为目标的收集器，侧重服务的响应速度，也被称为并发低停顿收集器。但是存在三个方面的不足：</p>
+<ul>
+<li>CMS默认启动回收线程数为(cpu数量+3)/4，cpu越多效果越好，但cpu不足4个时，一半运算能力分到执行收集器线程，导致用户线程执行速度降低；</li>
+<li>CMS处理浮动垃圾。CMS在并发清理时用户线程同时产生垃圾，这些垃圾（浮动垃圾）需等到下次GC再清理。因此，CMS触发时机（-XX:CMSInitiatingOccupancyFraction，触发百分比）不能等到老年代空间用得太满，否则CMS运行需要内存，再加上同时产生的浮动垃圾，会出现”Concurrent Mode Failure”，之后会临时启用Serial Old，stop theworld时间就很长了。</li>
+<li>CMS毕竟是标记清除算法实现，会产生空间碎片。通过-XX:UseCMSCompactAtFullCollection开启内存碎片整理（默认开启），无法并发但停顿时间变长，通过-XX:CMSFullGCsBeforeCompaction=0（默认为0），开启每次进入FullGC时都进行碎片整理。</li>
+</ul>
+<h4 id="Parallel-Scavenge-Parallel-Old收集器"><a href="#Parallel-Scavenge-Parallel-Old收集器" class="headerlink" title="Parallel Scavenge/Parallel Old收集器"></a>Parallel Scavenge/Parallel Old收集器</h4><p>Parallel Scavenge负责新生代收集，收集器也经常被称为“吞吐量优先”收集器，适合后台运算而不需要太多交互的任务，-XX:MaxGCPauseMillis设置停顿时间和-XX:GCTimeRatio设置吞吐量大小。而CMS是尽可能缩短stop the world的时候，适合与用户交互的任务。</p>
+<p>Parallel Scavenge从复制算法和并行方面和ParNew类似，主要区别是ParallelScavenge具有自适应调节策略，使用-XX:+UseAdaptiveSizePolicy，无需手工指定-Xmn、-XX:SurvivorRatio、-XX:PretenureSizeThreshold等细节参数。</p>
+<p>Parallel Old是ParallelScavenge的老年代版本，使用多线程和标记整理算法。</p>
+<p>该搭配组合适合注重吞吐量和CPU资源敏感的场合。</p>
+<h4 id="G1收集器"><a href="#G1收集器" class="headerlink" title="G1收集器"></a>G1收集器</h4><p> G1是一款面向服务端应用的垃圾收集器。具有并行并发、分代收集、空间整合以及可预测停顿的特点。将整个Java堆分为多个大小相等的Region（底层还保留新生代和老年代的概念，不再物理隔离），统一进行管理。优先回收价值最大的Region，使得在有限时间内尽可能提高收集效率（Garbage First）。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li><a href="http://book.douban.com/subject/6522893/" target="_blank" rel="noopener">深入理解Java虚拟机：JVM高级特性与最佳实践</a></li>
+<li><a href="http://www.cnblogs.com/zuoxiaolong/p/jvm9.html" target="_blank" rel="noopener">JVM内存管理</a></li>
+</ul>
 
       
     </div>
@@ -499,7 +485,9 @@
       
         <div class="post-tags">
           
-            <a href="/tags/开源/" rel="tag"># 开源</a>
+            <a href="/tags/jvm/" rel="tag"># jvm</a>
+          
+            <a href="/tags/垃圾回收/" rel="tag"># 垃圾回收</a>
           
         </div>
       
@@ -527,15 +515,15 @@
         <div class="post-nav">
           <div class="post-nav-next post-nav-item">
             
+              <a href="/blog/b227762f.html" rel="next" title="Calcite原理和经验总结">
+                <i class="fa fa-chevron-left"></i> Calcite原理和经验总结
+              </a>
+            
           </div>
 
           <span class="post-nav-divider"></span>
 
           <div class="post-nav-prev post-nav-item">
-            
-              <a href="/正则表达式.html" rel="prev" title="正则表达式">
-                正则表达式 <i class="fa fa-chevron-right"></i>
-              </a>
             
           </div>
         </div>
@@ -587,8 +575,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
@@ -605,7 +602,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">10</span>
+                  <span class="site-state-item-count">11</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -627,7 +624,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">14</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
@@ -666,6 +663,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#需要管理和回收的内存"><span class="nav-number">1.</span> <span class="nav-text">需要管理和回收的内存</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#堆内存"><span class="nav-number">1.1.</span> <span class="nav-text">堆内存</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#方法区"><span class="nav-number">1.2.</span> <span class="nav-text">方法区</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#典型垃圾回收算法"><span class="nav-number">2.</span> <span class="nav-text">典型垃圾回收算法</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Mark-Sweep（标记清除算法）"><span class="nav-number">2.1.</span> <span class="nav-text">Mark-Sweep（标记清除算法）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Copy（复制算法）"><span class="nav-number">2.2.</span> <span class="nav-text">Copy（复制算法）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Mark-Compact（标记整理算法）"><span class="nav-number">2.3.</span> <span class="nav-text">Mark-Compact（标记整理算法）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Generation-Collection（分代收集）"><span class="nav-number">2.4.</span> <span class="nav-text">Generation-Collection（分代收集）</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#hotspot垃圾收集器"><span class="nav-number">3.</span> <span class="nav-text">hotspot垃圾收集器</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Serial-Serial-old收集器"><span class="nav-number">3.1.</span> <span class="nav-text">Serial/Serial old收集器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#ParNew-CMS收集器"><span class="nav-number">3.2.</span> <span class="nav-text">ParNew/CMS收集器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Parallel-Scavenge-Parallel-Old收集器"><span class="nav-number">3.3.</span> <span class="nav-text">Parallel Scavenge/Parallel Old收集器</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#G1收集器"><span class="nav-number">3.4.</span> <span class="nav-text">G1收集器</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考资料"><span class="nav-number">4.</span> <span class="nav-text">参考资料</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -739,8 +752,6 @@
   
 
 
-  
-
 
 
 
@@ -779,11 +790,6 @@
   
   
     <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
-  
-
-  
-  
-    <script type="text/javascript" src="/lib/canvas-nest/canvas-nest.min.js"></script>
   
 
 
