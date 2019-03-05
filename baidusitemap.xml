@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://changbo.tech/blog/fa1b3b3e.html</loc>
+    <loc>https://changbo.tech/blog/625f1969.html</loc>
     <lastmod>2019-03-05</lastmod>
   </url>  <url>
-    <loc>https://changbo.tech/blog/625f1969.html</loc>
+    <loc>https://changbo.tech/blog/b227762f.html</loc>
+    <lastmod>2019-03-05</lastmod>
+  </url>  <url>
+    <loc>https://changbo.tech/blog/fa1b3b3e.html</loc>
     <lastmod>2019-03-05</lastmod>
   </url>  <url>
     <loc>https://changbo.tech/blog/d563d963.html</loc>
@@ -29,9 +32,6 @@
     <lastmod>2019-01-31</lastmod>
   </url>  <url>
     <loc>https://changbo.tech/blog/cf64afc8.html</loc>
-    <lastmod>2019-01-31</lastmod>
-  </url>  <url>
-    <loc>https://changbo.tech/blog/b227762f.html</loc>
     <lastmod>2019-01-31</lastmod>
   </url>
 </urlset>

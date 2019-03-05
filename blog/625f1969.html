@@ -90,7 +90,7 @@
 <meta property="og:description" content="本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="https://changbo.tech/uploads/jvm-gc-structure.jpg">
-<meta property="og:updated_time" content="2019-03-05T05:47:25.098Z">
+<meta property="og:updated_time" content="2019-03-05T10:51:16.087Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="JVM-GC机制详解">
 <meta name="twitter:description" content="本文主要针对JVM的常见垃圾回收策略给出说明，各策略间组合使用方式和适用场景。便于我们针对Java应用的类型（如响应优先、吞吐量优先），选取合适的垃圾回收策略，具体参数的调优本文先不做详细介绍。">
@@ -405,7 +405,7 @@
           
           
             <div class="post-gallery-row">
-              <a class="post-gallery-img fancybox" href="/uploads/jvm-gc-structure.jpg" rel="gallery_cjsv7q70t0000j4cs1oamcrz0" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
+              <a class="post-gallery-img fancybox" href="/uploads/jvm-gc-structure.jpg" rel="gallery_cjsvf1sa100076scspcqypt8c" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
                 <img src="/uploads/jvm-gc-structure.jpg" itemprop="contentUrl">
               </a>
             
@@ -426,7 +426,7 @@
 <h4 id="Mark-Compact（标记整理算法）"><a href="#Mark-Compact（标记整理算法）" class="headerlink" title="Mark-Compact（标记整理算法）"></a>Mark-Compact（标记整理算法）</h4><p>为了解决“Copy”的缺陷，标记过程和Mark-Sweep的标记过程类似，回收阶段主要是将存活的对象都向一端移动，然后端边界以外的（一端最后一个存活的对象内存之后的部分）内存直接清除。</p>
 <h4 id="Generation-Collection（分代收集）"><a href="#Generation-Collection（分代收集）" class="headerlink" title="Generation-Collection（分代收集）"></a>Generation-Collection（分代收集）</h4><p>将java堆内存分为新生代和老年代，根据各个年代的特点采用适当的算法。如新生代对象“朝生夕灭”，故采用copy算法；老年代对象存活率高、没有格外空间对其分配担保，故采用Mark-Compact算法。  </p>
 <p>hotspot将新生代分为两个较小的survivor空间和一个较大的eden空间，每次只使用其中一个survivor和eden空间，默认比例为8:1。当上一次回收后存活的对象，在另一个survivor空间放不下的话，老年代可以进行分配担保（Handle promotion），使得这些存活对象进入老年代。</p>
-<h3 id="hotspot垃圾收集器"><a href="#hotspot垃圾收集器" class="headerlink" title="hotspot垃圾收集器"></a>hotspot垃圾收集器</h3><p>jdk7u14+的hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。（备注：并发：垃圾收集和用户线程同时工作；并行：多个垃圾收集，用户线程等待）<br><img src="/blog/JVM-GC机制详解/jvm-gc-structure.jpg" alt=""></p>
+<h3 id="hotspot垃圾收集器"><a href="#hotspot垃圾收集器" class="headerlink" title="hotspot垃圾收集器"></a>hotspot垃圾收集器</h3><p>jdk7u14+的hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。（备注：并发：垃圾收集和用户线程同时工作；并行：多个垃圾收集，用户线程等待）<br><img src="/blog/625f1969/jvm-gc-structure.jpg" alt=""></p>
 <h4 id="Serial-Serial-old收集器"><a href="#Serial-Serial-old收集器" class="headerlink" title="Serial/Serial old收集器"></a>Serial/Serial old收集器</h4><p>Serial负责新生代（复制算法），Serialold负责老年代（标记整理算法）。两者都是单线程方式进行垃圾回收，需要暂停所有用户线程（Stop the world）。Serial是client模式下的默认新生代收集器，简单高效，单cpu下没有线程交互开销，收集效率高。Serial Old收集器可与ParallelScavenge搭配使用，同时可作为CMS在并发收集发生Concurrent Mode Failure时使用的后备方案。</p>
 <h4 id="ParNew-CMS收集器"><a href="#ParNew-CMS收集器" class="headerlink" title="ParNew/CMS收集器"></a>ParNew/CMS收集器</h4><p>ParNew收集器是Serial的多线程版本，其他控制参数和Serial一样。ParNew是Server模式下的首选新生代收集器，可与CMS（并发收集，垃圾收集和用户线程基本同时工作）搭配使用。ParNew在单cpu下，效果没有Serial好。Cpu数量添加，默认开启收集线程数和cpu数量相同。</p>
 <p>CMS是一种获取最短回收提顿时间为目标的收集器，侧重服务的响应速度，也被称为并发低停顿收集器。但是存在三个方面的不足：</p>
