@@ -297,6 +297,187 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/29dc945b.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jack Shu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/uploads/avatar.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jack's Notes">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h2 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/blog/29dc945b.html" itemprop="url">awesome-helm</a></h2>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-08T17:34:43+08:00">
+                2019-04-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/kubernetes/" itemprop="url" rel="index">
+                    <span itemprop="name">kubernetes</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/blog/29dc945b.html" class="leancloud_visitors" data-flag-title="awesome-helm">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">阅读次数&#58;</span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="awesome-helm"><a href="#awesome-helm" class="headerlink" title="awesome-helm"></a>awesome-helm</h1><p>Helm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。</p>
+<h3 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h3><p>Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：</p>
+<ul>
+<li>Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。</li>
+<li>Release: 在k8s上运行的一个chart实例。每次安装chart都会创建一个新的release。</li>
+<li>Repository: 用于发布和存储Chart仓库。</li>
+</ul>
+<h3 id="基本组件"><a href="#基本组件" class="headerlink" title="基本组件"></a>基本组件</h3><ul>
+<li>Helm CLI: helm客户端，可以在本地执行</li>
+<li>Tiller: 服务器端组件，运行在k8s上，管理k8s应用程序生命周期</li>
+<li>Repository: chart仓库，helm cli通过http协议访问chart仓库中的索引文件和压缩包</li>
+</ul>
+<p><img src="/blog/images/helm_architecture.jpeg" alt=""></p>
+<h3 id="helm命令"><a href="#helm命令" class="headerlink" title="helm命令"></a>helm命令</h3><p>通过helm cli能够实现k8s应用的管理操作。顶级options:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">--debug: 打开日志显示</span><br><span class="line">--home string: helm配置路径，默认为~/.helm</span><br><span class="line">--host string: tiller地址，覆盖 $HELM_HOST</span><br><span class="line">--kube-context string: 指定使用的kubeconfig上下文</span><br><span class="line">--kubeconfig string: 指定kubeconfig的绝对路径</span><br><span class="line">--tiller-connection-timeout int： helm和tiller建立连接超时，单位s，默认300</span><br><span class="line">--tiller-namespace: tiller命名空间，默认为kube-system</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用仓库"><a href="#应用仓库" class="headerlink" title="应用仓库"></a>应用仓库</h4><p>添加、展示、移除、更新和索引应用仓库。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 添加一个chart仓库</span><br><span class="line">helm repo add [flags] [NAME] [URL]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 给定包含chart包的目录生成索引文件</span><br><span class="line">helm repo index [flags] [DIR]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 列出已有的仓库</span><br><span class="line">helm repo list [flags]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 移除指定仓库</span><br><span class="line">helm repo remove [flags] [NAME]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 更新每个chart仓库的最新信息缓存到本地，供helm search检测仓库中的chart使用</span><br><span class="line">helm repo update [flags]</span><br></pre></td></tr></table></figure></p>
+<h4 id="检索应用"><a href="#检索应用" class="headerlink" title="检索应用"></a>检索应用</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 在管理的所有仓库中检索应用</span><br><span class="line">helm search [keyword] [flags]</span><br></pre></td></tr></table></figure>
+<h4 id="创建应用"><a href="#创建应用" class="headerlink" title="创建应用"></a>创建应用</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 在指定目录中创建应用</span><br><span class="line">helm create [/dir/]chartname [flags]</span><br><span class="line"></span><br><span class="line">mycharts/</span><br><span class="line">    Chart.yaml          #描述关于chart的信息</span><br><span class="line">    LICENSE             #可选项， 描述chart的license</span><br><span class="line">    README.md           #可选项，可读性高的介绍文档</span><br><span class="line">    requirements.yaml   #可选项，列出chart的依赖</span><br><span class="line">    values.yaml         #chart的默认配置</span><br><span class="line">    charts/             #存放chart依赖的其他chart包</span><br><span class="line">    templates/          #模板目录，基于values.yaml生成有效的k8s清单文件</span><br><span class="line">    template/NOTES.txt  #可选项，描述简短用法说明。</span><br></pre></td></tr></table></figure>
+<h4 id="应用依赖"><a href="#应用依赖" class="headerlink" title="应用依赖"></a>应用依赖</h4><p>通过编辑mycharts/requirements.yaml，声明依赖的子应用。<br><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">dependencies:</span></span><br><span class="line"><span class="attr">  - name:</span> <span class="string">apache</span> <span class="comment">#chart的名称</span></span><br><span class="line"><span class="attr">    version:</span> <span class="number">1.2</span><span class="number">.3</span>  <span class="comment"># chart的版本</span></span><br><span class="line"><span class="attr">    repository:</span> <span class="attr">http://example.com/charts</span> <span class="comment">#chart的仓库url</span></span><br><span class="line"><span class="attr">  - name:</span> <span class="string">mysql</span></span><br><span class="line"><span class="attr">    version:</span> <span class="number">3.2</span><span class="number">.1</span></span><br><span class="line"><span class="attr">    repository:</span> <span class="attr">http://another.example/charts</span></span><br></pre></td></tr></table></figure></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 根据requirements.yaml配置，将依赖的应用包从仓库中拉取到charts目录,移除旧的</span><br><span class="line"><span class="meta">#</span> 同时会生成requirements.lock</span><br><span class="line">helm dependency update [flags] CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 基于requirements.lock，重新构建charts中的应用</span><br><span class="line"><span class="meta">#</span> 如果没有lock文件，类似update操作</span><br><span class="line">helm dependency build [flags] CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 展示应用依赖的所有子应用包</span><br><span class="line">helm dependency list [flags] CHART</span><br></pre></td></tr></table></figure>
+<h4 id="应用归档"><a href="#应用归档" class="headerlink" title="应用归档"></a>应用归档</h4><p>把chart应用打包成归档文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">helm package [flags] [ChART-PATH] [...]</span><br><span class="line"></span><br><span class="line">--app-version string: 打包时设置chart的appVersion</span><br><span class="line">--version string: 打包时设置chart的version</span><br><span class="line">--dependency-update: 打包时更新依赖</span><br><span class="line">--destination string: 指定打包应用存放的目录</span><br><span class="line">--save: 保存打包应用放在本地仓库，默认为true</span><br><span class="line"></span><br><span class="line">--sign: 开启pgp私钥签名打包的应用 使用sign时，指定签名要使用的密钥名称和公钥环路径</span><br><span class="line">--key string</span><br><span class="line">--keyring string</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用检测"><a href="#应用检测" class="headerlink" title="应用检测"></a>应用检测</h4><p>检测chart应用开发完成后，潜在的问题<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 验证指定路径下的应用格式是否正确</span><br><span class="line">helm lint [flags] PATH</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 打印应用的Chart.yaml READEME values.yaml中的内容</span><br><span class="line">helm inspect [chart | readme | values] CHARTNAME</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用安装"><a href="#应用安装" class="headerlink" title="应用安装"></a>应用安装</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 验证应用包是否为可信任方提供的</span><br><span class="line">helm verify [flags] PATH</span><br><span class="line">--keyring: 指定公钥环路径</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> chart支持:</span><br><span class="line"><span class="meta">#</span> reponame/chartname</span><br><span class="line"><span class="meta">#</span> path/xxx.tgz</span><br><span class="line"><span class="meta">#</span> repo-url/xx.tgz</span><br><span class="line">helm install [CHART] [flags]</span><br><span class="line">helm install --repo repourl chartname</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 额外指定配置，覆盖values.yaml</span><br><span class="line">helm install -f myvalues.yaml CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 配置级别覆盖</span><br><span class="line">helm install --set k1=v1,k2=v2 CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 正式安装前的调试，检查release生成的manifests是否正确</span><br><span class="line">helm install CHART --dry-run --debug</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 将指定版本的chart应用安装到指定的命名空间下</span><br><span class="line"><span class="meta">#</span> 安装前：verify验证是否有有效来源文件，dep-up更新依赖</span><br><span class="line"><span class="meta">#</span> name为release默认自动生成，version默认为latest，namespace默认为default</span><br><span class="line">helm install chart --verfiy --dep-up --name string --repo string --version string --namespace string</span><br></pre></td></tr></table></figure>
+<h4 id="release查看"><a href="#release查看" class="headerlink" title="release查看"></a>release查看</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">helm get [flags] RELEASE-NAME</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span>下载指定release的所有钩子、配置清单、noteh和values文件</span><br><span class="line">helm get hooks[ manifest | notes | values ] releasename</span><br></pre></td></tr></table></figure>
+<h4 id="release测试"><a href="#release测试" class="headerlink" title="release测试"></a>release测试</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 为release运行测试命令</span><br><span class="line">helm test [RELEASE] [flags]</span><br><span class="line">--cleanup: 完成删除测试pod</span><br><span class="line">--parallel: 并行运行测试pod</span><br></pre></td></tr></table></figure>
+<h4 id="release状态"><a href="#release状态" class="headerlink" title="release状态"></a>release状态</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 查看release的运行状态</span><br><span class="line">helm status [flags] RELEASE-NAME</span><br><span class="line">--output string: 状态信息输出格式，json or yaml</span><br></pre></td></tr></table></figure>
+<h4 id="release升级"><a href="#release升级" class="headerlink" title="release升级"></a>release升级</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">helm upgrade [RELEASE] [CHAR] [flags]</span><br><span class="line"></span><br><span class="line">--version string: 选用指定版本的chart来升级release</span><br><span class="line">--set k1=v1,k2=v2: 升级时，覆盖values.yaml中的部分值</span><br></pre></td></tr></table></figure>
+<h4 id="release回滚"><a href="#release回滚" class="headerlink" title="release回滚"></a>release回滚</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 将release回滚到指定版本</span><br><span class="line">helm rollback [flags] [RELEASE] [REVISION]</span><br></pre></td></tr></table></figure>
+<h4 id="release卸载"><a href="#release卸载" class="headerlink" title="release卸载"></a>release卸载</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">helm delete [flags] RELEASE-NAME [...]</span><br><span class="line"></span><br><span class="line">--purge: 清理干净，使得release可以重用</span><br></pre></td></tr></table></figure>
+<h4 id="查看所有release"><a href="#查看所有release" class="headerlink" title="查看所有release"></a>查看所有release</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">helm list [flags] [FILTER]</span><br><span class="line"></span><br><span class="line">--chart-name: 根据应用名称排序</span><br><span class="line">--date: 按安装时间排序</span><br><span class="line">--deleted: 显示删除的release</span><br><span class="line">--deleting： 显示正在删除中的</span><br><span class="line">--deployed: 显示部署的</span><br><span class="line">--failed: 显示失败的</span><br><span class="line">--pending: 显示挂起的</span><br><span class="line"></span><br><span class="line">--namespace string: 指定命名空间</span><br><span class="line"></span><br><span class="line">helm list 'ara[a-z]+'： 支持release name正则的过滤</span><br></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/7a63f2f5.html">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
@@ -401,7 +582,7 @@
           
           
             <div class="post-gallery-row">
-              <a class="post-gallery-img fancybox" href="/uploads/nginx-logo.jpg" rel="gallery_cjts5nsz00009a0cskwjzlpgf" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
+              <a class="post-gallery-img fancybox" href="/uploads/nginx-logo.jpg" rel="gallery_cju861udb0008e4cs06v58l0b" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
                 <img src="/uploads/nginx-logo.jpg" itemprop="contentUrl">
               </a>
             
@@ -572,7 +753,7 @@
           
           
             <div class="post-gallery-row">
-              <a class="post-gallery-img fancybox" href="/uploads/jvm-gc-structure.jpg" rel="gallery_cjts5nsyw0006a0csebp7k5p3" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
+              <a class="post-gallery-img fancybox" href="/uploads/jvm-gc-structure.jpg" rel="gallery_cju861uda0007e4csqvqvz9y9" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
                 <img src="/uploads/jvm-gc-structure.jpg" itemprop="contentUrl">
               </a>
             
@@ -1545,7 +1726,7 @@
           
           
             <div class="post-gallery-row">
-              <a class="post-gallery-img fancybox" href="/uploads/geek-env.jpg" rel="gallery_cjts5nszf000ka0csvf6fyvjo" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
+              <a class="post-gallery-img fancybox" href="/uploads/geek-env.jpg" rel="gallery_cju861uf9001le4csvw1ytqgy" itemscope="" itemtype="http://schema.org/ImageObject" itemprop="url">
                 <img src="/uploads/geek-env.jpg" itemprop="contentUrl">
               </a>
             
@@ -1766,176 +1947,6 @@
 
 
     
-      
-
-  
-
-  
-  
-  
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-  
-  
-  
-  <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/d0befed5.html">
-
-    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
-      <meta itemprop="name" content="Jack Shu">
-      <meta itemprop="description" content="">
-      <meta itemprop="image" content="/uploads/avatar.jpeg">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Jack's Notes">
-    </span>
-
-    
-      <header class="post-header">
-
-        
-        
-          <h2 class="post-title" itemprop="name headline">
-                
-                <a class="post-title-link" href="/blog/d0befed5.html" itemprop="url">Hadoop Ecosystem介绍</a></h2>
-        
-
-        <div class="post-meta">
-          <span class="post-time">
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-calendar-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">发表于</span>
-              
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2013-05-01T13:07:05+08:00">
-                2013-05-01
-              </time>
-            
-
-            
-
-            
-          </span>
-
-          
-            <span class="post-category">
-            
-              <span class="post-meta-divider">|</span>
-            
-              <span class="post-meta-item-icon">
-                <i class="fa fa-folder-o"></i>
-              </span>
-              
-                <span class="post-meta-item-text">分类于</span>
-              
-              
-                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
-                  <a href="/categories/Hadoop/" itemprop="url" rel="index">
-                    <span itemprop="name">Hadoop</span>
-                  </a>
-                </span>
-
-                
-                
-              
-            </span>
-          
-
-          
-            
-          
-
-          
-          
-             <span id="/blog/d0befed5.html" class="leancloud_visitors" data-flag-title="Hadoop Ecosystem介绍">
-               <span class="post-meta-divider">|</span>
-               <span class="post-meta-item-icon">
-                 <i class="fa fa-eye"></i>
-               </span>
-               
-                 <span class="post-meta-item-text">阅读次数&#58;</span>
-               
-                 <span class="leancloud-visitors-count"></span>
-             </span>
-          
-
-          
-
-          
-
-          
-
-        </div>
-      </header>
-    
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-      
-
-      
-        
-          <h3 id="什么是Hadoop"><a href="#什么是Hadoop" class="headerlink" title="什么是Hadoop"></a>什么是Hadoop</h3><ol>
-<li><p>Hadoop是Apache基金会下的一个开源分布式计算平台，以Hadoop分布式文件系统（Hadoop distributed file system, HDFS）和MapReduce分布式计算框架为核心，为用户提供了底层细节透明的分布式基础设施。</p>
-</li>
-<li><p>经过几年的快速发展，Hadoop现在已经发展成为包含多个相关项目的软件生态系统。<strong>侠义的Hadoop核心</strong>：</p>
-<ul>
-<li><p><strong>Hadoop Common</strong>：0.20+版本中，从core更名为common，提供一些常用的工具，包括系统配置工具Configuration、远程过程调用RPC、序列化机制和Hadoop抽象文件系统FileSystem等。</p>
-</li>
-<li><p><strong>Hadoop HDFS</strong>：是一个高度容错的系统、能检测和应对硬件故障，用于在低成本的通用硬件上运行。HDFS简化了文件的一致性模型，通过流式数据访问，提供高吞吐量应用程序数据访问功能，适合带有大型数据集的应用程序。</p>
-</li>
-<li><p><strong>Hadoop MapReduce</strong>：是一种编程模型，用以进行大数据量的计算。将应用划分为Map和Reduce两个步骤，其中Map对数据集上的独立元素进行指定的操作，生成键-值对形式中间结果，Reduce对中间结果中相同的“键”的所有“值”进行规约，得到最终结果。</p>
-</li>
-</ul>
-</li>
-</ol>
-          <!--noindex-->
-          <div class="post-button text-center">
-            <a class="btn" href="/blog/d0befed5.html#more" rel="contents">
-              阅读全文 &raquo;
-            </a>
-          </div>
-          <!--/noindex-->
-        
-      
-    </div>
-    
-    
-    
-
-    
-
-    
-
-    
-
-    <footer class="post-footer">
-      
-
-      
-
-      
-
-      
-      
-        <div class="post-eof"></div>
-      
-    </footer>
-  </div>
-  
-  
-  
-  </article>
-
-
-    
   </section>
 
   
@@ -1988,7 +1999,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">12</span>
+                  <span class="site-state-item-count">13</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
@@ -1999,7 +2010,7 @@
               
               <div class="site-state-item site-state-categories">
                 <a href="/categories/index.html">
-                  <span class="site-state-item-count">8</span>
+                  <span class="site-state-item-count">9</span>
                   <span class="site-state-item-name">分类</span>
                 </a>
               </div>
@@ -2010,7 +2021,7 @@
               
               <div class="site-state-item site-state-tags">
                 <a href="/tags/index.html">
-                  <span class="site-state-item-count">17</span>
+                  <span class="site-state-item-count">19</span>
                   <span class="site-state-item-name">标签</span>
                 </a>
               </div>
