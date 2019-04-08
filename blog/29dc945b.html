@@ -81,20 +81,20 @@
 
 
 
-<meta name="description" content="awesome-helmHelm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。 基本概念Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：  Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。 Release: 在k8s上运行的一个">
+<meta name="description" content="本文介绍了helm的主要架构和核心概念，并从应用制作、安装、升级、回滚、状态查看、仓库管理等方面，对helm的常用命令做了分类和使用介绍。">
 <meta name="keywords" content="helm,kubernetes">
 <meta property="og:type" content="article">
-<meta property="og:title" content="awesome-helm">
+<meta property="og:title" content="Helm使用简明教程">
 <meta property="og:url" content="https://changbo.tech/blog/29dc945b.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="awesome-helmHelm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。 基本概念Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：  Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。 Release: 在k8s上运行的一个">
+<meta property="og:description" content="本文介绍了helm的主要架构和核心概念，并从应用制作、安装、升级、回滚、状态查看、仓库管理等方面，对helm的常用命令做了分类和使用介绍。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="https://changbo.tech/blog/images/helm_architecture.jpeg">
-<meta property="og:updated_time" content="2019-04-08T09:40:33.286Z">
+<meta property="og:image" content="https://changbo.tech/blog/29dc945b/helm_architecture.jpeg">
+<meta property="og:updated_time" content="2019-04-08T09:53:20.927Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="awesome-helm">
-<meta name="twitter:description" content="awesome-helmHelm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。 基本概念Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：  Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。 Release: 在k8s上运行的一个">
-<meta name="twitter:image" content="https://changbo.tech/blog/images/helm_architecture.jpeg">
+<meta name="twitter:title" content="Helm使用简明教程">
+<meta name="twitter:description" content="本文介绍了helm的主要架构和核心概念，并从应用制作、安装、升级、回滚、状态查看、仓库管理等方面，对helm的常用命令做了分类和使用介绍。">
+<meta name="twitter:image" content="https://changbo.tech/blog/29dc945b/helm_architecture.jpeg">
 
 
 
@@ -130,7 +130,7 @@
 
 
 
-  <title>awesome-helm | Jack's Notes</title>
+  <title>Helm使用简明教程 | Jack's Notes</title>
   
 
 
@@ -316,7 +316,7 @@
 
         
         
-          <h2 class="post-title" itemprop="name headline">awesome-helm</h2>
+          <h2 class="post-title" itemprop="name headline">Helm使用简明教程</h2>
         
 
         <div class="post-meta">
@@ -368,7 +368,7 @@
 
           
           
-             <span id="/blog/29dc945b.html" class="leancloud_visitors" data-flag-title="awesome-helm">
+             <span id="/blog/29dc945b.html" class="leancloud_visitors" data-flag-title="Helm使用简明教程">
                <span class="post-meta-divider">|</span>
                <span class="post-meta-item-icon">
                  <i class="fa fa-eye"></i>
@@ -385,6 +385,10 @@
           
 
           
+              <div class="post-description">
+                  本文介绍了helm的主要架构和核心概念，并从应用制作、安装、升级、回滚、状态查看、仓库管理等方面，对helm的常用命令做了分类和使用介绍。
+              </div>
+          
 
         </div>
       </header>
@@ -399,7 +403,7 @@
       
 
       
-        <h1 id="awesome-helm"><a href="#awesome-helm" class="headerlink" title="awesome-helm"></a>awesome-helm</h1><p>Helm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。</p>
+        <p>Helm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。</p>
 <h3 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h3><p>Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：</p>
 <ul>
 <li>Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。</li>
@@ -411,7 +415,7 @@
 <li>Tiller: 服务器端组件，运行在k8s上，管理k8s应用程序生命周期</li>
 <li>Repository: chart仓库，helm cli通过http协议访问chart仓库中的索引文件和压缩包</li>
 </ul>
-<p><img src="/blog/images/helm_architecture.jpeg" alt=""></p>
+<p><img src="/blog/29dc945b/helm_architecture.jpeg" alt=""></p>
 <h3 id="helm命令"><a href="#helm命令" class="headerlink" title="helm命令"></a>helm命令</h3><p>通过helm cli能够实现k8s应用的管理操作。顶级options:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">--debug: 打开日志显示</span><br><span class="line">--home string: helm配置路径，默认为~/.helm</span><br><span class="line">--host string: tiller地址，覆盖 $HELM_HOST</span><br><span class="line">--kube-context string: 指定使用的kubeconfig上下文</span><br><span class="line">--kubeconfig string: 指定kubeconfig的绝对路径</span><br><span class="line">--tiller-connection-timeout int： helm和tiller建立连接超时，单位s，默认300</span><br><span class="line">--tiller-namespace: tiller命名空间，默认为kube-system</span><br></pre></td></tr></table></figure></p>
 <h4 id="应用仓库"><a href="#应用仓库" class="headerlink" title="应用仓库"></a>应用仓库</h4><p>添加、展示、移除、更新和索引应用仓库。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 添加一个chart仓库</span><br><span class="line">helm repo add [flags] [NAME] [URL]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 给定包含chart包的目录生成索引文件</span><br><span class="line">helm repo index [flags] [DIR]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 列出已有的仓库</span><br><span class="line">helm repo list [flags]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 移除指定仓库</span><br><span class="line">helm repo remove [flags] [NAME]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 更新每个chart仓库的最新信息缓存到本地，供helm search检测仓库中的chart使用</span><br><span class="line">helm repo update [flags]</span><br></pre></td></tr></table></figure></p>
 <h4 id="检索应用"><a href="#检索应用" class="headerlink" title="检索应用"></a>检索应用</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 在管理的所有仓库中检索应用</span><br><span class="line">helm search [keyword] [flags]</span><br></pre></td></tr></table></figure>
@@ -657,7 +661,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#awesome-helm"><span class="nav-number">1.</span> <span class="nav-text">awesome-helm</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本概念"><span class="nav-number">1.0.1.</span> <span class="nav-text">基本概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基本组件"><span class="nav-number">1.0.2.</span> <span class="nav-text">基本组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#helm命令"><span class="nav-number">1.0.3.</span> <span class="nav-text">helm命令</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#应用仓库"><span class="nav-number">1.0.3.1.</span> <span class="nav-text">应用仓库</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#检索应用"><span class="nav-number">1.0.3.2.</span> <span class="nav-text">检索应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#创建应用"><span class="nav-number">1.0.3.3.</span> <span class="nav-text">创建应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用依赖"><span class="nav-number">1.0.3.4.</span> <span class="nav-text">应用依赖</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用归档"><span class="nav-number">1.0.3.5.</span> <span class="nav-text">应用归档</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用检测"><span class="nav-number">1.0.3.6.</span> <span class="nav-text">应用检测</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用安装"><span class="nav-number">1.0.3.7.</span> <span class="nav-text">应用安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release查看"><span class="nav-number">1.0.3.8.</span> <span class="nav-text">release查看</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release测试"><span class="nav-number">1.0.3.9.</span> <span class="nav-text">release测试</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release状态"><span class="nav-number">1.0.3.10.</span> <span class="nav-text">release状态</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release升级"><span class="nav-number">1.0.3.11.</span> <span class="nav-text">release升级</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release回滚"><span class="nav-number">1.0.3.12.</span> <span class="nav-text">release回滚</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release卸载"><span class="nav-number">1.0.3.13.</span> <span class="nav-text">release卸载</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#查看所有release"><span class="nav-number">1.0.3.14.</span> <span class="nav-text">查看所有release</span></a></li></ol></li></ol></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#基本概念"><span class="nav-number">1.</span> <span class="nav-text">基本概念</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#基本组件"><span class="nav-number">2.</span> <span class="nav-text">基本组件</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#helm命令"><span class="nav-number">3.</span> <span class="nav-text">helm命令</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#应用仓库"><span class="nav-number">3.1.</span> <span class="nav-text">应用仓库</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#检索应用"><span class="nav-number">3.2.</span> <span class="nav-text">检索应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#创建应用"><span class="nav-number">3.3.</span> <span class="nav-text">创建应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用依赖"><span class="nav-number">3.4.</span> <span class="nav-text">应用依赖</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用归档"><span class="nav-number">3.5.</span> <span class="nav-text">应用归档</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用检测"><span class="nav-number">3.6.</span> <span class="nav-text">应用检测</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用安装"><span class="nav-number">3.7.</span> <span class="nav-text">应用安装</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release查看"><span class="nav-number">3.8.</span> <span class="nav-text">release查看</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release测试"><span class="nav-number">3.9.</span> <span class="nav-text">release测试</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release状态"><span class="nav-number">3.10.</span> <span class="nav-text">release状态</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release升级"><span class="nav-number">3.11.</span> <span class="nav-text">release升级</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release回滚"><span class="nav-number">3.12.</span> <span class="nav-text">release回滚</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#release卸载"><span class="nav-number">3.13.</span> <span class="nav-text">release卸载</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#查看所有release"><span class="nav-number">3.14.</span> <span class="nav-text">查看所有release</span></a></li></ol></li></ol></div>
             
 
           </div>
