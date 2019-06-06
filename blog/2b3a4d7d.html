@@ -81,13 +81,13 @@
 
 
 
-<meta name="description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。 InnoDB基本介绍InnoDB存储引擎支持事">
+<meta name="description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
 <meta name="keywords" content="B+树,InnoDB,RocksDB,LSM树,存储引擎">
 <meta property="og:type" content="article">
 <meta property="og:title" content="InnoDB和RocksDB存储引擎解析">
 <meta property="og:url" content="https://changbo.tech/blog/2b3a4d7d.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。 InnoDB基本介绍InnoDB存储引擎支持事">
+<meta property="og:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
 <meta property="og:locale" content="zh-Hans">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_mm.png">
@@ -95,10 +95,10 @@
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/B+Tree-structure.jpg">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/leveldb_archi.png">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/rocksdb_archi2.png">
-<meta property="og:updated_time" content="2019-06-06T05:57:35.442Z">
+<meta property="og:updated_time" content="2019-06-06T06:12:57.860Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="InnoDB和RocksDB存储引擎解析">
-<meta name="twitter:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。 InnoDB基本介绍InnoDB存储引擎支持事">
+<meta name="twitter:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
 <meta name="twitter:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
 
 
@@ -405,6 +405,7 @@
 
       
         <h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。</p>
+<a id="more"></a>
 <h3 id="InnoDB"><a href="#InnoDB" class="headerlink" title="InnoDB"></a>InnoDB</h3><h4 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h4><p>InnoDB存储引擎支持事务，设计目标用于在线事务处理(OLTP)的应用，作为MySQL数据库最为常用的存储引擎之一。该存储引擎是第一个完整支持ACID事务的MySQL存储引擎，具有行锁设计、MVCC(多版本控制并发)、外键、一致性非锁定读的特点，可以有效利用内存和CPU资源。</p>
 <h4 id="体系结构"><a href="#体系结构" class="headerlink" title="体系结构"></a>体系结构</h4><p>InnoDB存储引擎架构主要由多个后台处理线程+内存缓冲池+本地磁盘文件构成。如下图所示：</p>
 <p><img src="/blog/2b3a4d7d/innodb_archi.png" alt=""></p>
