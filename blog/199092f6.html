@@ -70,7 +70,7 @@
 
 
 
-  <meta name="keywords" content="changbo, jack shu">
+  <meta name="keywords" content="redis,">
 
 
 
@@ -81,17 +81,21 @@
 
 
 
-<meta name="description" content="求知若饥,虚心若愚">
-<meta name="keywords" content="Java,中间件,分布式">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Jack&#39;s Notes">
-<meta property="og:url" content="https://changbo.tech/archives/2014/05/index.html">
+<meta name="description" content="由于Redis将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，本文介绍Redis两种磁盘持久化方式，保证数据不丢失。">
+<meta name="keywords" content="redis">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Redis持久化机制">
+<meta property="og:url" content="https://changbo.tech/blog/199092f6.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="求知若饥,虚心若愚">
+<meta property="og:description" content="由于Redis将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，本文介绍Redis两种磁盘持久化方式，保证数据不丢失。">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://img-blog.csdnimg.cn/20181117145604317.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1Y2FiaXQ=,size_16,color_FFFFFF,t_70">
+<meta property="og:image" content="data:image/gif;base64,R0lGODlhAQABAPABAP///wAAACH5BAEKAAAALAAAAAABAAEAAAICRAEAOw==">
+<meta property="og:updated_time" content="2019-06-13T08:42:45.602Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Jack&#39;s Notes">
-<meta name="twitter:description" content="求知若饥,虚心若愚">
+<meta name="twitter:title" content="Redis持久化机制">
+<meta name="twitter:description" content="由于Redis将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，本文介绍Redis两种磁盘持久化方式，保证数据不丢失。">
+<meta name="twitter:image" content="https://img-blog.csdnimg.cn/20181117145604317.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1Y2FiaXQ=,size_16,color_FFFFFF,t_70">
 
 
 
@@ -121,13 +125,13 @@
 
 
 
-  <link rel="canonical" href="https://changbo.tech/archives/2014/05/">
+  <link rel="canonical" href="https://changbo.tech/blog/199092f6.html">
 
 
 
 
 
-  <title>归档 | Jack's Notes</title>
+  <title>Redis持久化机制 | Jack's Notes</title>
   
 
 
@@ -146,7 +150,7 @@
     
   
 
-  <div class="container sidebar-position-left page-archive">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
@@ -282,107 +286,272 @@
           <div id="content" class="content">
             
 
-  
-  
-  
-  <div class="post-block archive">
-    <div id="posts" class="posts-collapse">
-      <span class="archive-move-on"></span>
+  <div id="posts" class="posts-expand">
+    
 
-      <span class="archive-page-counter">
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/199092f6.html">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jack Shu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/uploads/avatar.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jack's Notes">
+    </span>
+
+    
+      <header class="post-header">
+
         
         
+          <h2 class="post-title" itemprop="name headline">Redis持久化机制</h2>
         
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-17T16:25:34+08:00">
+                2018-11-17
+              </time>
+            
+
+            
+
+            
+          </span>
+
           
-        
-        嗯..! 目前共计 19 篇日志。 继续努力。
-      </span>
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/Redis/" itemprop="url" rel="index">
+                    <span itemprop="name">Redis</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/blog/199092f6.html" class="leancloud_visitors" data-flag-title="Redis持久化机制">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">阅读次数&#58;</span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+              <div class="post-description">
+                  由于Redis将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，本文介绍Redis两种磁盘持久化方式，保证数据不丢失。
+              </div>
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
       
+      
 
+      
+        <h4 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h4><p>由于<a href="https://redis.io/" target="_blank" rel="noopener">Redis</a>（Remote Dictionary Server）将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，这里Redis提供不同等级的磁盘持久化方式来保证数据不会丢失。</p>
+<h4 id="持久化方案"><a href="#持久化方案" class="headerlink" title="持久化方案"></a>持久化方案</h4><p>持久化可以有效避免宕机带来数据丢失问题，重启时利用之前持久化的文件即可实现数据恢复。Redis支持RDB和AOF两种持久化机制。</p>
+<h5 id="RDB"><a href="#RDB" class="headerlink" title="RDB"></a>RDB</h5><p>把当前进程数据形成快照后保存在磁盘，命令有save和bgsave。重点说一下bgsave，触发后redis进程fork出一个子进程（fork过程中父进程会阻塞），用于完成rdb文件的写入，保证原进程能正常读写，不被阻塞（redis是单线程模型）。save配置中，”save m n”表示m秒内数据集发生n次修改后，触发bgsave。</p>
+<ul>
+<li>优点：</li>
+</ul>
+<ol>
+<li>适合备份、全复制场景，定时备份压缩，同步到从节点等；</li>
+<li>数据恢复数据快于AOF。</li>
+</ol>
+<ul>
+<li>缺点：</li>
+</ul>
+<ol>
+<li>fork重量级操作，频繁执行成本高，定期执行做不到实时持久化；</li>
+<li>rdb二进制格式，redis版本迭代无法兼容新版的rdb。</li>
+</ol>
+<h5 id="AOF"><a href="#AOF" class="headerlink" title="AOF"></a>AOF</h5><p>Append only file(类似hbase的WAL、mysql的binlog)，以独立日志的方式记录每次写命令，重启时REDO AOF中的命令，达到恢复数据的目的，该方式解决了持久化的实时性问题。配置文件开启：appendonly yes，默认不开启。</p>
+<p>由于AOF实时记录每次操作的命令，需要加入缓冲区来保证性能。同时，AOF文件会越来越大，需要进行压缩重写。具体操作流程如下图：</p>
+<p><img src="https://img-blog.csdnimg.cn/20181117145604317.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1Y2FiaXQ=,size_16,color_FFFFFF,t_70" alt="img"><img src="data:image/gif;base64,R0lGODlhAQABAPABAP///wAAACH5BAEKAAAALAAAAAABAAEAAAICRAEAOw==" alt="点击并拖拽以移动"></p>
+<p> 同步：对于缓冲区同步数据到AOF文件的策略，appendfsync=always/everysec/no，建议配置everysec，命令写入aof_buf，调用系统write操作返回，write写入系统缓冲区，有单独线程一秒调用一次fsync，写入硬盘。保证写入性能和数据安全。</p>
+<p> 重写：采用copy-on-write机制，子进程新写的aof_rewrite_buf文件，父进程接收的写入命令也同样记录，保证数据不丢失。同时，将无效命令去除缩小文件大小，完成后替换旧AOF。</p>
+<ul>
+<li>优点：</li>
+</ul>
+<ol>
+<li>解决实时性持久化</li>
+</ol>
+<ul>
+<li>缺点：</li>
+</ul>
+<ol>
+<li>AOF不断追加命令，容易造成阻塞，受限硬盘资源；</li>
+<li>AOF文件体积逐渐变大，需要定期重写，其中还需要维护重写缓冲区。</li>
+</ol>
+<h4 id="实际应用"><a href="#实际应用" class="headerlink" title="实际应用"></a>实际应用</h4><p>Redis是否要开启持久化，取决于实际的应用场景。例如：</p>
+<ul>
+<li><p>为了降低数据库的读取压力，redis作为读缓存使用，就不需要开启持久化。可以考虑开启从DB向Redis的定期同步任务；</p>
+</li>
+<li><p>为了提供写入性能，引入缓存机制。需要考虑数据的丢失风险，必须开启持久化。此时，需要考虑机器的配置，包括CPU、内存、硬盘。fork进程的开销、AOF和RDB写入硬盘压力等。</p>
+</li>
+</ul>
+<h4 id="扩展链接"><a href="#扩展链接" class="headerlink" title="扩展链接"></a>扩展链接</h4><ul>
+<li><a href="https://github.com/linyiqun/Redis-Code" target="_blank" rel="noopener">redis键值数据库源码分析</a></li>
+<li>《Redis开发与运维》付磊 张益军</li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+      <div>
+        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+  <div></div>
+  <button id="rewardButton" disable="enable" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+    <span>打赏</span>
+  </button>
+  <div id="QR" style="display: none;">
+
+    
+
+    
+      <div id="alipay" style="display: inline-block">
+        <img id="alipay_qr" src="/uploads/alipay.png" alt="Jack Shu 支付宝">
+        <p>支付宝</p>
+      </div>
+    
+
+    
+
+  </div>
+</div>
+
+      </div>
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/redis/" rel="tag"># redis</a>
+          
+        </div>
+      
+
+      
+      
+        <div class="post-widgets">
         
-        
+
         
 
         
           
-          <div class="collection-title">
-            <h2 class="archive-year" id="archive-year-2014">2014</h2>
+          <div id="needsharebutton-postbottom">
+            <span class="btn">
+              <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </span>
           </div>
         
-        
-
-        
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <h3 class="post-title">
-        
-            <a class="post-title-link" href="/blog/fa1b3b3e.html" itemprop="url">
-              
-                <span itemprop="name">我的书单</span>
-              
-            </a>
-        
-      </h3>
-
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated" datetime="2014-05-20T13:20:00+08:00" content="2014-05-20">
-          05-20
-        </time>
-      </div>
-
-    </header>
-  </article>
-
-
-
+        </div>
+      
       
 
-        
-        
-        
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/blog/ec4cdf4c.html" rel="next" title="业界大牛博客收藏">
+                <i class="fa fa-chevron-left"></i> 业界大牛博客收藏
+              </a>
+            
+          </div>
 
-        
-        
+          <span class="post-nav-divider"></span>
 
-        
-
-  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <h3 class="post-title">
-        
-            <a class="post-title-link" href="/blog/d563d963.html" itemprop="url">
-              
-                <span itemprop="name">Ubuntu-linux学习笔记</span>
-              
-            </a>
-        
-      </h3>
-
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated" datetime="2014-05-17T13:00:27+08:00" content="2014-05-17">
-          05-17
-        </time>
-      </div>
-
-    </header>
-  </article>
-
-
-
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/blog/759b03e6.html" rel="prev" title="工作中如何做好技术积累">
+                工作中如何做好技术积累 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
       
 
-    </div>
+      
+      
+    </footer>
   </div>
   
   
   
+  </article>
 
-  
 
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -390,6 +559,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -410,8 +583,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
@@ -489,6 +671,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#问题背景"><span class="nav-number">1.</span> <span class="nav-text">问题背景</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#持久化方案"><span class="nav-number">2.</span> <span class="nav-text">持久化方案</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#RDB"><span class="nav-number">2.1.</span> <span class="nav-text">RDB</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#AOF"><span class="nav-number">2.2.</span> <span class="nav-text">AOF</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#实际应用"><span class="nav-number">3.</span> <span class="nav-text">实际应用</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#扩展链接"><span class="nav-number">4.</span> <span class="nav-text">扩展链接</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -623,6 +821,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 

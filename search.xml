@@ -124,6 +124,17 @@
       </tags>
   </entry>
   <entry>
+    <title><![CDATA[Redis持久化机制]]></title>
+    <url>%2Fblog%2F199092f6.html</url>
+    <content type="text"><![CDATA[问题背景由于Redis（Remote Dictionary Server）将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，这里Redis提供不同等级的磁盘持久化方式来保证数据不会丢失。 持久化方案持久化可以有效避免宕机带来数据丢失问题，重启时利用之前持久化的文件即可实现数据恢复。Redis支持RDB和AOF两种持久化机制。 RDB把当前进程数据形成快照后保存在磁盘，命令有save和bgsave。重点说一下bgsave，触发后redis进程fork出一个子进程（fork过程中父进程会阻塞），用于完成rdb文件的写入，保证原进程能正常读写，不被阻塞（redis是单线程模型）。save配置中，”save m n”表示m秒内数据集发生n次修改后，触发bgsave。 优点： 适合备份、全复制场景，定时备份压缩，同步到从节点等； 数据恢复数据快于AOF。 缺点： fork重量级操作，频繁执行成本高，定期执行做不到实时持久化； rdb二进制格式，redis版本迭代无法兼容新版的rdb。 AOFAppend only file(类似hbase的WAL、mysql的binlog)，以独立日志的方式记录每次写命令，重启时REDO AOF中的命令，达到恢复数据的目的，该方式解决了持久化的实时性问题。配置文件开启：appendonly yes，默认不开启。 由于AOF实时记录每次操作的命令，需要加入缓冲区来保证性能。同时，AOF文件会越来越大，需要进行压缩重写。具体操作流程如下图： 同步：对于缓冲区同步数据到AOF文件的策略，appendfsync=always/everysec/no，建议配置everysec，命令写入aof_buf，调用系统write操作返回，write写入系统缓冲区，有单独线程一秒调用一次fsync，写入硬盘。保证写入性能和数据安全。 重写：采用copy-on-write机制，子进程新写的aof_rewrite_buf文件，父进程接收的写入命令也同样记录，保证数据不丢失。同时，将无效命令去除缩小文件大小，完成后替换旧AOF。 优点： 解决实时性持久化 缺点： AOF不断追加命令，容易造成阻塞，受限硬盘资源； AOF文件体积逐渐变大，需要定期重写，其中还需要维护重写缓冲区。 实际应用Redis是否要开启持久化，取决于实际的应用场景。例如： 为了降低数据库的读取压力，redis作为读缓存使用，就不需要开启持久化。可以考虑开启从DB向Redis的定期同步任务； 为了提供写入性能，引入缓存机制。需要考虑数据的丢失风险，必须开启持久化。此时，需要考虑机器的配置，包括CPU、内存、硬盘。fork进程的开销、AOF和RDB写入硬盘压力等。 扩展链接 redis键值数据库源码分析 《Redis开发与运维》付磊 张益军]]></content>
+      <categories>
+        <category>Redis</category>
+      </categories>
+      <tags>
+        <tag>redis</tag>
+      </tags>
+  </entry>
+  <entry>
     <title><![CDATA[业界大牛博客收藏]]></title>
     <url>%2Fblog%2Fec4cdf4c.html</url>
     <content type="text"><![CDATA[Jark’s Blog 伍翀（花名：云邪） 阿里巴巴高级开发工程师 Apache Flink Committer 过往记忆 吴阳平（花名：明慧 ）阿里云HBASE业务架构 热衷于大数据技术（Hadoop、HBase、Spark）等 李鼎的github 李鼎(花名：哲良) 淘宝高级技术专家 （paas、dubbo、rpc） bluedavy的blog | hellojava 毕玄 （java、分布式） 后端技术杂谈 （微鲤技术团队 | 著有《Java工程师修炼之道》一书） 纯洁的微笑 （spring boot/cloud 深度使用和分享者） 左耳朵耗子 （陈皓 | 专注高可用、高性能、分布式等底层技术 | 创业中） Java技术栈 （多年Java开发和架构实践经验） MoeLove (张晋涛 TaoBeier) 网易有道资深运维 | Docker/K8s深度使用者 Phodal ThoughtWorks咨询师 | InfoQ编辑 | Serverless深度使用者 Ryan Yang Cloud Native工程 | 目前就职上海DaoCloud | K8s深度使用者 huaxiaozhuan (AI算法工程师手册) 资深算法工程师 | 智易科技首席算法研究员 阿里中间件团队博客 美团技术团队博客 朱小厮的博客 深入中间件、消息队列 July （深入数据结构与算法） | 七月在线创始人，专注AI教育 董的博客 董西成 | 前Hulu基础架构部负责人，现就职快手 | 大数据架构hadoop/spark/flink]]></content>
