@@ -149,7 +149,7 @@
   <entry>
     <title><![CDATA[HBase原理与实战]]></title>
     <url>%2Fblog%2F662f2d37.html</url>
-    <content type="text"><![CDATA[基础理论 深入理解HBase的系统架构 大会前沿 漫谈HBaseCon Asia 2018大会精华总结 从HBase中移除WAL？3D XPoint技术带来的变革 HBase2.0重新定义小对象实时存取 （天引 阿里巴巴 技术专家） NoSQL漫谈：2018年文章汇总 (毕杰山之HBase&amp;OpenTSDB博客2018年终总结) 应用实战 RIT(Region-In-Transition)问题解决方案 ​ a) HBase应用实践专场-HBase问题排查思路 ​ b) HBase运维实践－聊聊RIT的那点事 一种HBase表数据迁移方法的改进 HBase基本知识介绍及典型案例分析 从MySQL到HBase：数据存储方案转型的演进 (HBASE技术社区)]]></content>
+    <content type="text"><![CDATA[基础理论 深入理解HBase的系统架构 大会前沿 漫谈HBaseCon Asia 2018大会精华总结 从HBase中移除WAL？3D XPoint技术带来的变革 HBase2.0重新定义小对象实时存取 （天引 阿里巴巴 技术专家） NoSQL漫谈：2018年文章汇总 (毕杰山之HBase&amp;OpenTSDB博客2018年终总结) 应用实战 RIT(Region-In-Transition)问题解决方案 ​ a) HBase应用实践专场-HBase问题排查思路 ​ b) HBase运维实践－聊聊RIT的那点事 一种HBase表数据迁移方法的改进 HBase基本知识介绍及典型案例分析 从MySQL到HBase：数据存储方案转型的演进 (HBASE技术社区) 阿里云云HBase X-Pack生态应用 （一站式数据处理平台，涵盖关系Phoenix SQL、时序OpenTSDB、全文Solr、时空GeoMesa、图GraphDB、分析Spark）]]></content>
       <categories>
         <category>HBase</category>
       </categories>
