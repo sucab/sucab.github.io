@@ -70,7 +70,7 @@
 
 
 
-  <meta name="keywords" content="changbo, jack shu">
+  <meta name="keywords" content="HBase,">
 
 
 
@@ -81,17 +81,18 @@
 
 
 
-<meta name="description" content="求知若饥,虚心若愚">
-<meta name="keywords" content="Java,中间件,分布式">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Jack&#39;s Notes">
-<meta property="og:url" content="https://changbo.tech/tags/开源/index.html">
+<meta name="description" content="从hbase架构原理、前沿发展、应用实战等方面整理相关资料文章，用于学习和回顾hbase的使用，跟踪hbase技术的发展。持续更新中...">
+<meta name="keywords" content="HBase">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HBase原理与实战">
+<meta property="og:url" content="https://changbo.tech/blog/662f2d37.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
-<meta property="og:description" content="求知若饥,虚心若愚">
+<meta property="og:description" content="从hbase架构原理、前沿发展、应用实战等方面整理相关资料文章，用于学习和回顾hbase的使用，跟踪hbase技术的发展。持续更新中...">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2019-06-13T07:38:33.640Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Jack&#39;s Notes">
-<meta name="twitter:description" content="求知若饥,虚心若愚">
+<meta name="twitter:title" content="HBase原理与实战">
+<meta name="twitter:description" content="从hbase架构原理、前沿发展、应用实战等方面整理相关资料文章，用于学习和回顾hbase的使用，跟踪hbase技术的发展。持续更新中...">
 
 
 
@@ -121,13 +122,13 @@
 
 
 
-  <link rel="canonical" href="https://changbo.tech/tags/开源/">
+  <link rel="canonical" href="https://changbo.tech/blog/662f2d37.html">
 
 
 
 
 
-  <title>标签: 开源 | Jack's Notes</title>
+  <title>HBase原理与实战 | Jack's Notes</title>
   
 
 
@@ -146,7 +147,7 @@
     
   
 
-  <div class="container sidebar-position-left ">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope="" itemtype="http://schema.org/WPHeader">
@@ -282,52 +283,251 @@
           <div id="content" class="content">
             
 
-  
-  
-  
-  <div class="post-block tag">
+  <div id="posts" class="posts-expand">
+    
 
-    <div id="posts" class="posts-collapse">
-      <div class="collection-title">
-        <h2>开源<small>标签</small>
-        </h2>
-      </div>
+  
 
-      
-        
+  
+  
+  
 
   <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
-    <header class="post-header">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/662f2d37.html">
 
-      <h3 class="post-title">
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jack Shu">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/uploads/avatar.jpeg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jack's Notes">
+    </span>
+
+    
+      <header class="post-header">
+
         
-            <a class="post-title-link" href="/blog/cf64afc8.html" itemprop="url">
-              
-                <span itemprop="name">5种开源协议的用途和比较</span>
-              
-            </a>
         
-      </h3>
+          <h2 class="post-title" itemprop="name headline">HBase原理与实战</h2>
+        
 
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated" datetime="2009-05-25T12:52:37+08:00" content="2009-05-25">
-          05-25
-        </time>
-      </div>
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-08-15T15:33:12+08:00">
+                2018-08-15
+              </time>
+            
 
-    </header>
-  </article>
+            
 
+            
+          </span>
+
+          
+            <span class="post-category">
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope="" itemtype="http://schema.org/Thing">
+                  <a href="/categories/HBase/" itemprop="url" rel="index">
+                    <span itemprop="name">HBase</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+             <span id="/blog/662f2d37.html" class="leancloud_visitors" data-flag-title="HBase原理与实战">
+               <span class="post-meta-divider">|</span>
+               <span class="post-meta-item-icon">
+                 <i class="fa fa-eye"></i>
+               </span>
+               
+                 <span class="post-meta-item-text">阅读次数&#58;</span>
+               
+                 <span class="leancloud-visitors-count"></span>
+             </span>
+          
+
+          
+
+          
+
+          
+              <div class="post-description">
+                  从hbase架构原理、前沿发展、应用实战等方面整理相关资料文章，用于学习和回顾hbase的使用，跟踪hbase技术的发展。持续更新中...
+              </div>
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h4 id="基础理论"><a href="#基础理论" class="headerlink" title="基础理论"></a>基础理论</h4><ol>
+<li><a href="https://blog.csdn.net/Yaokai_AssultMaster/article/details/72877127" target="_blank" rel="noopener">深入理解HBase的系统架构</a></li>
+</ol>
+<h4 id="大会前沿"><a href="#大会前沿" class="headerlink" title="大会前沿"></a>大会前沿</h4><ol>
+<li><p><a href="https://mp.weixin.qq.com/s/Qqz3dSwyxwR4D915OFybpA" target="_blank" rel="noopener">漫谈HBaseCon Asia 2018大会精华总结</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/GQeVyR8qMnvHl14xJgaUWA" target="_blank" rel="noopener">从HBase中移除WAL？3D XPoint技术带来的变革</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/3Bhwn-019LcpkuUxNAfkAw" target="_blank" rel="noopener">HBase2.0重新定义小对象实时存取</a> （天引 阿里巴巴 技术专家）</p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/yHvOmf_HK_5qy7C5X1Ukaw" target="_blank" rel="noopener">NoSQL漫谈：2018年文章汇总</a> (毕杰山之HBase&amp;OpenTSDB博客2018年终总结)</p>
+</li>
+</ol>
+<h4 id="应用实战"><a href="#应用实战" class="headerlink" title="应用实战"></a>应用实战</h4><ol>
+<li><p>RIT(Region-In-Transition)问题解决方案</p>
+<p>​    a) <a href="https://mp.weixin.qq.com/s/sLZo7a23BJUtOiapLnncgQ" target="_blank" rel="noopener">HBase应用实践专场-HBase问题排查思路</a></p>
+<p>​    b) <a href="https://mp.weixin.qq.com/s/viDy2_qpFqZz1Me5ALr8LQ" target="_blank" rel="noopener">HBase运维实践－聊聊RIT的那点事</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/uvr9mdTci-Qw3IuFbEuj4Q" target="_blank" rel="noopener">一种HBase表数据迁移方法的改进</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/mwllZtK_nAEqNv0VZq3ULw" target="_blank" rel="noopener">HBase基本知识介绍及典型案例分析</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/Jf4FVUJWroRgHLTLquAOOQ" target="_blank" rel="noopener">从MySQL到HBase：数据存储方案转型的演进</a> (HBASE技术社区)</p>
+</li>
+</ol>
 
       
     </div>
+    
+    
+    
 
+    
+
+    
+      <div>
+        <div style="padding: 10px 0; margin: 20px auto; width: 90%; text-align: center;">
+  <div></div>
+  <button id="rewardButton" disable="enable" onclick="var qr = document.getElementById('QR'); if (qr.style.display === 'none') {qr.style.display='block';} else {qr.style.display='none'}">
+    <span>打赏</span>
+  </button>
+  <div id="QR" style="display: none;">
+
+    
+
+    
+      <div id="alipay" style="display: inline-block">
+        <img id="alipay_qr" src="/uploads/alipay.png" alt="Jack Shu 支付宝">
+        <p>支付宝</p>
+      </div>
+    
+
+    
+
+  </div>
+</div>
+
+      </div>
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/HBase/" rel="tag"># HBase</a>
+          
+        </div>
+      
+
+      
+      
+        <div class="post-widgets">
+        
+
+        
+
+        
+          
+          <div id="needsharebutton-postbottom">
+            <span class="btn">
+              <i class="fa fa-share-alt" aria-hidden="true"></i>
+            </span>
+          </div>
+        
+        </div>
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/blog/fa1b3b3e.html" rel="next" title="我的书单">
+                <i class="fa fa-chevron-left"></i> 我的书单
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/blog/ec4cdf4c.html" rel="prev" title="业界大牛博客收藏">
+                业界大牛博客收藏 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
   </div>
   
   
   
+  </article>
 
-  
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -335,6 +535,10 @@
 
 
           
+
+  
+
+
 
         </div>
         
@@ -355,8 +559,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
@@ -434,6 +647,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#基础理论"><span class="nav-number">1.</span> <span class="nav-text">基础理论</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#大会前沿"><span class="nav-number">2.</span> <span class="nav-text">大会前沿</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#应用实战"><span class="nav-number">3.</span> <span class="nav-text">应用实战</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -568,6 +797,10 @@
 
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
