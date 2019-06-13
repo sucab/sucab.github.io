@@ -95,7 +95,7 @@
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/B+Tree-structure.jpg">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/leveldb_archi.png">
 <meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/rocksdb_archi2.png">
-<meta property="og:updated_time" content="2019-06-06T06:12:57.860Z">
+<meta property="og:updated_time" content="2019-06-13T05:10:49.342Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="InnoDB和RocksDB存储引擎解析">
 <meta name="twitter:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
@@ -472,11 +472,9 @@
 </ul>
 <h3 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h3><p>InnoDB属于B树存储引擎，RocksDB属于LSM树存储引擎。存储引擎不同的存储结构、策略，决定了不同的读写应用场景。</p>
 <p>（1）B树存储引擎</p>
-<p>针对InnoDB，按照页来组织数据，每个页对应B+树的一个节点。读取操作B+树一次检索最多需要h-1次磁盘IO（h为树的高度）。写入操作需要对内存中的B+树进行修改，修改的页超过比率后在持久到磁盘。</p>
-<p>因此，InnoDB适合写少读多的场景。</p>
+<p>针对InnoDB，按照页来组织数据，每个页对应B+树的一个节点。读取操作B+树一次检索最多需要h-1次磁盘IO（h为树的高度）。写入操作需要对内存中的B+树进行修改，修改的页超过比率后在持久到磁盘。因此，InnoDB适合写少读多的场景。</p>
 <p>（2）LSM树存储引擎</p>
-<p>针对RocksDB，LSM结构体现在对数据修改增量保持在内存，达到阈值后将修改操作批量写入磁盘，读取时需要合并磁盘中的历史数据和内存中最近的修改操作。</p>
-<p>因此，RocksDB的LSM机制牺牲了读的性能，提高了写入的性能，适合写多读少的场景。</p>
+<p>针对RocksDB，LSM结构体现在对数据修改增量保持在内存，达到阈值后将修改操作批量写入磁盘，读取时需要合并磁盘中的历史数据和内存中最近的修改操作。因此，RocksDB的LSM机制牺牲了读的性能，提高了写入的性能，适合写多读少的场景。</p>
 <h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
 <li>《大规模分布式存储系统·原理解析与架构实战》</li>
 <li>《MySQL技术内幕 InnoDB存储引擎第2版》</li>
