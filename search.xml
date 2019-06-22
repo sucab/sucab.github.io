@@ -8,9 +8,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
-        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
+        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
