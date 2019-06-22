@@ -163,7 +163,6 @@
     <content type="text"><![CDATA[引言SQL是在1974年有Boyce和Chamberlin提出，最初叫Sequel[ˈsiːkwəl]。由于简单易学，功能丰富，大受欢迎，被各大数据库厂商所采用。在1986年10月，美国国家标准局（American National Standard Institue，ANSI）的数据库委员会X3H2将SQL作为关系数据库语言美国标准，同年公布SQL-86标准，并在次年通过国际标准化组织（International Organization for Standardization，ISO)标准。 标准演化随着数据库技术的不断发展，SQL标准也在不断发展和改进，见下表。 标准 页数 说明 发布日期 SQL-86 1986 SQL-89(FIPS 127-1) 120 1989 SQL-92 622 除SQL基础部分外，增加SQL调用接口、SQL永久存储模块 1992 SQL-99(SQL 3) 1700 进一步扩展为框架、SQL基础部分、SQL调用接口、SQL永久存储模块、SQL宿主语言绑定、SQL外部数据管理、SQL对象语言绑定 1999 SQL-2003 3600 2003 SQL-2008 3777 针对2003的修改和补充 2006 SQL-2011 针对2003的修改和补充 2010 目前，没有一个数据库是能够支持SQL标准中所有概念和特性的。大多数支持SQL-92标准大部分功能以及SQL-99、SQL-2003中的部分新概念。并且，各数据库厂商也对SQL基本命令集进行了不同程序的扩充和修改，支持标准以外的一些功能特性。 参考资料 《数据库系统概论 第五版》，王珊、萨师煊著，2014 BNF Grammars for SQL-92, SQL-99 and SQL-2003]]></content>
       <categories>
         <category>读书笔记</category>
-        <category>SQL</category>
       </categories>
       <tags>
         <tag>SQL</tag>
