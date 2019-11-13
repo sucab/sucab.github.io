@@ -1,6 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title><![CDATA[服务器硬件基础知识介绍]]></title>
+    <url>%2Fblog%2Fd8653a22.html</url>
+    <content type="text"><![CDATA[概述服务器相比于普通的PC，在扩展性、稳定性上要求比较高，比如支持各种扩展卡、7×24小时不间断运行等等。本文主要针对硬件服务器的分类、组成以及结构进行介绍说明。对服务器硬件比较感兴趣的小伙伴可以了解一下。 服务器分类(1) X86架构 CISC，复杂指令集 操作系统：linux、windows 非国产代表：Intel、AMD 国产：海光 通用型服务器 cpu的引脚分别为硬盘、通道卡、网卡等预留 单核双线程（超线程技术） (2) 非X86架构 RISC，精简指令集 操作系统：linux for arm ARM、Power 国产：华为鲲鹏、飞腾（固化）、龙芯、兆芯、申威 系统小，响应快，专用型，使用在终端设备上 cpu和硬盘、通道卡、网卡等能力全部集成在一起，SOC 单核单线程 服务器组成服务器的组成主要包含：CPU、主板( motherboard )、内存(memory)、硬盘(HD, hard disk)、网络(network)、扩展卡、机箱、电源、风扇等组件。 (1) CPU拿Intel至强可扩展处理器来说，分为铂金、金牌、银牌、铜牌（性能由高到低），型号系列如下： 铂金：IntelXeon Scaleable 81xx/82xx 金牌：Intel Xeon Scaleable 61xx/62xx/51xx/52xx (可用于人工智能) 银牌：Intel Xeon Scaleable 41xx/42xx (可用于数据实时计算) 铜牌：Intel Xeon Scaleable 31xx/32xx (2) 主板主板上主要包括CPU槽位、内存槽位、PCIE槽位、硬盘接口。不同厂家主板布局可能稍有不同。 内存 DDR内存（3代、4代）：常用容量8g/16g/32g/64g不等； Intel傲腾数据中心级持久内存模块（DCPIMM），常用容量128g/256g/512g。 其中，说明一下傲腾的两种模式： APP Direct模式和内存模式 。APP Direct模式表示作为存储来使用，访问速度介于DDR和PCIE SSD（SATA SSD…）之间。内存模式仅作为内存的缓存使用。 另外，为何傲腾的内存容量会比DDR大很多？主要是采用了3D XPoint的技术，将存储介质以3D方式堆叠，增加密度，提供仅次于DRAM访问速度的大容量持久化内存，之前Intel还提出过将3D XPoint引入HBase，移除WAL的问题单。 另外，要在内存扩展槽中插入傲腾，必须先要插满内存卡，才可以使用。 硬盘 SATA: 机械硬盘，大容量，适合存储非结构化数据，比如视频、图片。7200r/m，传输速率6Gbps，IOPS在150-200M； SAS: 机械硬盘，SATA和SCSI的结合，容量一般小于SATA，读写性能更高，兼容SATA，用途类似。10000-15000r/m，传输速率6Gbps，通常高于SATA，IOPS在200-300M； SATA SSD：固态硬盘，支持SATA接口接入的固态硬盘。 Nvme SSD：NVME是一种协议，针对PCIE通道设计的，数据从硬盘到内存或CPU的通道，支持多个数据同时通过。适合存储结构化数据，热数据。其中， U.2固态硬盘支持NVMe协议，走PCI-E 3.0 x4通道 。 SATA固态硬盘一般的带宽速度是6Gbps，而支持NVMe协议的U.2速度是32Gbps 。当然，直接走PICE则速度跟快了。 补充，SAN属于存储专用硬件，分为FC-SAN和IP-SAN。内部是做RAID的SAS盘，可挂载到多个主板上，FC-SAN通过QLE光纤卡接入，IP-SAN通过网卡接入。 网络 万兆以太网卡（ethernet card） Intel Omni-path Mellanox Infiniband 其中，后两者都支持RDMA。 扩展卡常用见的扩展卡有QLE光纤卡、GPU卡、PCIE SSD、FPGA卡、RAID卡、Cavium多核卡等。走主板的PCIE槽位插入，不同的卡使用的pcie lanes不同。其中，PCIE×16一般用于GPU卡，PICE×8用于FPGA卡等。PCIE是一种物理接口：Peripheral Component Interconnect Express。一般可以提供等扩展卡插入使用。。其他还有： U.2是一种物理接口 ：使用PCIE×4（4个PICE lanes），用于连接SSD。 AHCI是一种逻辑接口（协议）：Advanced Host Controller Interface。Intel发明用于管理SATA设备。 NVME是一种逻辑接口（协议）： Non-Volatile Memory Host Controller Interface Specification (NVMHCIS) 。 服务器结构(1) 机架式服务器外形类似交换机，有1U（1U=1.75英寸=44.45毫米）、2U、3U、4U等规格。机架式服务器安装在标准的19英寸机柜里面。1U、2U最为常用。需要额外提供机柜放置。一般大型企业使用。 国外，Facebook发起open computing project中，提出OU标准=44.45mm，19英寸机柜中，功耗1200多w； 国内，BAT标准，提出RU标准=46.5mm，21英寸机柜中，功耗3000w左右，重量1.5T。 (2) 刀片式服务器在标准高度的机架式机箱内可插装多个卡式的服务器单元，是一种实现HAHD(High Availability High Density，高可用高密度)的低成本服务器平台，为特殊应用行业和高密度计算环境专门设计。刀片服务器就像“刀片”一样，每一块“刀片”实际上就是一块系统主板。 每块刀片都可以热插拔，替换快，维护时间短。低功耗、空间小，适用于高性能计算集群。相比于机架服务器密度高，但散热差，需要强力风扇。一般用于建设数据中心。 (3) 塔式服务器外形及结构都与普通的PC机差不多，只是个头稍大一些，其外形尺寸并无统一标准。 塔式服务器的机箱内部往往会预留很多空间，以便进行硬盘，电源等的冗余扩展。 一般中小企业使用。 (4) 机柜式服务器在一些高档企业服务器中由于内部结构复杂，内部设备较多，有的还具有许多不同的设备单元或几个服务器都放在一个机柜中，这种服务器就是机柜式服务器。 内部单元以机架为单位。 参考链接&amp;扩展阅读 PCIe、M.2、U.2、AHCI和NVMe 浅谈几种常见 RAID 的异同 关于Raid0,Raid1,Raid5,Raid10的总结 深入浅出全面解析RDMA 阿里云麒麟液冷 阿里X-Engine存储引擎借助FPGA加速Compaction 3D XPoint引入HBase移除WAL的问题单]]></content>
+      <categories>
+        <category>服务器硬件</category>
+      </categories>
+      <tags>
+        <tag>Intel</tag>
+        <tag>ARM</tag>
+        <tag>X86</tag>
+        <tag>硬件</tag>
+        <tag>RAID</tag>
+        <tag>服务器</tag>
+      </tags>
+  </entry>
+  <entry>
     <title><![CDATA[每周算法之TopK问题]]></title>
     <url>%2Fblog%2F6c12eb0c.html</url>
     <content type="text"><![CDATA[1. 问题描述海量数据处理中经常会遇到统计出现频次最高的K个关键词或者从数字中统计出最大的前K个数，这就是经典的TopK问题。 2. 解决思路 方案一：通过快速排序进行全排序，找到最大的前k个数。复杂度为O(n*lgn) 方案二：避免全排序，只对最大的K个排序。比如通过冒泡排序的方式，冒k次泡，找出k个最大值。复杂度为O(n*k) 方案三：找出k个最大值，不排序。通过建立小根堆，建立大小为k的小根堆，然后遍历剩下的n-k个数。每次跟堆顶的数比较，大于堆顶的值则覆盖，重新调整堆为小顶堆，直到遍历完n-k个数为止。复杂度为O(n*lgk) 方案四：针对方案一快速排序的改进。快排属于分治算法，这里通过减治的方式，将只针对包含最大k个值的这一侧进行快排处理。 备注： 分治法：大问题分解为小问题，小问题都要递归各个分支，例如：快速排序 减治法：大问题分解为小问题，小问题只要递归一个分支，例如：二分查找，随机选择 考虑到数据集很大，内存无法全部容纳。 参考链接 海量数据中找出前k大数（topk问题） 拜托，面试别再问我TopK了]]></content>
@@ -33,9 +49,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
+        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
-        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
