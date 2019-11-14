@@ -2,6 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
+    <loc>http://changbo.tech/about/index.html</loc>
+    
+    <lastmod>2019-11-14T07:25:11.502Z</lastmod>
+    
+  </url>
+  
+  <url>
     <loc>http://changbo.tech/blog/d8653a22.html</loc>
     
     <lastmod>2019-11-13T06:11:35.613Z</lastmod>
@@ -75,13 +82,6 @@
     <loc>http://changbo.tech/blog/2b3a4d7d.html</loc>
     
     <lastmod>2019-06-13T05:10:49.342Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://changbo.tech/about/index.html</loc>
-    
-    <lastmod>2019-06-13T05:07:07.156Z</lastmod>
     
   </url>
   
