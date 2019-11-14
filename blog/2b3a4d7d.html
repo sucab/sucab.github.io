@@ -85,21 +85,21 @@
 <meta name="keywords" content="B+树,InnoDB,RocksDB,LSM树,存储引擎">
 <meta property="og:type" content="article">
 <meta property="og:title" content="InnoDB和RocksDB存储引擎解析">
-<meta property="og:url" content="https://changbo.tech/blog/2b3a4d7d.html">
+<meta property="og:url" content="http://changbo.tech/blog/2b3a4d7d.html">
 <meta property="og:site_name" content="Jack&#39;s Notes">
 <meta property="og:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
 <meta property="og:locale" content="zh-Hans">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_mm.png">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/BTree-structure.jpg">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/B+Tree-structure.jpg">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/leveldb_archi.png">
-<meta property="og:image" content="https://changbo.tech/blog/2b3a4d7d/rocksdb_archi2.png">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/innodb_mm.png">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/BTree-structure.jpg">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/B+Tree-structure.jpg">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/leveldb_archi.png">
+<meta property="og:image" content="http://changbo.tech/blog/2b3a4d7d/rocksdb_archi2.png">
 <meta property="og:updated_time" content="2019-06-13T05:10:49.342Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="InnoDB和RocksDB存储引擎解析">
 <meta name="twitter:description" content="引言数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。">
-<meta name="twitter:image" content="https://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
+<meta name="twitter:image" content="http://changbo.tech/blog/2b3a4d7d/innodb_archi.png">
 
 
 
@@ -129,7 +129,7 @@
 
 
 
-  <link rel="canonical" href="https://changbo.tech/blog/2b3a4d7d.html">
+  <link rel="canonical" href="http://changbo.tech/blog/2b3a4d7d.html">
 
 
 
@@ -304,7 +304,7 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://changbo.tech/blog/2b3a4d7d.html">
+    <link itemprop="mainEntityOfPage" href="http://changbo.tech/blog/2b3a4d7d.html">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
       <meta itemprop="name" content="Jack Shu">
