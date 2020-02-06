@@ -1,0 +1,2946 @@
+<?xml version="1.0" encoding="utf-8"?>
+<search>
+  <entry>
+    <title>Paper翻译 AnalyticDB Real-time OLAP Database System at Alibaba Cloud</title>
+    <url>/blog/e3ee66c7.html</url>
+    <content><![CDATA[<h4 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h4><p>随着数据在规模和多样性方面的爆炸式增长，OLAP数据库在提供低延时（比如几百毫秒）的实时分析服务方面发挥着越来越重要的作用，尤其是当接入的查询天生就是复杂的和即席的。而且，这些系统被期望能够提供高查询并发和写入吞吐量，以及支持结构化和复杂数据类型（比如，JSON、Vector和文本）上的查询。</p>
+<p>本文我们将介绍由阿里巴巴开发的实时OLAP数据库系统AnalyticDB（以下简称ADB）。ADB在可接受的负载下通过异步的方式维护所有的列索引，来提供低延时的复杂即席查询。它的存储引擎针对快速检索结构化和复杂类型的数据扩展了<strong>混合行列布局</strong>。为了以高并发查询和写入吞吐来处理大规模数据，ADB分离了读写路径。为了进一步降低查询延迟，<strong>为了充分利用底层存储和索引的优势，开发了一种新的存储感知SQL优化器和执行引擎</strong>。ADB已经成功部署在阿里云上，服务更多的消费者。它能够容纳100万亿行记录，即10PB+大小，同时每秒能够提供10m+的写和100k+的查询，在数百毫秒内完成复杂查询。</p>
+<h4 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h4><p>ADB是一个提供PB级数据规模高并发、低延时、实时分析的OLAP数据库，运行在阿里云2000+物理节点之上。服务于广泛的阿里云业务场景，包括电子商务、金融、物流、公共交通、气象分析、娱乐等，以及阿里集团内部商业运营。</p>
+<p>近期的工作(见文献 [35, 28, 29, 36, 25] )总结了开发一个具备低查询延时、数据实时性、灵活性、低成本、高扩展和高可用性OLAP数据库的主要挑战。相对这些工作，ADB实现的主要挑战在于PB级别的分析负载、万级表数量以及万亿级数据量。</p>
+<p>第一个挑战，当今的用户面对比之前更加复杂的分析场景，但是对低查询延时还是有高的期望，用户无能容忍较长的分析时间。然而，ADB的用户来自各个领域，他们的分析需求大不相同而且经常变化，这使得他们多样和复杂的查询难以优化。这些包括了<strong>全表扫描、点查、多表关联、多条件组合</strong>，<strong>虽然构建索引是提高查询最直接的方式，但为每个列构建索引通常不再是有效的</strong>。</p>
+<p>第二个挑战，新兴的复杂分析趋向于不同类型的查询，同时数据在存储层具备友好的、统一的数据布局。传统的OLAP查询和点查要求不同的数据布局，即分别为列存和行存[34, 12]。此外，我们的用户超过一半的数据是复杂类型，如文本、json串、向量和其他多媒体资源。<strong>一个实用的存储结构需要能够提供多个数据类型的快速检索，来提供高效的结构化和复杂类型的数据查询</strong>。</p>
+<p>第三个挑战，系统在处理低延时实时查询时，还需要处理每秒数百万行在线写入请求。传统的设计( [6, 8, 10, 29, 5])读写在一个进程中，使得数据一旦提交就可以直接读到。然而，这样的设计并不适合我们的场景，为了保证读取性能需要消耗大量的资源从而影响写入性能，反之亦然。所以，<strong>一个谨慎的设计需要考虑查询性能、写入性能和数据可见性的权衡</strong>。</p>
+<p>为了解决以上的挑战，我们在ADB中提出了很多新颖的设计与实现，并作出了如下的贡献：</p>
+<ul>
+<li>高效的索引管理</li>
+</ul>
+<p>ADB内嵌了一个高效的索引引擎，利用两个关键点在可接受的开销范围内提供低延时的方法。第一，在每一个表上所有列建立索引来获得即席复杂查询关键性能。我们进一步提出了<strong>一种基于运行时过滤比的索引路径选择机制</strong>来避免索引滥用导致性能下降。第二，因为在关键按路径上更新大量索引是被禁止的，索引是在非高峰期异步构建的。我们也维护了<strong>一个轻量级排序索引来降低增量数据（索引开始构建后新写入的数据）异步索引构建过程中带来的影响</strong>。</p>
+<ul>
+<li>结构化数据和复杂类型数据的存储结构</li>
+</ul>
+<p>我们设计<strong>一个底层存储来支持混合行列布局</strong>。尤其，我们使用了磁盘<strong>快速的顺序读写IO特性</strong>，实现在可接受的开销下运行OALP式和点查式工作负载。在存储层面，我们进一步将复杂类型数据和结构化数据整合在一起，来提供复杂类型数据的检索能力。</p>
+<ul>
+<li>读写分离</li>
+</ul>
+<p>为了支持高吞吐写入和低延时查询，我们的系统采用了读写分离的架构，分别通过读节点和写节点提供。这<strong>两种类型的节点是相互独立的，可以独自扩容</strong>。尤其，在写节点中，将写请求持久化到可靠的分布式存储Pangu中([3])。为了保持数据的实时性，<strong>版本验证机制</strong>引入到读节点中，使得读节点对写节点上之前写入的数据是可见的。</p>
+<ul>
+<li>增强的优化器和执行引擎</li>
+</ul>
+<p>为了进一步改善查询延时和并发度，我们增强了ADB的优化器和执行引擎，来充分发挥出存储和索引的优势。具体来说，我们提出了<strong>一种存储感知的SQL优化机制</strong>，<strong>它根据存储的特性，并为成本优化器的基数估计进行有效的实时采样，来生成最佳执行计划</strong>。此外，<strong>我们还为混合存储设计了高性能向量执行引擎来提升计算密集型的查询分析</strong>。</p>
+<p>本论文其他章节安排如下标题所示。</p>
+<h4 id="相关工作"><a href="#相关工作" class="headerlink" title="相关工作"></a>相关工作</h4><p>ADB是从零构建的基于云平台的大规模、实时分析系统。本章节，将ADB和其他系统做一个对比。</p>
+<ul>
+<li>OLTP数据库</li>
+</ul>
+<p>针对OLTP数据库，例如<strong>MySQL</strong>[6]、<strong>PostgreSQL</strong>[8]被设计用来<strong>支持事务查询，同时也考虑一行或多行的点查</strong>。因此，在OLTP数据库中的存储引擎是面向行的，并且通过构建B+树索引来提高查询性能。然而，行存并不适合分析查询，当查询只要求返回部分列时，行存会造成读写放大。而且，OLTP数据库通常在写入路径中更新索引比较活跃，这个操作代价很高，会影响写入吞吐和查询延时。</p>
+<ul>
+<li>OLAP数据库</li>
+</ul>
+<p>为了提高分析查询的效率，开发了许多OLAP数据库像<strong>Vertica</strong>[29]，Teradata DB[10]和<strong>Greenplum</strong>[5]。Vertica使用projection提高查询性能，取代了在列上构建常规索引，<strong>仅仅保存min/max信息，由于修剪效率较低而导致高延迟</strong>。Teradata DB和Greenplum采用列式存储，用户可以设置索引列。然而，<strong>它们有两个主要的局限：一是写路径中修改列索引，针对所有列索引来说是禁止的。二是列存针对点查需要大量随机IO</strong>。</p>
+<ul>
+<li>大数据系统</li>
+</ul>
+<p>随着MR模型[18]的出现，像<strong>Hive</strong>[35]、<strong>SparkSQL</strong>[37, 13]等批处理引擎，在多个机器上处理大数据变得很流行。但是，这些查询的执行是离线的，整个执行持续分钟或小时级别，并不适合实时查询。<strong>Impala</strong>[28]采用<strong>pipeline模型和列存</strong>将离线查询转为交互式查询，将一般查询延时降低到秒级。但是，<strong>Impala没有列索引，只有min/max统计信息，也不能处理复杂查询</strong>。</p>
+<ul>
+<li>实时OLAP系统</li>
+</ul>
+<p>最近，实时OLAP系统包括<strong>Druid</strong> [36]和<strong>Pinot</strong> [25]都采用了列存。<strong>Druid在纬度列上，Pinot在所有列上都构建了基于位图的倒排索引</strong>。如果Druid上的查询不在纬度列上，会产生更高的延时。它们在写流程中都需要更新索引，影响写入性能。同时，缺乏对UPDATE、JOIN和DELETE的支持。由于是列存的，点查的效率也不高。</p>
+<ul>
+<li>云分析服务</li>
+</ul>
+<p>近期又出现许多云服务，比如Amazon Redshift和Google BigQuery。其中，Amazon Redshift是完全托管的云数据库服务，采用列式存储和MPP结构将查询分布到多个节点，具有两个或多个计算节点，通过leader节点来协调。ADB与此相比，ADB引入读写分离的架构，具有多个读写节点且是独立的，并且有一系列协调器节点与它们通信。<strong>Google BigQuery</strong>是Google核心技术（<strong>Dremel</strong> [31]）的外部实现，采用高存储率的列式存储、树形拓扑结构分发查询、秒级内跨数千个节点聚合结果。<strong>和它不同的是，ADB采用了索引引擎和DAG执行框架</strong>。</p>
+<h4 id="系统设计"><a href="#系统设计" class="headerlink" title="系统设计"></a>系统设计</h4><p>作为一个云数据库，ADB运行在Apsara（<strong>飞天</strong>）上，它是阿里云自2009年开始开发的大型通用高可靠性计算基础设施。Apsara管理数万物理机器的所有资源，维护多个阿里云服务，包括检索、计算和存储。ADB采用了Apsara两个核心组件，分别为Pangu(盘古，可靠的分布式存储系统)和Fuxi（伏羲，资源管理和作业调度），如下图一所示。本章节，我们将给出ADB的关键技术选型，包括数据模型和系统架构。</p>
+<p><img src="/blog/paper-read-ADB/adb_archi.png" alt></p>
+<h5 id="数据模型和查询语言"><a href="#数据模型和查询语言" class="headerlink" title="数据模型和查询语言"></a>数据模型和查询语言</h5><p>ADB遵循标准的关系数据模型，即数据记录有固定的模式。主流的复杂类型，像JSON、Vector和Text等，需要支持来满足实际应用日益增长的分析需求。ADB支持ANSI SQL 2003，以及增强了一些额外功能，比如分区规范、复杂类型的数据操作。</p>
+<h5 id="表分区"><a href="#表分区" class="headerlink" title="表分区"></a>表分区</h5><p>在ADB中，每张表都有两级分区，即一级分区和二级分区。如下一个DDL SQL样例所示，创建一个有两级分区的表。一级分区在字段<code>id</code>上有50个分区，二级分区在字段<code>dob</code>上有12个分区。</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> db_name.table_name (</span><br><span class="line">	<span class="keyword">id</span> <span class="built_in">int</span>,</span><br><span class="line">	city <span class="built_in">varchar</span>,</span><br><span class="line">	dob <span class="built_in">date</span>,</span><br><span class="line">	primary <span class="keyword">key</span> (<span class="keyword">id</span>)</span><br><span class="line">)</span><br><span class="line"><span class="keyword">PARTITION</span> <span class="keyword">BY</span> <span class="keyword">HASH</span> <span class="keyword">KEY</span>(<span class="keyword">id</span>) <span class="comment">-- 散列到不同节点cluster by</span></span><br><span class="line"><span class="keyword">PARTITION</span> <span class="keyword">NUM</span> <span class="number">50</span></span><br><span class="line"><span class="keyword">SUBPARTITION</span> <span class="keyword">BY</span> <span class="keyword">LIST</span> (dob) <span class="comment">-- 节点内部的划分 partition by</span></span><br><span class="line"><span class="keyword">SUBPARTITION</span> OPTIONS (available_partition_num = <span class="number">12</span>);</span><br></pre></td></tr></table></figure>
+<p>一级分区基于用户指定的列进行hash，因此所有行被分布到所有一级分区中来最大化并发度。实际上，任何高基数的列（NDV大）都可以作为分区列，这样可以使每个分区均衡。同时，用户还可以设置二级分区（可选的），二级分区是一个列表分区，设置了最大分区数为12，用于自动数据保存和回收。通常，表示时间间隔的字段（如，天、周、月）作为二级分区字段，可以将同一个时间间隔的数据分到同一个分区。一旦分区的数量超过指定阈值，就会自动将最旧的分区剔除。</p>
+<h5 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h5><p>如上图所示的系统架构，ADB中节点共有三种类型，协调器、写节点和读节点。客户端通过JDBC/ODBC连接发送请求（读写），协调器负责接收并分发到相应的读写节点。写节点负责处理写请求（如INSERT、DELETE、UPDATE）和将SQL描述持久化到Pangu。读节点负责处理查询请求（如SELECT）。在这种方式下，读写节点是相互分离的。Fuxi将利用所有节点中可利用的资源为异步任务执行提供计算worker，此外ADB的pipeline执行引擎（如下图所示）就运行在计算worker上。数据以列block为单位（称为page）从存储流向客户端。所有数据的处理都在内存中，通过网络在不同阶段之间进行pipeline连接。这个pipeline工作流以高吞吐和低延时提供用户的复杂查询。</p>
+<p><img src="/blog/paper-read-ADB/pipeline_engine.png" alt></p>
+<h5 id="读写分离"><a href="#读写分离" class="headerlink" title="读写分离"></a>读写分离</h5><p>传统的OLAP将读写合在一起，即一个数据库实例在同一个执行流程中处理所有请求，不区分读还是写。因此，<strong>所有并发的请求共享一个资源池会相互影响。当读写并发都很高的情况下，由于资源竞争会导致较低的性能</strong>。为了解决这个问题，我们提出了一个读写分离的架构。写节点负责写，读节点负责读，读写节点相互隔离，使得读写完全在不同流程中执行。</p>
+<h6 id="高吞吐写"><a href="#高吞吐写" class="headerlink" title="高吞吐写"></a>高吞吐写</h6><h6 id="实时读"><a href="#实时读" class="headerlink" title="实时读"></a>实时读</h6><p>每个读取节点都由协调器分配若干个分区，其中具有相同哈希值的分区是放置在一个节点中。如下图所示：</p>
+<p><img src="/blog/paper-read-ADB/data_place_in_read_node.png" alt></p>
+<p>分区在读节点中的位置，利用存储感知优化器，这种布局有助于节省数据重新分布的成本超过80%，这是从我们生产服务中测量的。而且，为了并发和可靠性，读节点是可以被复制的。每个读节点从Pangu加载初始分区，然后周期性地从相应的写节点拉取后续的更新。然后，将更新应用在本地数据副本，这些副本不会写回Pangu中。我们选择持续从写节点拉取数据而不是Pangu，是为了减少同步的延迟。因此，写节点作为缓存提供不同读节点副本并发拉取更新数据。</p>
+<p>由于近期写入的数据读节点需要远程拉取，因此读节点给用户提供两种可见性级别：一是<strong>实时读</strong>，数据写入后可以立即读到；二是<strong>有界过时读</strong>，在一定的延时内数据是可见的。<strong>为了保证查询的低延时，默认采用第二种方式，在大部分OLAP场景下是可以接受的</strong>。对于实时性要求高的用户，可以开启实时读，不过可能引发读写节点数据同步的问题。</p>
+<p>为了解决这个问题，我们采用了<strong>版本验证机制</strong>。具体来说，在写节点中每个一级分区都有它自己的版本。在分区上多个写入请求被flush后，写节点将增加分区的版本并附加到响应消息中。如下图所示，拿读写请求流程作为例子。</p>
+<p><img src="/blog/paper-read-ADB/read_write_seq.png" alt></p>
+<p>一个用户写入一条记录到表里（步骤1和2），立刻下发查询检索数据。当协调器收到这个请求，将查询和上一次flush响应（有界延时读或从写节点实时拉取，步骤3）的版本（V1）缓存都发送到相应的读节点（步骤4）。针对每个分区，读节点将本地版本（标记为V2）与V1版本比较。如果版本V1没有V2大，则读取节点直接执行查询操作。否则，读节点必须从写节点拉取最新的数据（步骤5），优先更新本地副本。</p>
+<p>遵循上述的操作，针对实时查询，我们可以确保读写节点之间数据的可见性。然而，如果读节点向写节点发送拉取请求，需要等待所需的数据，这个延迟将会比较高。我们这里进行了优化，将读节点拉取改为了写节点推送。当写节点监测到有新写入的数据时，将主动附上版本号推送给相应的读节点。</p>
+<h6 id="可靠性和可扩展性"><a href="#可靠性和可扩展性" class="headerlink" title="可靠性和可扩展性"></a>可靠性和可扩展性</h6><p>ADB为读写节点提供了高可靠性。针对写节点，当worker失败时，master会平滑地将该worker上的分区分发给其他可用的写节点。当master失败时，会从活跃的workers中选举出一个新的master。</p>
+<p>针对读节点，用户可以指定副本因子（默认为2），同一个节点的不同副本可以部署在不同的物理机器上。当一个读节点在执行查询时失败，协调器会自动地重新发送查询给其他副本，这对用户来说是透明的。注意当读节点从写节点拉取数据时出现失败，读节点是不会被阻塞的。如果读节点不能访问写节点，它们将直接从Pangu（更高的延迟）中读取数据，继续执行查询（步骤6）。</p>
+<p>ADB也可以保证读写节点的高可扩展性。当加入一个新的写节点时，<strong>master</strong>将会调整表分区的位置来保证负载均衡。新的位置被更新到zookeeper，然后协调器会根据新的信息来发送后续的写请求。读节点的扩展是类似的，除了表分区位置是通过<strong>coordinators</strong>调整的。</p>
+<h5 id="集群管理"><a href="#集群管理" class="headerlink" title="集群管理"></a>集群管理</h5><p>ADB的集群管理支持多租户，也就是说在一个集群中有多个ADB实力。我们设计并实现了一个集群管理组件Gallardo，利用CGroup技术隔离不同ADB的实例的资源（CPU、内存、网络带宽），来保证它们的稳定性。当一个新的ADB被创建，Gallardo会分配它所需要的资源。在分配期间，Gallardo会谨慎地将不同的角色（协调器、写节点和读节点）和读节点副本放置到不同的物理机器上，来遵循可靠性的要求。<strong>注意这里Gallardo和Fuxi是不冲突的，Gallardo负责为不同ADB实例分配和隔离资源，而Fuxi是为计算任务使用所有ADB实例的可用资源</strong>。</p>
+<h4 id="存储"><a href="#存储" class="headerlink" title="存储"></a>存储</h4><p>ADB的存储模型支持结构化数据和其他复杂数据类型，比如JSON和向量。我们首先讨论混合行列存储结构，其次是它快速和强大的索引引擎。</p>
+<h5 id="4-1-物理数据结构"><a href="#4-1-物理数据结构" class="headerlink" title="4.1 物理数据结构"></a>4.1 物理数据结构</h5><p>本章节首先描述ADB数据结构和元数据结构，然后说明数据是如何管理的。</p>
+<h6 id="4-1-1-混合行列存储"><a href="#4-1-1-混合行列存储" class="headerlink" title="4.1.1 混合行列存储"></a>4.1.1 混合行列存储</h6><p>ADB设计的一个主要目标是支持OLAP和精确查询。OLAP的查询一般会涉及一个宽表中的部分列，列存比较适合这样的查询，由于它高效的数据压缩和IO减少。但对于精确查询是比较困难的，因为这类查询需要返回一个或多个整行。行存在精确查询中比较适合，但是针对OLAP查询访问成本增大了很多。</p>
+<p>为了解决这个问题，我们提出了行列混合存储布局，如下图所示：</p>
+<p><img src="/blog/paper-read-ADB/hybrid_row_column_storage_layout.png" alt></p>
+<p>在这个设计中，每个表分区的数据都维护在一个单一的文件中（称为detail file），内部分为多个行组，每个行组包含固定行数（生产环境默认为30000，是可配置的）。在一个行组中，同一列的所有值是连续的且分组在一个数据块（data block）中，所有的数据块按序存储。数据块是ADB中基本的操作单元（拉取和缓存），有助于获得较高的压缩比来节省存储空间。像这样的混合设计能够在可接受的工作负载下，平衡OLAP和精确查询[12, 20, 34]。和列存类似，混合存储也会根据列来划分数据，有助于ADB的OLAP查询。虽然一整个列属于不同行组的多个数据块中，仅仅有一小部分顺序检索要求获取所有数据。通过我们对真实ADB服务的观察，这个负载占比小于整个查询延时的5%。针对精确查询，为了保留好的性能，将一行的所有列存储在同一个行组当中。行集合只涉及短距离顺序查找[23]，而不是列存中的跨段查找。</p>
+<p><strong>复杂类型数据</strong>。混合行列存储适合较小的列，例如数值型和短字符类型，但不适合复杂类型数据（比如JSON和向量），因为这些数据大小可变和通常都比较大。如果把这些行分为固定数量的行组会导致不可预期的大数据块。为了解决这个问题，针对复杂类型数据设计了一个固定大小的存储模型。利用另外一个级别的块，名为FBlock，固定大小为32KB。特别地，一个含有30000行的数据块，会进一步拆分为多个FBlocks。</p>
+<h6 id="4-1-2-元数据"><a href="#4-1-2-元数据" class="headerlink" title="4.1.2 元数据"></a>4.1.2 元数据</h6><h4 id="优化器和执行引擎"><a href="#优化器和执行引擎" class="headerlink" title="优化器和执行引擎"></a>优化器和执行引擎</h4><h4 id="实验评估"><a href="#实验评估" class="headerlink" title="实验评估"></a>实验评估</h4><h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><h4 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h4>]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>AnalyticDB</tag>
+        <tag>OLAP</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>读《阿里工程师自我修养》笔记</title>
+    <url>/blog/5e4c4347.html</url>
+    <content><![CDATA[<p>这本手册是阿里资深专家职业生涯的真切感悟，是走出中年危机的技术人成长手册。全手册共12个章节，其中将个人感觉比较有指导意义的内容作了整理和记录，希望这些内容对当下的你也能够有所帮助。</p>
+<h4 id="技术人具备“结构化思维”意味着什么"><a href="#技术人具备“结构化思维”意味着什么" class="headerlink" title="技术人具备“结构化思维”意味着什么"></a>技术人具备“结构化思维”意味着什么</h4><p>结构化思维体现在表达和分析问题的过程中，表达可以从<strong>因果顺序</strong>、<strong>时间顺序</strong>、<strong>结构顺序</strong>、<strong>重要性顺序</strong>这四个方面开展；分析问题可以先建立中心明确目标，后结构化分解（参照上述四种顺序）。</p>
+<p>推荐书籍：《思维混乱，因为大脑没有结构》</p>
+<hr>
+<h4 id="优秀工程师必备的三大思维"><a href="#优秀工程师必备的三大思维" class="headerlink" title="优秀工程师必备的三大思维"></a>优秀工程师必备的三大思维</h4><p>工程师思维包括<strong>产品思维</strong>、<strong>技术思维</strong>和<strong>工程思维</strong>。</p>
+<p>产品思维是指通过技术手段以产品或服务的形态去解决用户的痛点，因此工程师需要理清自己的工作与用户价值的联系，然后去安排优先级和精力。</p>
+<p>技术思维是源自需求的实现，确认需要做什么，因此工程师需要明确需求，重视需求的质量。一个大需求也许会拆分为多个模块，每个模块让一个人或一个团队负责，工程师要避免只看到“树木”而忘记”森林“。同时，个人或团队也不能为了完成各自进度，各种赶工造成”一地鸡毛“的现象。另外，新的技术如5G、人工智能、大数据、Kubernetes等等不断冲击工程师已有的技能，工程师还需要具备对新技术的追求以及保持其先进性。</p>
+<p>工程思维是一种流程或机制，通过对过程的控制，来输出令人满意的结果。工程师需要将流程和工作环境无缝结合，在实践中不断完善回顾落实，从而提高软件的质量。另外，还包括了极端情况下的风险控制、软件运行的大量资源等等。</p>
+<hr>
+<h4 id="优秀工程师必备技能"><a href="#优秀工程师必备技能" class="headerlink" title="优秀工程师必备技能"></a>优秀工程师必备技能</h4><p><strong>思考力</strong>可以让工程师们具备强悍的思考和学习能力，它包含了<strong>认知科学</strong>、<strong>心理学</strong>、<strong>教育学</strong>、<strong>逻辑学</strong>，是需要系统化学习的一门很深的学问。下面，作者列出在日常技术学习和项目过程中沉淀下来的思考力，以及如何培养这些思考力。</p>
+<p>思考力包括哪些？</p>
+<p><strong>第一点，要掌握原理性思维，找出知识背后的原理</strong>。</p>
+<p>知识是爆炸性的，而原理是可控的，复用性更高。探求知识背后原理的过程，是一种思维训练的过程。比如，理解业务系统或业务的设计思想、做事方式，加强了看透本质的能力。</p>
+<p>另外，针对领域性知识，可以通过看书、看文章、资深人士沟通；注重原理在实际场景中的应用之处和缘由；<strong>重要性原理还是要结合经典书籍进行系统化学习</strong>。</p>
+<p><strong>第二点，要掌握结构化思维，构建知识树。</strong></p>
+<p>知识树如同数据的”索引“一般，有了索引大脑中的知识也就有了结构，分析问题、表达沟通也就具备了逻辑性，这也跟第一章节《技术人具备“结构化思维”意味着什么》提到的内容相契合。</p>
+<p>如何做？内化外部知识为自己的知识，构建知识树；习惯性总结（复盘），完善知识树；通过xmind记录知识树；有意识地训练自己的思维习惯和做事方式，变得结构化。</p>
+<p><strong>第三点，举一反三，拓展思维。</strong></p>
+<p>强调同类问题同一处理方法，以及一类问题多种处理方法。</p>
+<p><strong>第四点，抓重点思维，提升效率，方便记忆和传递。</strong></p>
+<p>针对构建的知识树，提炼重点，进行归纳。针对多项任务，排列优先级，找到最关键或收益最大的任务。</p>
+<p><strong>第五点，反思性思维，思考哪里可以做得更好</strong></p>
+<p>做到在上一次基础上的升级，提升知识深度和质量。</p>
+<hr>
+<h4 id="如何在工作中快速成长？"><a href="#如何在工作中快速成长？" class="headerlink" title="如何在工作中快速成长？"></a>如何在工作中快速成长？</h4><p>真正的安全感、成就感、归属感来自自我成长和自我沉淀，而不是做大家正在做的事。轻易获得的东西，带来的结果表面上懂得很多，其实理解非常浅显。</p>
+<p><strong>提升注意力要专注在目标事务上，直至产出预期的效果</strong>。（比如，系统性学习一个领域知识，需要持续有计划的看相关的书，直到达到预期要理解该领域知识的目标，而不是三天打鱼两天刷网，获取几手的低成本零碎知识）</p>
+<p>身边缺乏贵人或贵人离自己较远的原因：</p>
+<p>一是，自己不自信，不相信自己能够影响他人，导致缺乏主动沟通，长期沟通，沟通的延续性和习惯没有建立。 </p>
+<p>二是，自己心态问题，自己的心态若是不够积极正向，没有贵人敢进入你的思维空间，因为价值观不匹配，很难形成认知共识。 </p>
+<p>三是，职场原因，很多时候可能你的老板就是你的贵人，但是因为职场，因为上下级，碍于面子，碍于工作，不敢多交流，多请教。 </p>
+<p>四是，贵人来了又走了，有贵人帮你改变，帮你进步，但是自己不努力，抱着过去做事的心态和方法在职场上浪迹天涯，进步不明显，否定了他作为贵人的价值和意义。</p>
+<p><strong>因此，用成长回报贵人，并在未来可以帮助到他；平时建立有效沟通，让贵人了解你、影响你，并且自己要主动承担一些有挑战的事儿；要借事修人（锻炼机会非常少），事情失败了，人要成，能力要得到提升。</strong></p>
+<p>帮助别人不等于麻烦别人，不是你输我赢，而是共同进步的过程，巩固知识的同时发现自己理解上的偏差。</p>
+<p>输出倒闭输入，常规的方式有看书、思考和反馈，而<strong>讨论过程中的输入</strong>效果是最好的。比如通过会议的形式，思考会议中的信息，训练自己的观点产出能力、总结归纳能力。聆听，讨论验证自己的观点正确与否，再次聆听和讨论验证观点。作为<strong>参与者</strong>，认真聆听，快速提炼自己想表达的逻辑，然后参与讨论。 作为<strong>聆听者</strong>，仔细聆听，认真输入，在脑中组织思路，组织逻辑。作为<strong>中断者</strong>，发现有些会议真的没有继续的必要了，出于好意，提示会议的重心或者结束会议。</p>
+<p>推荐书籍：</p>
+<p>李笑来：《通往财富自由之路》 </p>
+<p>武志红：《武志红的心理学课》 </p>
+<p>刘润：《5 分钟商学院》 </p>
+<p>特奥·康普诺利：《慢思考》 </p>
+<p>米哈里 . 契克森米哈赖：《心流：最优体验心里学》</p>
+<hr>
+<h4 id="程序员如何自我学习？"><a href="#程序员如何自我学习？" class="headerlink" title="程序员如何自我学习？"></a>程序员如何自我学习？</h4><p>纯靠经验积累行不通，<strong>技术淘汰的速度远大于你经验积累的速度</strong>。</p>
+<p>软件的经验积累还会体现在个<strong>架构设计</strong>上。</p>
+<p><strong>学习还需要系统化</strong>，并非单靠看一篇文章就能明白原理。</p>
+<p>项目中多尝试一下你学到的新知识，不能惯性使用你熟悉的技术，要知道你熟悉的东西很快会被淘汰，被淘汰后再调整就来不及了。</p>
+<hr>
+<h4 id="阿里资深专家10年感悟"><a href="#阿里资深专家10年感悟" class="headerlink" title="阿里资深专家10年感悟"></a>阿里资深专家10年感悟</h4><p>今天很残酷，明天更残酷，后天很美好，熬过明天晚上，才能看到后天的太阳。</p>
+<p>一个人走得快，一群人走得远。</p>
+<p><strong>困境是个人成长的最好机会，放弃、逃避、拒绝思考，就意味着放弃成长。如果遇到困境不自知，不解决，则会出现昨日所不知不能者，今日仍是不知不能；去年所不知不能者，今年仍是不知不能。</strong></p>
+<p><strong>学习能力与思维模式</strong>是一个人的核心竞争力：</p>
+<ul>
+<li>承认自己的不足；</li>
+<li>掌握优秀的学习方法，学习做到<strong>目到，口到，心到</strong>。当你能完全能用自己的语言准确讲述你所学的知识，知其然，并知其所以然，你才是真正完全的掌握；</li>
+<li>掌握搜索信息的有效方式。有效保证你对问题的解决方案是相对优秀的解决方案，必须有业界全局的视眼与思考；</li>
+<li>具备优秀的批判性思维模型<ul>
+<li>鲁莽的思考者：不能意识到思维中重要的错误；</li>
+<li>质疑的思考者：开始意识到思维中存在的错误；</li>
+<li>初始的思考者：尝试改变自己的思维，但没有常规练习；</li>
+<li>练习中的思考者：认识到常规练习的必要性；</li>
+<li>高级的思考者：随着练习不断进步；</li>
+<li>完善的思考者：有技巧和判断力的思维成为我们的第二本能。</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h4 id="如何量化考核技术人KPI？"><a href="#如何量化考核技术人KPI？" class="headerlink" title="如何量化考核技术人KPI？"></a>如何量化考核技术人KPI？</h4><p>技术KPI</p>
+<ul>
+<li>业务贡献：包括需求把控，业务项目和业务创新；</li>
+<li>技术贡献：包括设计重构、技术影响力、Code Review、创新提效和代码质量；</li>
+<li>团队贡献：包括招聘、新人培养和团队氛围。</li>
+</ul>
+<hr>
+<h4 id="如何成为优秀的技术主管？"><a href="#如何成为优秀的技术主管？" class="headerlink" title="如何成为优秀的技术主管？"></a>如何成为优秀的技术主管？</h4><p>第一，技术说到底是为业务服务的，除非技术就是业务本身，必须体现它的商业价值；</p>
+<p>第二，我认为最最重要的是架构设计的能力，可能管理能力还次之；</p>
+<p>第三，技术视野良好，解决问题能力与架构设计能力出色。知道在什么场景应用什么技术，业务发展到什么规模应该预先做哪些技术储备。</p>
+<p>第四，动手能力要强，学习能力出色。<strong>技术 TL 除了管人和管事之外，其他还有很多事情要做包括建立团队研发文化、 团队人才培养与建设、跨部门协调与沟通等，这样以要求技术 TL 也同时也需要具备良好的沟通和管理能力</strong>。</p>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+      <tags>
+        <tag>职场感悟</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>数据结构与算法概览</title>
+    <url>/blog/77a95856.html</url>
+    <content><![CDATA[<h4 id="什么是数据结构？什么是算法？"><a href="#什么是数据结构？什么是算法？" class="headerlink" title="什么是数据结构？什么是算法？"></a>什么是数据结构？什么是算法？</h4><p>从广义上讲，数据结构就是指一组数据的存储结构。算法就是操作数据的一组方法。</p>
+<p>从狭义上讲，是指某些著名的数据结构和算法，比如队列、栈、堆、二分查找、动态规划等。这些都是前人智慧的结晶，我们可以直接拿来用。我们要讲的这些经典数据结构和算法，都是前人从很多实际操作场景中抽象出来的，经过非常多的求证和检验，可以高效地帮助我们解决很多实际的开发问题。</p>
+<h4 id="数据结构与算法之间的关系？"><a href="#数据结构与算法之间的关系？" class="headerlink" title="数据结构与算法之间的关系？"></a>数据结构与算法之间的关系？</h4><p>数据结构和算法是相辅相成的。数据结构是为算法服务的，算法要作用在特定的数据结构之上。 因此，我们无法孤立数据结构来讲算法，也无法孤立算法来讲数据结构。</p>
+<p>数据结构是静态的，它只是组织数据的一种方式。如果不在它的基础上操作、构建算法，孤立存在的数据结构就是没用的。</p>
+<h4 id="数据结构结构与算法包含哪些内容？"><a href="#数据结构结构与算法包含哪些内容？" class="headerlink" title="数据结构结构与算法包含哪些内容？"></a>数据结构结构与算法包含哪些内容？</h4><table>
+<thead>
+<tr>
+<th>一级分类</th>
+<th>二级分类</th>
+<th>子类</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>线性表</td>
+<td>数组</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>链表</td>
+<td>单链表、双向链表、循环链表、双向循环列表、静态链表、<strong>跳表</strong></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>栈</td>
+<td>顺序栈、链式栈</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>队列</td>
+<td>普通队列、双端队列、阻塞队列、并发队列、阻塞并发队列</td>
+<td></td>
+</tr>
+<tr>
+<td>散列表</td>
+<td>散列函数</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>动态扩容</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td><strong>位图</strong></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>冲突解决</td>
+<td>链表法、开放寻址、其他</td>
+<td></td>
+</tr>
+<tr>
+<td>树</td>
+<td>二叉树</td>
+<td>平衡二叉树、二叉查找树、平衡二叉查找树（AVL、红黑树）、完全二叉树、满二叉树</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>堆</td>
+<td>小顶堆、大顶堆、优先级队列、斐波那契堆、二顶堆</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>多路查找树</td>
+<td>B树、B+树、2-3树、2-3-4树</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>其他</td>
+<td>树状数组、线段树</td>
+<td></td>
+</tr>
+<tr>
+<td>图</td>
+<td>图的存储</td>
+<td>邻接矩阵、邻接表</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>其他</td>
+<td>拓扑排序、最短路径、关键路径、最小生成树、二分图、最大流</td>
+<td></td>
+</tr>
+<tr>
+<td>复杂度分析</td>
+<td>空间</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>时间</td>
+<td>最好、最坏、平均、均摊</td>
+<td></td>
+</tr>
+<tr>
+<td>基本算法</td>
+<td></td>
+<td>贪心算法、分治算法、动态规划、回溯算法、枚举算法</td>
+<td></td>
+</tr>
+<tr>
+<td>排序</td>
+<td>平方级O(n^2)</td>
+<td>冒泡排序、插入排序、选择排序、希尔排序</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>线性对数级O(nlogn)</td>
+<td>归并排序、快速排序、堆排序</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>线性级O(n)</td>
+<td>计数排序、基数排序、桶排序</td>
+<td></td>
+</tr>
+<tr>
+<td>搜索</td>
+<td>深度优先搜索</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>广度优先搜索</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>A*启发式搜索</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>查找</td>
+<td>线性表查找</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>树结构查找</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>散列查找</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>字符串匹配</td>
+<td></td>
+<td>朴素、KMP、Robin-Karp、Boyer-Moore、AC自动机、Trie、后缀数组</td>
+<td></td>
+</tr>
+<tr>
+<td>其他</td>
+<td>数论</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>计算几何</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>概率分析</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>并查集</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>拓扑网路</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>矩阵运算</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>线性规划</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>补充：</strong>大数据领域的算法和数据结构，很多都是采用多种数据结构和算法设计组合而成，例如：布隆过滤器、跳表、LSM树、Merkle哈希树、Snappy与LZSS算法、Cuckoo哈希。</p>
+<h4 id="重点掌握哪些？"><a href="#重点掌握哪些？" class="headerlink" title="重点掌握哪些？"></a>重点掌握哪些？</h4><p><strong>10个数据结构</strong>：数组、链表、栈、队列、散列表、二叉树、堆、跳表、图、Trie树（前缀树或字典树）</p>
+<p><strong>10个算法</strong>：递归、排序、二分查找、搜索、哈希算法、贪心算法、分治算法、回溯算法、动态规划、字符串匹配算法</p>
+<p><strong>算法时间复杂度</strong>：</p>
+<ul>
+<li>多项式阶：常数级O(1)、对数级O(logn)、线性级O(n)、线性对数级O(nlogn)、平方级O(n^2)、立方级O(n^3)</li>
+<li>非多项式阶：指数级O(2^n)、阶乘级O(n!)。性能极差</li>
+</ul>
+<p><strong>算法空间复杂度</strong>：主要有O(1)、O(n)、O(n^2)，对数级或线性对数级不常见</p>
+<p><strong>要学习它的“来历”、“自身的特点”、“适合解决的问题”以及“实际的应用场景“。</strong>工作中遇到实际需求，能够想到它们并做出选择。</p>
+<h4 id="学习这些有哪些技巧？"><a href="#学习这些有哪些技巧？" class="headerlink" title="学习这些有哪些技巧？"></a>学习这些有哪些技巧？</h4><p>边学边练，适度刷题</p>
+<p>多问、多思考、多互动</p>
+<p>设立切实可行的目标，针对知识点的学习，输出学习笔记或心得</p>
+<p>知识需要沉淀、反复迭代</p>
+<h4 id="推荐资源"><a href="#推荐资源" class="headerlink" title="推荐资源"></a>推荐资源</h4><p>刷题网站：leetcode</p>
+<p>入门级书：《大话数据结构》、《算法图解》</p>
+<p>进阶级书：《算法导论》、《算法第四版》</p>
+]]></content>
+      <categories>
+        <category>数据结构</category>
+      </categories>
+      <tags>
+        <tag>数据结构</tag>
+        <tag>算法</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>服务器硬件基础知识介绍</title>
+    <url>/blog/d8653a22.html</url>
+    <content><![CDATA[<h4 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h4><p>服务器相比于普通的PC，在扩展性、稳定性上要求比较高，比如支持各种扩展卡、7×24小时不间断运行等等。本文主要针对硬件服务器的分类、组成以及结构进行介绍说明。对服务器硬件比较感兴趣的小伙伴可以了解一下。</p>
+<a id="more"></a>
+<h4 id="服务器分类"><a href="#服务器分类" class="headerlink" title="服务器分类"></a>服务器分类</h4><h5 id="1-X86架构"><a href="#1-X86架构" class="headerlink" title="(1) X86架构"></a>(1) X86架构</h5><ul>
+<li>CISC，复杂指令集</li>
+<li>操作系统：linux、windows</li>
+<li>非国产代表：Intel、AMD</li>
+<li>国产：海光</li>
+<li>通用型服务器</li>
+<li>cpu的引脚分别为硬盘、通道卡、网卡等预留</li>
+<li>单核双线程（超线程技术）</li>
+</ul>
+<h5 id="2-非X86架构"><a href="#2-非X86架构" class="headerlink" title="(2) 非X86架构"></a>(2) 非X86架构</h5><ul>
+<li>RISC，精简指令集</li>
+<li>操作系统：linux for arm</li>
+<li>ARM、Power</li>
+<li>国产：华为鲲鹏、飞腾（固化）、龙芯、兆芯、申威</li>
+<li>系统小，响应快，专用型，使用在终端设备上</li>
+<li>cpu和硬盘、通道卡、网卡等能力全部集成在一起，SOC</li>
+<li>单核单线程</li>
+</ul>
+<h4 id="服务器组成"><a href="#服务器组成" class="headerlink" title="服务器组成"></a>服务器组成</h4><p>服务器的组成主要包含：CPU、主板( motherboard )、内存(memory)、硬盘(HD, hard disk)、网络(network)、扩展卡、机箱、电源、风扇等组件。</p>
+<h5 id="1-CPU"><a href="#1-CPU" class="headerlink" title="(1) CPU"></a>(1) CPU</h5><p>拿<a href="https://www.intel.cn/content/www/cn/zh/products/processors/xeon/scalable.html" target="_blank" rel="noopener">Intel至强可扩展处理器</a>来说，分为铂金、金牌、银牌、铜牌（性能由高到低），型号系列如下：</p>
+<ul>
+<li>铂金：Intel Xeon Scaleable 81xx/82xx</li>
+<li>金牌：Intel Xeon Scaleable 61xx/62xx/51xx/52xx (可用于人工智能)</li>
+<li>银牌：Intel Xeon Scaleable 41xx/42xx (可用于数据实时计算)</li>
+<li>铜牌：Intel Xeon Scaleable 31xx/32xx</li>
+</ul>
+<h5 id="2-主板"><a href="#2-主板" class="headerlink" title="(2) 主板"></a>(2) 主板</h5><p>主板上主要包括CPU槽位、内存槽位、PCIE槽位、硬盘接口。不同厂家主板布局可能稍有不同。</p>
+<h6 id="内存"><a href="#内存" class="headerlink" title="内存"></a>内存</h6><ul>
+<li>DDR内存（3代、4代）：常用容量8g/16g/32g/64g不等；</li>
+<li>Intel傲腾数据中心级持久内存模块（DCPIMM），常用容量128g/256g/512g。</li>
+</ul>
+<p>其中，说明一下傲腾的两种模式：  APP Direct模式和内存模式 。APP Direct模式表示作为存储来使用，访问速度介于DDR和PCIE SSD（SATA SSD…）之间。内存模式仅作为内存的缓存使用。</p>
+<p>另外，为何傲腾的内存容量会比DDR大很多？主要是采用了3D XPoint的技术，将存储介质以3D方式堆叠，增加密度，提供仅次于DRAM访问速度的大容量持久化内存，之前Intel还提出过将<a href="https://mp.weixin.qq.com/s/GQeVyR8qMnvHl14xJgaUWA" target="_blank" rel="noopener">3D XPoint引入HBase，移除WAL的问题单</a>。</p>
+<p>另外，要在内存扩展槽中插入傲腾，必须先要插满内存卡，才可以使用。</p>
+<h6 id="硬盘"><a href="#硬盘" class="headerlink" title="硬盘"></a>硬盘</h6><ul>
+<li>SATA: 机械硬盘，<strong>大容量，适合存储非结构化数据</strong>，比如视频、图片。7200r/m，传输速率6Gbps，IOPS在150-200M；</li>
+<li>SAS: 机械硬盘，SATA和SCSI的结合，容量一般小于SATA，读写性能更高，兼容SATA，用途类似。10000-15000r/m，传输速率6Gbps，通常高于SATA，IOPS在200-300M；</li>
+<li>SATA SSD：固态硬盘，支持SATA接口接入的固态硬盘。</li>
+<li>Nvme SSD：NVME是一种协议，针对PCIE通道设计的，数据从硬盘到内存或CPU的通道，支持多个数据同时通过。<strong>适合存储结构化数据，热数据。</strong>其中， <strong>U.2固态硬盘</strong>支持NVMe协议，走PCI-E 3.0 x4通道 。 SATA固态硬盘一般的带宽速度是6Gbps，而支持NVMe协议的U.2速度是32Gbps 。当然，直接走PICE则速度跟快了。</li>
+</ul>
+<p>补充，SAN属于存储专用硬件，分为FC-SAN和IP-SAN。内部是做RAID的SAS盘，可挂载到多个主板上，FC-SAN通过QLE光纤卡接入，IP-SAN通过网卡接入。</p>
+<h6 id="网络"><a href="#网络" class="headerlink" title="网络"></a>网络</h6><ul>
+<li>万兆以太网卡（ethernet card）</li>
+<li>Intel Omni-path</li>
+<li>Mellanox Infiniband</li>
+</ul>
+<p>其中，后两者都支持RDMA。</p>
+<h6 id="扩展卡"><a href="#扩展卡" class="headerlink" title="扩展卡"></a>扩展卡</h6><p>常用见的扩展卡有QLE光纤卡、GPU卡、PCIE SSD、FPGA卡、<a href="https://mp.weixin.qq.com/s/zmNyb4dcOertJ3nEBUrUgg" target="_blank" rel="noopener">RAID卡</a>、Cavium多核卡等。<strong>走主板的PCIE槽位插入，不同的卡使用的pcie lanes不同</strong>。其中，PCIE×16一般用于GPU卡，PICE×8用于FPGA卡等。PCIE是一种物理接口：Peripheral Component Interconnect Express。一般可以提供等扩展卡插入使用。。其他还有：</p>
+<ul>
+<li>U.2是一种物理接口 ：使用PCIE×4（4个PICE lanes），用于连接SSD。</li>
+<li>AHCI是一种逻辑接口（协议）：Advanced Host Controller Interface。Intel发明用于管理SATA设备。 </li>
+<li>NVME是一种逻辑接口（协议）： Non-Volatile Memory Host Controller Interface Specification (NVMHCIS) 。</li>
+</ul>
+<h4 id="服务器结构"><a href="#服务器结构" class="headerlink" title="服务器结构"></a>服务器结构</h4><h5 id="1-机架式服务器"><a href="#1-机架式服务器" class="headerlink" title="(1) 机架式服务器"></a>(1) 机架式服务器</h5><p>外形类似交换机，有1U（1U=1.75英寸=44.45毫米）、2U、3U、4U等规格。机架式服务器安装在标准的19英寸机柜里面。1U、2U最为常用。<strong>需要额外提供机柜放置</strong>。<strong>一般大型企业使用</strong>。</p>
+<ul>
+<li>国外，Facebook发起open computing project中，提出OU标准=44.45mm，19英寸机柜中，功耗1200多w；</li>
+<li>国内，BAT标准，提出RU标准=46.5mm，21英寸机柜中，功耗3000w左右，重量1.5T。</li>
+</ul>
+<h5 id="2-刀片式服务器"><a href="#2-刀片式服务器" class="headerlink" title="(2) 刀片式服务器"></a>(2) 刀片式服务器</h5><p>在标准高度的机架式机箱内可<strong>插装多个卡式的服务器单元</strong>，是一种实现HAHD(High Availability High Density，高可用高密度)的低成本服务器平台，为特殊应用行业和高密度计算环境专门设计。刀片服务器就像“刀片”一样，每一块“刀片”实际上就是一块系统主板。 </p>
+<p>每块刀片都可以热插拔，替换快，维护时间短。低功耗、空间小，适用于高性能计算集群。相比于机架服务器密度高，但散热差，需要强力风扇。<strong>一般用于建设数据中心</strong>。</p>
+<h5 id="3-塔式服务器"><a href="#3-塔式服务器" class="headerlink" title="(3) 塔式服务器"></a>(3) 塔式服务器</h5><p>外形及结构都与普通的PC机差不多，只是个头稍大一些，其外形尺寸并无统一标准。  塔式服务器的机箱内部往往会预留很多空间，以便进行硬盘，电源等的冗余扩展。 <strong>一般中小企业使用。</strong></p>
+<h5 id="4-机柜式服务器"><a href="#4-机柜式服务器" class="headerlink" title="(4) 机柜式服务器"></a>(4) 机柜式服务器</h5><p>在一些高档企业服务器中由于内部结构复杂，内部设备较多，有的还具有许多不同的设备单元或几个服务器都放在一个机柜中，这种服务器就是机柜式服务器。 内部单元以机架为单位。</p>
+<h4 id="参考链接-amp-扩展阅读"><a href="#参考链接-amp-扩展阅读" class="headerlink" title="参考链接&amp;扩展阅读"></a>参考链接&amp;扩展阅读</h4><ul>
+<li><a href="http://www.brofive.org/?p=1118" target="_blank" rel="noopener">PCIe、M.2、U.2、AHCI和NVMe</a></li>
+<li><a href="https://mp.weixin.qq.com/s?__biz=MjM5Nzk2MDU5NA==&amp;mid=2652554324&amp;idx=2&amp;sn=c9daf40371c2f3fd1a1b338895789874&amp;chksm=bd3c6aa98a4be3bf4680853a6066aebada981d50959e90ceca121e4c7218f969a37e0dd53fad&amp;scene=0&amp;xtrack=1#rd" target="_blank" rel="noopener">浅谈几种常见 RAID 的异同</a></li>
+<li><a href="https://mp.weixin.qq.com/s/zmNyb4dcOertJ3nEBUrUgg" target="_blank" rel="noopener">关于Raid0,Raid1,Raid5,Raid10的总结</a></li>
+<li><a href="https://blog.csdn.net/qq_21125183/article/details/80563463" target="_blank" rel="noopener">深入浅出全面解析RDMA</a></li>
+<li><a href="https://yq.aliyun.com/articles/74471" target="_blank" rel="noopener">阿里云麒麟液冷</a></li>
+<li><a href="https://mp.weixin.qq.com/s/E16ODnFTh0rwLeH1jpaX5w" target="_blank" rel="noopener">阿里X-Engine存储引擎借助FPGA加速Compaction</a></li>
+<li><a href="https://mp.weixin.qq.com/s/GQeVyR8qMnvHl14xJgaUWA" target="_blank" rel="noopener">3D XPoint引入HBase移除WAL的问题单</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>服务器硬件</category>
+      </categories>
+      <tags>
+        <tag>Intel</tag>
+        <tag>ARM</tag>
+        <tag>X86</tag>
+        <tag>硬件</tag>
+        <tag>RAID</tag>
+        <tag>服务器</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>每周算法之TopK问题</title>
+    <url>/blog/6c12eb0c.html</url>
+    <content><![CDATA[<h5 id="1-问题描述"><a href="#1-问题描述" class="headerlink" title="1. 问题描述"></a>1. 问题描述</h5><p>海量数据处理中经常会遇到统计出现频次最高的K个关键词或者从数字中统计出最大的前K个数，这就是经典的TopK问题。</p>
+<h5 id="2-解决思路"><a href="#2-解决思路" class="headerlink" title="2. 解决思路"></a>2. 解决思路</h5><ul>
+<li>方案一：通过快速排序进行全排序，找到最大的前k个数。复杂度为O(n*lgn)</li>
+<li>方案二：避免全排序，只对最大的K个排序。比如通过冒泡排序的方式，冒k次泡，找出k个最大值。复杂度为O(n*k)</li>
+<li>方案三：找出k个最大值，不排序。通过建立小根堆，建立大小为k的小根堆，然后遍历剩下的n-k个数。每次跟堆顶的数比较，大于堆顶的值则覆盖，重新调整堆为小顶堆，直到遍历完n-k个数为止。复杂度为O(n*lgk)</li>
+<li>方案四：针对方案一快速排序的改进。快排属于分治算法，这里通过减治的方式，将只针对包含最大k个值的这一侧进行快排处理。</li>
+</ul>
+<p><strong>备注：</strong></p>
+<blockquote>
+<p>分治法：大问题分解为小问题，小问题都要递归各个分支，例如：快速排序</p>
+<p>减治法：大问题分解为小问题，小问题只要递归一个分支，例如：二分查找，随机选择</p>
+</blockquote>
+<p>考虑到数据集很大，内存无法全部容纳。</p>
+<h5 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h5><ul>
+<li><a href="https://www.cnblogs.com/qlky/p/7512199.html" target="_blank" rel="noopener">海量数据中找出前k大数（topk问题）</a></li>
+<li><a href="https://mp.weixin.qq.com/s/FFsvWXiaZK96PtUg-mmtEw" target="_blank" rel="noopener">拜托，面试别再问我TopK了</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>算法</category>
+      </categories>
+      <tags>
+        <tag>数据结构</tag>
+        <tag>算法</tag>
+        <tag>TopK</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>大数据平台体系介绍</title>
+    <url>/blog/8600073b.html</url>
+    <content><![CDATA[<h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>大数据除了体现数据5V特性外，代表了一种理念、一种问题解决的思路和一系列技术的集合。随着分布式技术的发展、处理能力的增强，数据已经从过去的采样处理转为全量化、实时化处理。在大数据技术体系方面可以分为数据收集、数据存储、资源管理与服务协调、计算引擎和数据分析这五个方面。本文从基于围绕这五个方面，介绍大数据平台整体结构、开源系和商业公司的技术栈体系，从而帮助大家对大数据技术有一个全面的认识。</p>
+<a id="more"></a>
+<h3 id="技术体系"><a href="#技术体系" class="headerlink" title="技术体系"></a>技术体系</h3><p><img src="/blog/8600073b/bd_pf_archi.png" alt></p>
+<ul>
+<li>数据收集层：数据源具有分布式、异构、多样化、流式产生等特点，因此收集组件需要具备扩展性、适配不同数据源、数据传输不或少量丢失、敏感数据安全性、入库延迟性要低。</li>
+<li><strong>数据存储层</strong>：数据量增加具备线性扩展、利用廉价机器具备容错性、数据多样性具备支持多种数据模型存储。</li>
+<li>资源管理与服务协调层：<ul>
+<li>轻量级弹性资源管理平台：资源管理方面，基于一套集群和轻量级隔离方案实现资源共享，错峰运行多个应用；</li>
+<li>服务协调组件：leader选举、服务命名、分布式队列、分布式锁、发布订阅功能等。</li>
+</ul>
+</li>
+<li><strong>计算引擎层</strong>：不同应用场景，对数据处理的吞吐率和延迟要求不同。例如：<ul>
+<li>批处理：分钟、小时、天级别（10s-1h+），追求高吞吐率，单位时间处理数据尽可能大，如离线构建索引、批量数据分析等；</li>
+<li>交互式处理：秒级（1-10s），提供类SQL便于用户使用，如数据查询、报表生成、OLAP等；</li>
+<li>实时处理：秒级以内（0-1s），如舆情监测、广告系统等。</li>
+</ul>
+</li>
+<li>数据分析层：对接用户应用程序，提供类SQL、API、数据挖掘SDK等。一般基于批处理对原始数据做处理，形成小规模数据集，之后采用交互式处理工具堆积数据集快速查询和获取结果。</li>
+<li>数据可视化层：展示大数据价值的门户。</li>
+</ul>
+<h4 id="谷歌技术栈"><a href="#谷歌技术栈" class="headerlink" title="谷歌技术栈"></a>谷歌技术栈</h4><p>事实上，大数据技术来源于互联网行业，尤其是谷歌公司发表的<a href="https://pan.baidu.com/s/1dkW1h_-P_b6AG64MZOpyVg" target="_blank" rel="noopener">三篇大数据论文</a>（Google FileSystem，Google BigTable，Google MapReduce），提取码：cuvq，对大数据技术的发展起到了重要作用。技术栈如下图所示：</p>
+<p><img src="/blog/8600073b/bd_pf_google.png" alt></p>
+<h4 id="开源技术栈"><a href="#开源技术栈" class="headerlink" title="开源技术栈"></a>开源技术栈</h4><p><img src="/blog/8600073b/bd_pf_os.png" alt></p>
+<h4 id="阿里技术栈"><a href="#阿里技术栈" class="headerlink" title="阿里技术栈"></a>阿里技术栈</h4><p><img src="/blog/8600073b/bd_pf_ali.png" alt></p>
+<h4 id="腾讯技术栈"><a href="#腾讯技术栈" class="headerlink" title="腾讯技术栈"></a>腾讯技术栈</h4><p><img src="/blog/8600073b/bd_pf_tecent.png" alt></p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li><a href="http://blog.bizcloudsoft.com/?p=292" target="_blank" rel="noopener">Google中文版论文来源</a></li>
+<li><a href="https://www.aliyun.com/" target="_blank" rel="noopener">阿里云官网</a></li>
+<li><a href="https://cloud.tencent.com/" target="_blank" rel="noopener">腾讯云官网</a></li>
+<li>《大数据架构详解：从数据数据获取到深度学习》，朱洁、罗华霖编著，2016.10。</li>
+<li>《大数据技术体系详解：原理、架构与实战》，董西成编著，2018.01.01。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>架构</tag>
+        <tag>大数据</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>InnoDB和RocksDB存储引擎解析</title>
+    <url>/blog/2b3a4d7d.html</url>
+    <content><![CDATA[<h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>数据库存储引擎为数据库提供了数据的读（查询）和写（创建、更新、删除）操作，不同的存储引擎提供了不同的存储机制、索引技巧、事务操作等功能。同时，存储的数据达到一定体量，存储引擎性能也是各不相同。本文将围绕InnoDB和LevelDB两种存储引擎，从数据读写应用场景入手分析各自的架构特点、采用的数据结构以及各自的优缺点，并以此作为存储引擎选型的依据。</p>
+<a id="more"></a>
+<h3 id="InnoDB"><a href="#InnoDB" class="headerlink" title="InnoDB"></a>InnoDB</h3><h4 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h4><p>InnoDB存储引擎支持事务，设计目标用于在线事务处理(OLTP)的应用，作为MySQL数据库最为常用的存储引擎之一。该存储引擎是第一个完整支持ACID事务的MySQL存储引擎，具有行锁设计、MVCC(多版本控制并发)、外键、一致性非锁定读的特点，可以有效利用内存和CPU资源。</p>
+<h4 id="体系结构"><a href="#体系结构" class="headerlink" title="体系结构"></a>体系结构</h4><p>InnoDB存储引擎架构主要由多个后台处理线程+内存缓冲池+本地磁盘文件构成。如下图所示：</p>
+<p><img src="/blog/2b3a4d7d/innodb_archi.png" alt></p>
+<p><img src="/blog/2b3a4d7d/innodb_mm.png" alt></p>
+<p>（1）线程划分</p>
+<ul>
+<li>Master Thread: 负责将缓冲池的数据异步刷新到磁盘，保证数据一致性，包括脏页（发生修改的页）刷新、合并插入缓冲、undo页回收等；</li>
+<li>IO Thread: 采用异步IO处理写IO请求，提高数据库性能，分布式read、write、insert buffer、log这四个IO线程；</li>
+<li>Purge Thread: 事务调提交后，undo页可能不再需要，通过Purge Thread线程进行回收；</li>
+<li>Page Cleaner Thread: 为了提升存储引擎性能，将脏页刷新操作独立出来，减轻Master Thread工作量和查询阻塞问题。</li>
+</ul>
+<p>（2）内存划分</p>
+<ul>
+<li>缓冲池：由于CPU速度远高于磁盘读取速度，故采用缓冲池技术提高数据库性能，数据以页的形式组织管理。<ul>
+<li>缓冲池中页被修改后，通过checkpoint机制刷到磁盘；</li>
+<li>缓冲池支持多实例，通过hash方式将页均匀加载到不同实例，提高并发能力；</li>
+<li>通过改进的LRU算法管理数据，通过old和new划分，避免偶尔的数据扫描替换掉热点数据；</li>
+<li>支持对页的压缩，将原本默认16 KB的页压缩到1 KB、2 KB、4 KB和8 KB。</li>
+</ul>
+</li>
+<li>重做日志缓冲：重做日志先写入缓冲，通过一定机制再写入磁盘重做日志文件。重做日志文件记录了存储引擎的事务日志（write ahead log），当发生宕机时用于数据恢复，保证数据完整性。</li>
+<li>额外内存池：用于缓冲区内部一些其他控制信息或数据结构需要的额外内存。</li>
+</ul>
+<h4 id="索引机制"><a href="#索引机制" class="headerlink" title="索引机制"></a>索引机制</h4><p>InnoDB存储引擎支持的常见索引有B+树索引、全文索引以及哈希索引（根据表适用情况自适应创建，不对外）。其中，B+树索引是目前关系型数据库中查询最为常用和最为有效的索引。</p>
+<p>（1）B+树结构</p>
+<p>B+树由二叉查找树-&gt;平衡二叉树-&gt;B树（多路平衡查找树）演化而来，为基于磁盘或其他存储设备之上的文件系统所需而设计的一种多路平衡查找树。</p>
+<p><img src="/blog/2b3a4d7d/BTree-structure.jpg" alt></p>
+<p><img src="/blog/2b3a4d7d/B+Tree-structure.jpg" alt></p>
+<p>在B+树中所有记录节点都是按照键值大小顺序放在同一层叶子节点上，由各节点指针进行连接。相对B树来说，非叶子节点上读取一次磁盘可以存放更多的关键词元素，从而降低了IO的读写次数。</p>
+<p>（2）关键特性</p>
+<ul>
+<li>支持范围查询，基于索引节点，定位到叶子节点链表起始点和结束点直接遍历；</li>
+<li>适合OLTP的场景，根据索引条件过滤出少量数据；</li>
+<li>任何查询都需要从根节点到叶子节点，路径相同，查询稳定；</li>
+</ul>
+<p>（3）B+索引应用</p>
+<p>B+索引是B+树在数据库中的实现，在MySQL中分为聚集索引（clustered index）和辅助索引（secondary index）。聚集索引中叶子节点记录了整个表行记录，因此一个表只有一个聚集索引。但是每张表可以多个辅助索引，辅助索引中的叶子节点存储了bookmark，指向行记录在聚集索引中的索引键。</p>
+<h3 id="RocksDB"><a href="#RocksDB" class="headerlink" title="RocksDB"></a>RocksDB</h3><h4 id="基本介绍-1"><a href="#基本介绍-1" class="headerlink" title="基本介绍"></a>基本介绍</h4><p>RocksDB是使用C++编写的、LSM结构的、嵌入式KV存储引擎，由Facebook基于LevelDB开发，还借鉴了许多HBase的设计理念。RocksDB依靠大量灵活的配置，使之能针对不同的生产环境进行调优，包括直接使用内存，使用Flash，使用硬盘或者HDFS。支持使用不同的压缩算法，并且有一套完整的工具供生产和调试使用。</p>
+<h4 id="体系结构-1"><a href="#体系结构-1" class="headerlink" title="体系结构"></a>体系结构</h4><p>RocksDB存储引擎是基于LSM（Log Structure Merge Tree）思想实现的，内存结构memtable和immutable memtable，immutable memtable用于flush到磁盘形成SST文件，不同SST、Level之间的merge操作称为compaction。manifest记录了引擎的状态和SST修改快照信息，current标识当前正在使用的manifest（SST生成新的，manifest也会生成新的）。由于RocksDB是基于LevelDB构建，下面给出两个引擎的架构图作为对比。</p>
+<p><img src="/blog/2b3a4d7d/leveldb_archi.png" alt></p>
+<p>RocksDB在LevelDB基础上引入列簇的概念，每个ColumnFamily有自己的Memtable， SST文件，所有ColumnFamily共享WAL、Current、Manifest文件。</p>
+<p><img src="/blog/2b3a4d7d/rocksdb_archi2.png" alt></p>
+<p>（1）写入流程</p>
+<p>数据写入时，先追加到WAL再写入memtable。memtable写满后转为immutable memtable，等待<strong>flush</strong>到第0层SST，触发条件后再<strong>compaction</strong>到第1层SST，依次类推到第N层SST。</p>
+<p>flush操作将多个immutable memtable合并排序后，持久化到第0层SST文件中，由于该层SST文件并没有做compaction操作，因此不同SST之间存在key重复。</p>
+<p>compaction操作将本层的SST和上一次层的SST进行合并操作，因此第1层以上的SST文件key都是唯一的。</p>
+<p>（2）读取流程</p>
+<p>读取的顺序为memtable-&gt;immutable memtable-&gt;level 0 SST-&gt;…-&gt;level n SST。其中，memtable和immutable memtable采用了跳表特性进行查询，SST文件中有过滤器（布隆过滤器）决定是否包含某个key再加载至内存，基于有序KV进行二分查找。同时，在memtable和SST之上还设置了Block Cache，提高查询性能。</p>
+<h4 id="索引机制-1"><a href="#索引机制-1" class="headerlink" title="索引机制"></a>索引机制</h4><p>RocksDB采用的内存结构memtable和外存结构SST，决定了RocksDB能够支持点查和范围查询。</p>
+<p>（1）Memtable</p>
+<p>内存中的数据结构，在数据flush到SST之前用来保存数据的，可用于读写。写入数据时首先插入memtable，写满后转为immutable memtable，等待flush到SST中。读取数据时也是优先读取memtable中，数据相对于SST比较新。支持如下两类数据结构：</p>
+<ul>
+<li>Skiplist MemTable：基于skiplist的memtable为读写、随机访问和顺序扫描提供了良好的性能，支持范围查询</li>
+<li>HashSkiplist MemTable：hash和skiplist的结合，按照key的前缀做hash，每个hash桶中都是一个skiplist。单独访问一个key时性能更好，相对于skiplist减少了比较次数，夸多个前缀进行扫描需要复制和排序，范围查询性能也会差一些。</li>
+</ul>
+<p>（2）SST</p>
+<p>SST是Sorted Sequence Table（排序队列表），是排好序的数据文件。在这些文件里，所有键都按照排序好的顺序组织，一个键或者一个迭代位置可以通过二分查找进行定位，支持两种结构：</p>
+<ul>
+<li>Block-based Table格式：该方式是RocksDB的默认SST格式。内部结构按照块的方式组织，详情见<a href="https://github.com/facebook/rocksdb/wiki/Rocksdb-BlockBasedTable-Format" target="_blank" rel="noopener">github wiki</a>。</li>
+</ul>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">&lt;文件开始&gt;</span><br><span class="line">[data block 1]                                (排好序的KV，二分查找)</span><br><span class="line">[data block 2]</span><br><span class="line">...</span><br><span class="line">[data block N]</span><br><span class="line">[meta block 1: filter block]                  (过滤器)</span><br><span class="line">[meta block 2: stats block]                   (属性)</span><br><span class="line">[meta block 3: compression dictionary block]  (压缩字典)</span><br><span class="line">[meta block 4: range deletion block]          (see section: &quot;range deletion&quot; Meta Block)</span><br><span class="line">...</span><br><span class="line">[meta block K: future extended block]  (后期会添加更多的元数据块)</span><br><span class="line">[metaindex block]                      (元数据索引块，指向多个元数据块位置)</span><br><span class="line">[index block]                          (数据索引块)</span><br><span class="line">    [index block - partition 1]        (按照Key的范围创建的索引)</span><br><span class="line">    [index block - partition 2]</span><br><span class="line">    ...</span><br><span class="line">    [index block - partition N]</span><br><span class="line">    [index block - top-level index]    (先将顶级索引加载到内存，然后按需加载对应分区索引)</span><br><span class="line">[Footer]                               (固定大小; 指定数据索引块的top-level index和元数据索引块)</span><br><span class="line">&lt;文件结束&gt;</span><br></pre></td></tr></table></figure>
+<ul>
+<li>PlainTable格式：RocksDB针对纯内存或低延迟介质上的低查询延迟进行了优化。<a href="https://github.com/facebook/rocksdb/wiki/PlainTable-Format" target="_blank" rel="noopener">详情见github wiki</a>。</li>
+</ul>
+<h3 id="对比分析"><a href="#对比分析" class="headerlink" title="对比分析"></a>对比分析</h3><p>InnoDB属于B树存储引擎，RocksDB属于LSM树存储引擎。存储引擎不同的存储结构、策略，决定了不同的读写应用场景。</p>
+<p>（1）B树存储引擎</p>
+<p>针对InnoDB，按照页来组织数据，每个页对应B+树的一个节点。读取操作B+树一次检索最多需要h-1次磁盘IO（h为树的高度）。写入操作需要对内存中的B+树进行修改，修改的页超过比率后在持久到磁盘。因此，InnoDB适合写少读多的场景。</p>
+<p>（2）LSM树存储引擎</p>
+<p>针对RocksDB，LSM结构体现在对数据修改增量保持在内存，达到阈值后将修改操作批量写入磁盘，读取时需要合并磁盘中的历史数据和内存中最近的修改操作。因此，RocksDB的LSM机制牺牲了读的性能，提高了写入的性能，适合写多读少的场景。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li>《大规模分布式存储系统·原理解析与架构实战》</li>
+<li>《MySQL技术内幕 InnoDB存储引擎第2版》</li>
+<li><a href="https://blog.csdn.net/v_JULY_v/article/details/6530142/" target="_blank" rel="noopener">从B树、B+树、B*树谈到R树</a></li>
+<li><a href="https://rocksdb.org.cn/doc/getting-started.html" target="_blank" rel="noopener">RocksDB中文网</a></li>
+<li><a href="https://github.com/facebook/rocksdb/wiki/" target="_blank" rel="noopener">https://github.com/facebook/rocksdb/wiki/</a></li>
+<li><a href="https://yq.aliyun.com/articles/669316" target="_blank" rel="noopener">看图了解RocksDB</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>存储引擎</category>
+      </categories>
+      <tags>
+        <tag>B+树</tag>
+        <tag>InnoDB</tag>
+        <tag>RocksDB</tag>
+        <tag>LSM树</tag>
+        <tag>存储引擎</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Java并发编程知识体系概览</title>
+    <url>/blog/8dea6a69.html</url>
+    <content><![CDATA[<h3 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h3><ul>
+<li><p>并发：当有多个线程在操作时，如果系统只有一个CPU，则它根本不可能真正同时进行一个以上的线程，它只能把CPU运行时间划分成若干个时间段,再将时间 段分配给各个线程执行，在一个时间段的线程代码运行时，其它线程处于挂起状。这种方式我们称之为并发(Concurrent)。</p>
+</li>
+<li><p>并行：当系统有一个以上CPU时，则线程的操作有可能非并发。当一个CPU执行一个线程时，另一个CPU可以执行另一个线程，两个线程互不抢占CPU资源，可以同时进行。这种方式我们称之为并行(Parallel)。</p>
+</li>
+</ul>
+<h3 id="并发目的"><a href="#并发目的" class="headerlink" title="并发目的"></a>并发目的</h3><p>由于CPU和I/O天然存在的矛盾，传统顺序的同步工作模式导致任务阻塞，CPU处于空闲状态，浪费资源。多线程为了突破同步工作模式的情况下CPU资源的浪费，即使单核情况下也能将时间片拆分成单位给更多的线程来轮询使用。多线程在不同享状态的情况下非常高效，不管协同式还是抢占式都能在单位时间内执行更多的任务，从而更好地榨取CPU资源。因此，并发的目的就是为了提供程序运行的性能。</p>
+<h3 id="并发技术"><a href="#并发技术" class="headerlink" title="并发技术"></a>并发技术</h3><h4 id="多线程"><a href="#多线程" class="headerlink" title="多线程"></a>多线程</h4><p>为了能够充分利用CPU资源，需要采用多线程机制，在CPU上进行调度。何为线程？是操作系统能够进行运算调度的最小单位。它被包含在进程之中，是进程中的实际运作单位。一条线程指的是进程中一个单一顺序的控制流，一个进程中可以并发多个线程，每条线程并行执行不同的任务。</p>
+<h4 id="线程交互"><a href="#线程交互" class="headerlink" title="线程交互"></a>线程交互</h4><ul>
+<li>交互方式：线程交互也就是线程直接的通信，最直接的办法就是线程直接通信传值，而间接方式则是通过共享变量来达到彼此的交互。如：等待、通知、中断、织入。</li>
+<li>线程安全：我们最关注的还是通过共享变量来达到交互的方式。如果线程执行的任务相互独立则不存在安全问题，但多数情况下线程直接需要打交道，而且需要分享共享资源，那么这个时候最核心的就是线程安全。</li>
+</ul>
+<h4 id="性能优化"><a href="#性能优化" class="headerlink" title="性能优化"></a>性能优化</h4><p>常见的性能指标包括：<code>QPS</code>、<code>TPS</code>、<code>RT</code>。这里不考虑外部网络、分布式架构、各级缓存、数据冗余等设计，主要针对单节点的性能优化。</p>
+<p>随着用户激增，请求次数的增加，服务也对应着需要并发模型来支撑。<strong>但是一个节点的并发量有个上限，当达到这个上限后，响应时间就会变长，所以我们需要探索并发到什么程度才是最优的，才能保证最高的并发数，同时响应时间又能保持在理想情况</strong>。</p>
+<p>服务接收到一个请求后，主要经历CPU等待、执行和IO等待、读写的时间。</p>
+<h5 id="单线程"><a href="#单线程" class="headerlink" title="单线程"></a>单线程</h5><p><code>RT = T(cpu) + T(io)</code><br><code>QPS = 1000ms / RT</code></p>
+<h5 id="多线程-1"><a href="#多线程-1" class="headerlink" title="多线程"></a>多线程</h5><p>cpu核数为M，利用率为P。最优并发数<code>N = [T(cpu) + T(io)] / T(cpu) * M * P</code></p>
+<p><code>QPS = 1000ms / RT * N</code><br><code>QPS = 1000ms / [T(cpu) + T(io)] * [T(cpu) + T(io)] / T(cpu) * M * P</code><br><code>QPS = 1000ms / T(cpu) * M * P</code></p>
+<p>在M固定的情况下，如果cpu利用率负载不高，利用率p上不去。大部分情况跟共享资源的使用有关，即<strong>锁的使用需要优化</strong>。</p>
+<h4 id="并发模型"><a href="#并发模型" class="headerlink" title="并发模型"></a>并发模型</h4><p>采用多线程方式实现并发，需要合理使用各种锁。除了使用多线程，下面介绍两类并发模型流水线模型和函数式模型。</p>
+<ul>
+<li>流水线模型：总体的思想就是纵向切分任务，把任务里面耗时过久的环节单独隔离出来，避免完成一个任务需要耗费等待的时间。在实现上又分为<code>Actors</code>和<code>Channels</code>模型。比如基于<code>Java</code>的<code>Akka</code>/<code>Reator</code>或者<code>golang</code>就是为流水线模式而生的并发语言，还有<code>nodeJS</code>等等。</li>
+<li>函数式模型：类似流水线模型，单一的函数是无状态的，所以避免了资源竞争的复杂度，同时每个函数类似流水线里面的单一环境，彼此直接通过函数调用传递参数副本，函数之外的数据不会被修改。函数式模式跟流水线模式相辅相成逐渐成为更为主流的并发架构。</li>
+</ul>
+<h3 id="java并发体系"><a href="#java并发体系" class="headerlink" title="java并发体系"></a>java并发体系</h3><p>java中主要以多线程方式实现并发，主要内容有：</p>
+<ul>
+<li>并发基础：<ul>
+<li>AQS:<ol>
+<li>AbstractqueuedSynchronizer同步器</li>
+<li>CLH同步队列</li>
+<li>同步状态的获取和释放</li>
+<li>线程阻塞和唤醒</li>
+</ol>
+</li>
+<li>CAS: Compare and Swap 缺陷</li>
+</ul>
+</li>
+<li>Java内存模型JMM：线程通信、消息传递</li>
+<li>内存模型：<ul>
+<li>重排序</li>
+<li>顺序一致性</li>
+<li>happens-before</li>
+<li>as if serial</li>
+</ul>
+</li>
+<li>synchronized：<ul>
+<li>同步、重量级锁、<code>synchronized</code>原理</li>
+<li>锁优化：<ol>
+<li>自旋锁</li>
+<li>轻量级锁</li>
+<li>重量级锁</li>
+<li>偏向锁</li>
+</ol>
+</li>
+</ul>
+</li>
+<li>原子操作：<ul>
+<li>基本类型：<code>AtomicBoolean</code>、<code>AtomicInteger</code>、<code>AtomicLong</code></li>
+<li>数组：<code>AtomicIntegerArray</code>、<code>AtomicLongArray</code>、<code>AtomicReferenceArray</code></li>
+<li>引用类型：<code>AtomicReference</code>、<code>AtomicReferenceArrayFieldUpdater</code></li>
+</ul>
+</li>
+<li>线程池：<ul>
+<li><code>ThreadPoolExecutor</code>（拒绝策略、参数优化）、<code>ScheduledExecutorService</code></li>
+<li><code>Callable</code>和<code>Future</code></li>
+</ul>
+</li>
+<li>并发集合：<code>ConcurrentHashMap</code>、<code>CopyOnWriteArrayList</code>、<code>ConcurrentLinkedQueue</code>、<code>BlockingQueue</code>、<code>ConcurrentSkipListMap</code>等</li>
+<li>并发工具类：<code>Semaphore</code>、<code>CyclicBarrier</code>、<code>CountDownLatch</code></li>
+<li>锁：<code>ReentrantLock</code>、<code>Condition</code>、<code>ReentrantReadWriteLock</code>、<code>LockSupport</code></li>
+<li>volatile：<ul>
+<li><code>volatile</code>实现机制</li>
+<li>内存语义</li>
+<li>内存模型</li>
+</ul>
+</li>
+<li>其他：<ul>
+<li><code>ThreadLocal</code></li>
+<li><code>Fork/Join</code></li>
+</ul>
+</li>
+</ul>
+<h3 id="相关资料"><a href="#相关资料" class="headerlink" title="相关资料"></a>相关资料</h3><ul>
+<li>《Java并发编程实战》Doug Lea</li>
+<li>《Java并发编程的艺术》讲解并发包内部实现原理</li>
+<li>《Java多线程编程核心技术》高洪沿</li>
+<li>《图解Java多线程设计模式》并发编程设计模式方面的经典书籍</li>
+<li>《操作系统：精髓与设计原理》经典操作系统教材</li>
+<li><a href="http://ifeve.com" target="_blank" rel="noopener">http://ifeve.com</a> 国内专业并发编程网站</li>
+<li><a href="http://www.cs.umd.edu/~pugh/java/memoryModel/" target="_blank" rel="noopener">http://www.cs.umd.edu/~pugh/java/memoryModel/</a></li>
+<li><a href="https://mp.weixin.qq.com/s/qI04Z5dm5dcLtOsKIzHrVw" target="_blank" rel="noopener">多线程小抄集</a> （公众号：朱小厮的博客）</li>
+<li><a href="https://mp.weixin.qq.com/s/5pNBSvIcT8I1_MCJs1ewAA" target="_blank" rel="noopener">高并发知识体系</a> (公众号：云时代架构)</li>
+</ul>
+]]></content>
+      <categories>
+        <category>并发编程</category>
+      </categories>
+      <tags>
+        <tag>java</tag>
+        <tag>并发</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Helm使用简明教程</title>
+    <url>/blog/29dc945b.html</url>
+    <content><![CDATA[<p>Helm是由Deis发起的一个开源工具，有助于简化部署和管理Kubernetes应用。</p>
+<h3 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h3><p>Helm可以理解为Kubernetes的包管理工具，可以方便地发现、共享和使用Kubernetes构建的应用。包含如下概念：</p>
+<ul>
+<li>Chart: 一个helm包，包含一个应用运行所需的镜像、依赖以及k8s资源编排等定义，类似yum的rpm文件。</li>
+<li>Release: 在k8s上运行的一个chart实例。每次安装chart都会创建一个新的release。</li>
+<li>Repository: 用于发布和存储Chart仓库。</li>
+</ul>
+<h3 id="基本组件"><a href="#基本组件" class="headerlink" title="基本组件"></a>基本组件</h3><ul>
+<li>Helm CLI: helm客户端，可以在本地执行</li>
+<li>Tiller: 服务器端组件，运行在k8s上，管理k8s应用程序生命周期</li>
+<li>Repository: chart仓库，helm cli通过http协议访问chart仓库中的索引文件和压缩包</li>
+</ul>
+<p><img src="/blog/29dc945b/helm_architecture.jpeg" alt></p>
+<h3 id="helm命令"><a href="#helm命令" class="headerlink" title="helm命令"></a>helm命令</h3><p>通过helm cli能够实现k8s应用的管理操作。顶级options:<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">--debug: 打开日志显示</span><br><span class="line">--home string: helm配置路径，默认为~/.helm</span><br><span class="line">--host string: tiller地址，覆盖 $HELM_HOST</span><br><span class="line">--kube-context string: 指定使用的kubeconfig上下文</span><br><span class="line">--kubeconfig string: 指定kubeconfig的绝对路径</span><br><span class="line">--tiller-connection-timeout int： helm和tiller建立连接超时，单位s，默认300</span><br><span class="line">--tiller-namespace: tiller命名空间，默认为kube-system</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用仓库"><a href="#应用仓库" class="headerlink" title="应用仓库"></a>应用仓库</h4><p>添加、展示、移除、更新和索引应用仓库。<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 添加一个chart仓库</span></span><br><span class="line">helm repo add [flags] [NAME] [URL]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 给定包含chart包的目录生成索引文件</span></span><br><span class="line">helm repo index [flags] [DIR]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 列出已有的仓库</span></span><br><span class="line">helm repo list [flags]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 移除指定仓库</span></span><br><span class="line">helm repo remove [flags] [NAME]</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 更新每个chart仓库的最新信息缓存到本地，供helm search检测仓库中的chart使用</span></span><br><span class="line">helm repo update [flags]</span><br></pre></td></tr></table></figure></p>
+<h4 id="检索应用"><a href="#检索应用" class="headerlink" title="检索应用"></a>检索应用</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 在管理的所有仓库中检索应用</span></span><br><span class="line">helm search [keyword] [flags]</span><br></pre></td></tr></table></figure>
+<h4 id="创建应用"><a href="#创建应用" class="headerlink" title="创建应用"></a>创建应用</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 在指定目录中创建应用</span></span><br><span class="line">helm create [/dir/]chartname [flags]</span><br><span class="line"></span><br><span class="line">mycharts/</span><br><span class="line">    Chart.yaml          #描述关于chart的信息</span><br><span class="line">    LICENSE             #可选项， 描述chart的license</span><br><span class="line">    README.md           #可选项，可读性高的介绍文档</span><br><span class="line">    requirements.yaml   #可选项，列出chart的依赖</span><br><span class="line">    values.yaml         #chart的默认配置</span><br><span class="line">    charts/             #存放chart依赖的其他chart包</span><br><span class="line">    templates/          #模板目录，基于values.yaml生成有效的k8s清单文件</span><br><span class="line">    template/NOTES.txt  #可选项，描述简短用法说明。</span><br></pre></td></tr></table></figure>
+<h4 id="应用依赖"><a href="#应用依赖" class="headerlink" title="应用依赖"></a>应用依赖</h4><p>通过编辑mycharts/requirements.yaml，声明依赖的子应用。<br><figure class="highlight yaml"><table><tr><td class="code"><pre><span class="line"><span class="attr">dependencies:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">apache</span> <span class="comment">#chart的名称</span></span><br><span class="line">    <span class="attr">version:</span> <span class="number">1.2</span><span class="number">.3</span>  <span class="comment"># chart的版本</span></span><br><span class="line">    <span class="attr">repository:</span> <span class="string">http://example.com/charts</span> <span class="comment">#chart的仓库url</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">mysql</span></span><br><span class="line">    <span class="attr">version:</span> <span class="number">3.2</span><span class="number">.1</span></span><br><span class="line">    <span class="attr">repository:</span> <span class="string">http://another.example/charts</span></span><br></pre></td></tr></table></figure></p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 根据requirements.yaml配置，将依赖的应用包从仓库中拉取到charts目录,移除旧的</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 同时会生成requirements.lock</span></span><br><span class="line">helm dependency update [flags] CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 基于requirements.lock，重新构建charts中的应用</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 如果没有lock文件，类似update操作</span></span><br><span class="line">helm dependency build [flags] CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 展示应用依赖的所有子应用包</span></span><br><span class="line">helm dependency list [flags] CHART</span><br></pre></td></tr></table></figure>
+<h4 id="应用归档"><a href="#应用归档" class="headerlink" title="应用归档"></a>应用归档</h4><p>把chart应用打包成归档文件<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">helm package [flags] [ChART-PATH] [...]</span><br><span class="line"></span><br><span class="line">--app-version string: 打包时设置chart的appVersion</span><br><span class="line">--version string: 打包时设置chart的version</span><br><span class="line">--dependency-update: 打包时更新依赖</span><br><span class="line">--destination string: 指定打包应用存放的目录</span><br><span class="line">--save: 保存打包应用放在本地仓库，默认为true</span><br><span class="line"></span><br><span class="line">--sign: 开启pgp私钥签名打包的应用 使用sign时，指定签名要使用的密钥名称和公钥环路径</span><br><span class="line">--key string</span><br><span class="line">--keyring string</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用检测"><a href="#应用检测" class="headerlink" title="应用检测"></a>应用检测</h4><p>检测chart应用开发完成后，潜在的问题<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 验证指定路径下的应用格式是否正确</span></span><br><span class="line">helm lint [flags] PATH</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 打印应用的Chart.yaml READEME values.yaml中的内容</span></span><br><span class="line">helm inspect [chart | readme | values] CHARTNAME</span><br></pre></td></tr></table></figure></p>
+<h4 id="应用安装"><a href="#应用安装" class="headerlink" title="应用安装"></a>应用安装</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 验证应用包是否为可信任方提供的</span></span><br><span class="line">helm verify [flags] PATH</span><br><span class="line">--keyring: 指定公钥环路径</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> chart支持:</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> reponame/chartname</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> path/xxx.tgz</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> repo-url/xx.tgz</span></span><br><span class="line">helm install [CHART] [flags]</span><br><span class="line">helm install --repo repourl chartname</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 额外指定配置，覆盖values.yaml</span></span><br><span class="line">helm install -f myvalues.yaml CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 配置级别覆盖</span></span><br><span class="line">helm install --set k1=v1,k2=v2 CHART</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 正式安装前的调试，检查release生成的manifests是否正确</span></span><br><span class="line">helm install CHART --dry-run --debug</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash"> 将指定版本的chart应用安装到指定的命名空间下</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> 安装前：verify验证是否有有效来源文件，dep-up更新依赖</span></span><br><span class="line"><span class="meta">#</span><span class="bash"> name为release默认自动生成，version默认为latest，namespace默认为default</span></span><br><span class="line">helm install chart --verfiy --dep-up --name string --repo string --version string --namespace string</span><br></pre></td></tr></table></figure>
+<h4 id="release查看"><a href="#release查看" class="headerlink" title="release查看"></a>release查看</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">helm get [flags] RELEASE-NAME</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span><span class="bash">下载指定release的所有钩子、配置清单、noteh和values文件</span></span><br><span class="line">helm get hooks[ manifest | notes | values ] releasename</span><br></pre></td></tr></table></figure>
+<h4 id="release测试"><a href="#release测试" class="headerlink" title="release测试"></a>release测试</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 为release运行测试命令</span></span><br><span class="line">helm test [RELEASE] [flags]</span><br><span class="line">--cleanup: 完成删除测试pod</span><br><span class="line">--parallel: 并行运行测试pod</span><br></pre></td></tr></table></figure>
+<h4 id="release状态"><a href="#release状态" class="headerlink" title="release状态"></a>release状态</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 查看release的运行状态</span></span><br><span class="line">helm status [flags] RELEASE-NAME</span><br><span class="line">--output string: 状态信息输出格式，json or yaml</span><br></pre></td></tr></table></figure>
+<h4 id="release升级"><a href="#release升级" class="headerlink" title="release升级"></a>release升级</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">helm upgrade [RELEASE] [CHAR] [flags]</span><br><span class="line"></span><br><span class="line">--version string: 选用指定版本的chart来升级release</span><br><span class="line">--set k1=v1,k2=v2: 升级时，覆盖values.yaml中的部分值</span><br></pre></td></tr></table></figure>
+<h4 id="release回滚"><a href="#release回滚" class="headerlink" title="release回滚"></a>release回滚</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta">#</span><span class="bash"> 将release回滚到指定版本</span></span><br><span class="line">helm rollback [flags] [RELEASE] [REVISION]</span><br></pre></td></tr></table></figure>
+<h4 id="release卸载"><a href="#release卸载" class="headerlink" title="release卸载"></a>release卸载</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">helm delete [flags] RELEASE-NAME [...]</span><br><span class="line"></span><br><span class="line">--purge: 清理干净，使得release可以重用</span><br></pre></td></tr></table></figure>
+<h4 id="查看所有release"><a href="#查看所有release" class="headerlink" title="查看所有release"></a>查看所有release</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">helm list [flags] [FILTER]</span><br><span class="line"></span><br><span class="line">--chart-name: 根据应用名称排序</span><br><span class="line">--date: 按安装时间排序</span><br><span class="line">--deleted: 显示删除的release</span><br><span class="line">--deleting： 显示正在删除中的</span><br><span class="line">--deployed: 显示部署的</span><br><span class="line">--failed: 显示失败的</span><br><span class="line">--pending: 显示挂起的</span><br><span class="line"></span><br><span class="line">--namespace string: 指定命名空间</span><br><span class="line"></span><br><span class="line">helm list 'ara[a-z]+'： 支持release name正则的过滤</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>kubernetes</category>
+      </categories>
+      <tags>
+        <tag>helm</tag>
+        <tag>kubernetes</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Nginx之正向代理与反向代理</title>
+    <url>/blog/7a63f2f5.html</url>
+    <content><![CDATA[<h3 id="正向代理"><a href="#正向代理" class="headerlink" title="正向代理"></a>正向代理</h3><p>客户端访问的目标服务明确，但是无法直接访问，需要通过代理服务器跳转，才可以访问。结构图如下：<br><img src="/blog/7a63f2f5/nginx-zx.png" alt></p>
+<p>正向代理典型应用，如我们日常的翻墙操作，访问google网站，在浏览中设置代理服务器。在nginx中配置示例如下：<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http &#123;</span><br><span class="line">  include mime.types; #文件扩展名与文件类型映射表</span><br><span class="line">  default_type application/octet-stream; #默认文件类型</span><br><span class="line">  tcp_nopush on; #防止网络阻塞</span><br><span class="line">  tcp_nodelay on; #防止网络阻塞</span><br><span class="line">  keepalive_timeout 120; #长连接超时时间，单位是秒</span><br><span class="line"><span class="meta">  #</span><span class="bash"> 其他配置省略</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  #</span><span class="bash">正向代理</span></span><br><span class="line">  server &#123;</span><br><span class="line">    resolver 114.114.114.114; #dns服务器</span><br><span class="line">    listen 80;  </span><br><span class="line">    location / &#123;</span><br><span class="line"></span><br><span class="line">      # 用户请求/时，在html/下找依次index.htm、index.html</span><br><span class="line">      root html;</span><br><span class="line">      index index.htm index.html;</span><br><span class="line"></span><br><span class="line">      proxy_pass http://$http_host$request_uri; #设定代理服务器的协议和地址  </span><br><span class="line">      proxy_set_header HOST $http_host;</span><br><span class="line">      proxy_buffering on; #开启后端服务响应内容缓冲</span><br><span class="line">      proxy_buffers 256 4k; # 设置缓冲区大小和数量,proxy_buffering开启才会生效</span><br><span class="line">      proxy_busy_buffers_size 8k; #proxy_buffers中处于busy状态（buffer被写入往客户端传）的buffer大小设置</span><br><span class="line"></span><br><span class="line">      proxy_buffer_size 4k; #存储后端服务响应的header，跟proxy_buffering开启无关</span><br><span class="line">      proxy_max_temp_file_size 0k;#后端服务响应内容较大，会临时写到这这里</span><br><span class="line"></span><br><span class="line">      #超时设置</span><br><span class="line">      proxy_connect_timeout 30; #代理跟后端服务器连接超时时间</span><br><span class="line">      proxy_read_timeout 60; #代理读超时，等待后端服务的响应时间</span><br><span class="line">      proxy_send_timeout 60; #代理发送超时，代理两次发送之间的时间，不是一次发送的时间</span><br><span class="line">      #代理和后端服务发生超时或错误时，返回空或非法响应头，状态码为502</span><br><span class="line">      proxy_next_upstream error timeout invalid_header http_502;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    # 发生错误时，请求50x.html</span><br><span class="line">    error_page 500 502 503 504 /50x.html;</span><br><span class="line">    location = /50x.html &#123;</span><br><span class="line">      root html;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="反向代理"><a href="#反向代理" class="headerlink" title="反向代理"></a>反向代理</h3><p>客户端访问的目标服务不明确，客户端直接访问代理服务器，代理服务器内部将客户端请求转发到后方某个目标服务。结构图如下：<br><img src="/blog/7a63f2f5/nginx-fx.png" alt></p>
+<p>反向代理典型应用，比如负载均衡机制。为了支持海量用户访问，通过代理将用户请求分散到后端不同服务器上，而用户侧并不知感知。在nginx中配置示例如下：<br><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">http &#123;</span><br><span class="line"><span class="meta">  #</span><span class="bash">前置配置省略</span></span><br><span class="line"></span><br><span class="line"><span class="meta">  #</span><span class="bash">负载均衡配置</span></span><br><span class="line">  upstream app_severs &#123;</span><br><span class="line">    server 127.0.0.1:9090;#server1</span><br><span class="line">    server 127.0.0.1:9091;#server2</span><br><span class="line">    server 127.0.0.1:9092;#server3</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">  #</span><span class="bash">反向代理</span></span><br><span class="line">  server &#123;</span><br><span class="line">    listen 80; #监听的端口</span><br><span class="line">    server_name 127.0.0.1; #代理服务器地址</span><br><span class="line"></span><br><span class="line">    location &#123;</span><br><span class="line">      proxy_pass http://app_servers; #设置定义的upstream</span><br><span class="line">      proxy_next_upstream error timeout invalid_header http_502;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    error_page 500 502 503 504 /50x.html;</span><br><span class="line">    location = /50x.html &#123;</span><br><span class="line">      root html;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li><a href="http://tengine.taobao.org/book/" target="_blank" rel="noopener">淘宝Tengine·Nginx开发从入门到精通</a></li>
+<li><a href="https://www.cnblogs.com/wawahaha/p/4645668.html" target="_blank" rel="noopener">Nginx配置文件nginx.conf中文详解（总结）</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>Nginx</category>
+      </categories>
+      <tags>
+        <tag>Nginx</tag>
+        <tag>正向代理</tag>
+        <tag>反向代理</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>JVM-GC机制详解</title>
+    <url>/blog/625f1969.html</url>
+    <content><![CDATA[<h3 id="需要管理和回收的内存"><a href="#需要管理和回收的内存" class="headerlink" title="需要管理和回收的内存"></a>需要管理和回收的内存</h3><h4 id="堆内存"><a href="#堆内存" class="headerlink" title="堆内存"></a>堆内存</h4><p>python等语言采用“引用计数法”来确定堆内存中的对像是否被使用，计数为0则回收。该方法实现简单效率高，但不能解决java中对象间相互“循环引用”的问题，故引入“可达性分析算法”，任何对象和GC Roots之间必须存在一个“引用链”，否则该对象不可用。</p>
+<p>无论哪种方式，关键还是在“引用”。JDK1.2+，引用分为强引用（不会回收）、软引用（SoftReference类，第二次gc时内存紧张会回收）、弱引用（WeakReference类，无论内存是否紧张下一次gc前都会回收）、虚引用（PhantomReference类，用于回收时接收系统通知）。</p>
+<p>对象确定死亡前，需要经过“两次标记过程”。可达性分析确定对象和GC Roots之间没有引用链则进行第一次标记，并将需要执行finalize()方法的对象放入F-queue中，等待jvm的finalizer线程去执行，对F-queue中的对象进行第二次标记，仍然没有引用链则被真正回收。</p>
+<h4 id="方法区"><a href="#方法区" class="headerlink" title="方法区"></a>方法区</h4><p>这部分主要回收废弃常量和无用的类。</p>
+<h3 id="典型垃圾回收算法"><a href="#典型垃圾回收算法" class="headerlink" title="典型垃圾回收算法"></a>典型垃圾回收算法</h3><h4 id="Mark-Sweep（标记清除算法）"><a href="#Mark-Sweep（标记清除算法）" class="headerlink" title="Mark-Sweep（标记清除算法）"></a>Mark-Sweep（标记清除算法）</h4><p>首先标记出所有需要回收的对象，然后统一回收所有被标记的对象。不足之处，标记和清除效率低下，其次产生大量内存碎片导致分配大对象时没有足够的连续空间而再次触发GC操作。</p>
+<h4 id="Copy（复制算法）"><a href="#Copy（复制算法）" class="headerlink" title="Copy（复制算法）"></a>Copy（复制算法）</h4><p>为了解决“Mark-Sweep”的缺陷，将可用内存分为两半，其中一块内存用完将存活的对象复制到另外一块内存依次存放，不产生碎片。不足之处，内存牺牲掉一半，其次存活对象较多导致复制的数据量大，效率低下。</p>
+<h4 id="Mark-Compact（标记整理算法）"><a href="#Mark-Compact（标记整理算法）" class="headerlink" title="Mark-Compact（标记整理算法）"></a>Mark-Compact（标记整理算法）</h4><p>为了解决“Copy”的缺陷，标记过程和Mark-Sweep的标记过程类似，回收阶段主要是将存活的对象都向一端移动，然后端边界以外的（一端最后一个存活的对象内存之后的部分）内存直接清除。</p>
+<h4 id="Generation-Collection（分代收集）"><a href="#Generation-Collection（分代收集）" class="headerlink" title="Generation-Collection（分代收集）"></a>Generation-Collection（分代收集）</h4><p>将java堆内存分为新生代和老年代，根据各个年代的特点采用适当的算法。如新生代对象“朝生夕灭”，故采用copy算法；老年代对象存活率高、没有格外空间对其分配担保，故采用Mark-Compact算法。  </p>
+<p>hotspot将新生代分为两个较小的survivor空间和一个较大的eden空间，每次只使用其中一个survivor和eden空间，默认比例为8:1。当上一次回收后存活的对象，在另一个survivor空间放不下的话，老年代可以进行分配担保（Handle promotion），使得这些存活对象进入老年代。</p>
+<h3 id="hotspot垃圾收集器"><a href="#hotspot垃圾收集器" class="headerlink" title="hotspot垃圾收集器"></a>hotspot垃圾收集器</h3><p>jdk7u14+的hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。（备注：并发：垃圾收集和用户线程同时工作；并行：多个垃圾收集，用户线程等待）<br><img src="/blog/625f1969/jvm-gc-structure.jpg" alt></p>
+<h4 id="Serial-Serial-old收集器"><a href="#Serial-Serial-old收集器" class="headerlink" title="Serial/Serial old收集器"></a>Serial/Serial old收集器</h4><p>Serial负责新生代（复制算法），Serialold负责老年代（标记整理算法）。两者都是单线程方式进行垃圾回收，需要暂停所有用户线程（Stop the world）。Serial是client模式下的默认新生代收集器，简单高效，单cpu下没有线程交互开销，收集效率高。Serial Old收集器可与ParallelScavenge搭配使用，同时可作为CMS在并发收集发生Concurrent Mode Failure时使用的后备方案。</p>
+<h4 id="ParNew-CMS收集器"><a href="#ParNew-CMS收集器" class="headerlink" title="ParNew/CMS收集器"></a>ParNew/CMS收集器</h4><p>ParNew收集器是Serial的多线程版本，其他控制参数和Serial一样。ParNew是Server模式下的首选新生代收集器，可与CMS（并发收集，垃圾收集和用户线程基本同时工作）搭配使用。ParNew在单cpu下，效果没有Serial好。Cpu数量添加，默认开启收集线程数和cpu数量相同。</p>
+<p>CMS是一种获取最短回收提顿时间为目标的收集器，侧重服务的响应速度，也被称为并发低停顿收集器。但是存在三个方面的不足：</p>
+<ul>
+<li>CMS默认启动回收线程数为(cpu数量+3)/4，cpu越多效果越好，但cpu不足4个时，一半运算能力分到执行收集器线程，导致用户线程执行速度降低；</li>
+<li>CMS处理浮动垃圾。CMS在并发清理时用户线程同时产生垃圾，这些垃圾（浮动垃圾）需等到下次GC再清理。因此，CMS触发时机（-XX:CMSInitiatingOccupancyFraction，触发百分比）不能等到老年代空间用得太满，否则CMS运行需要内存，再加上同时产生的浮动垃圾，会出现”Concurrent Mode Failure”，之后会临时启用Serial Old，stop theworld时间就很长了。</li>
+<li>CMS毕竟是标记清除算法实现，会产生空间碎片。通过-XX:UseCMSCompactAtFullCollection开启内存碎片整理（默认开启），无法并发但停顿时间变长，通过-XX:CMSFullGCsBeforeCompaction=0（默认为0），开启每次进入FullGC时都进行碎片整理。</li>
+</ul>
+<h4 id="Parallel-Scavenge-Parallel-Old收集器"><a href="#Parallel-Scavenge-Parallel-Old收集器" class="headerlink" title="Parallel Scavenge/Parallel Old收集器"></a>Parallel Scavenge/Parallel Old收集器</h4><p>Parallel Scavenge负责新生代收集，收集器也经常被称为“吞吐量优先”收集器，适合后台运算而不需要太多交互的任务，-XX:MaxGCPauseMillis设置停顿时间和-XX:GCTimeRatio设置吞吐量大小。而CMS是尽可能缩短stop the world的时候，适合与用户交互的任务。</p>
+<p>Parallel Scavenge从复制算法和并行方面和ParNew类似，主要区别是ParallelScavenge具有自适应调节策略，使用-XX:+UseAdaptiveSizePolicy，无需手工指定-Xmn、-XX:SurvivorRatio、-XX:PretenureSizeThreshold等细节参数。</p>
+<p>Parallel Old是ParallelScavenge的老年代版本，使用多线程和标记整理算法。</p>
+<p>该搭配组合适合注重吞吐量和CPU资源敏感的场合。</p>
+<h4 id="G1收集器"><a href="#G1收集器" class="headerlink" title="G1收集器"></a>G1收集器</h4><p> G1是一款面向服务端应用的垃圾收集器。具有并行并发、分代收集、空间整合以及可预测停顿的特点。将整个Java堆分为多个大小相等的Region（底层还保留新生代和老年代的概念，不再物理隔离），统一进行管理。优先回收价值最大的Region，使得在有限时间内尽可能提高收集效率（Garbage First）。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li><a href="http://book.douban.com/subject/6522893/" target="_blank" rel="noopener">深入理解Java虚拟机：JVM高级特性与最佳实践</a></li>
+<li><a href="http://www.cnblogs.com/zuoxiaolong/p/jvm9.html" target="_blank" rel="noopener">JVM内存管理</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>jvm</tag>
+        <tag>垃圾回收</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Calcite原理和经验总结</title>
+    <url>/blog/b227762f.html</url>
+    <content><![CDATA[<h3 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h3><p><a href="http://calcite.apache.org/" target="_blank" rel="noopener">Calcite</a>（最初被命名为optiq，由Julian Hyde编写，之后成为apache项目）是一个动态数据管理框架，不考虑数据的存储、处理数据的算法以及元数据的保存问题，只保留了重要的数据库管理功能，成为应用程序和多个数据源交互的中介。</p>
+<p>Optiq起初在<a href="http://hive.apache.org/" target="_blank" rel="noopener">Hive</a>项目中，为其提供成本优化模型，即CBO(Cost Based Optimization)。它是面向<a href="http://hadoop.apache.org/" target="_blank" rel="noopener">Hadoop</a>新的查询引擎，提供了OLAP和流SQL查询引擎。当前，还应用于<a href="https://flink.apache.org/" target="_blank" rel="noopener">Flink</a>解析和流SQL处理、<a href="http://drill.apache.org/" target="_blank" rel="noopener">Drill</a>的解析和JDBC接口等、<a href="http://kylin.apache.org/" target="_blank" rel="noopener">Kylin</a>的OLAP。<br>Calcite的目标是一种方案适应所有需求场景（one size fits all），希望能够为不同计算平台提供统一查询引擎，让访问hadoop上的数据跟传统数据库访问方式一样（SQL和高级查询优化）。</p>
+<a id="more"></a>
+<h3 id="主要特性"><a href="#主要特性" class="headerlink" title="主要特性"></a>主要特性</h3><ul>
+<li>SQL解析、验证和优化，支持标准函数和聚合函数，提供JDBC驱动查询能力；</li>
+<li>连接不同前端（SQL、Pig等翻译为关系代数）和不同后端（适配器对接各种存储接口）；</li>
+<li>支持关系代数、定制逻辑规则和基于CBO和RBO优化的查询引擎；</li>
+<li>物化视图管理以及物化视图Lattice和Tile机制来应用于OLAP分析；</li>
+<li>支持对流数据的查询。</li>
+</ul>
+<h3 id="基本原理"><a href="#基本原理" class="headerlink" title="基本原理"></a>基本原理</h3><p><img src="/blog/b227762f/calcite_architect.png" alt></p>
+<p>Calcite框架中的主要接口，都可以单独被集成使用。例如：</p>
+<ul>
+<li>提供JDBC接口实现、SQL的解析和元数据校验、关系代数转换为执行计划（CBO和RBO）等；</li>
+<li>JDBC Client对外通过驱动类加载访问JDBC Server, Server服务通过Jetty对外提供；</li>
+<li>SQLParser将SQL解析成SqlNode，并通过Validator验证SqlNode信息；Operator Exp将SqlNode转为RelNode树</li>
+<li>QueryOptimizer将RelNode基于规则或成本优化执行计划。</li>
+</ul>
+<h3 id="示例解析"><a href="#示例解析" class="headerlink" title="示例解析"></a>示例解析</h3><p>执行SQL：select a,b,c from tab where a = 1<br><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">--LogicalFilter</span><br><span class="line">----LogicalProject</span><br><span class="line">------LogicalTableScan</span><br></pre></td></tr></table></figure></p>
+<p>优化方式：<br>1）RBO：预先定义一些规则，来优化执行计划（HepPlanner）<br>比如先过滤，再投影，可以减小数据量，优化如下：<br><figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">--LogicalProject</span><br><span class="line">---- LogicalFilter</span><br><span class="line">------LogicalTableScan</span><br></pre></td></tr></table></figure></p>
+<p>2）CBO: 计算SQL所有可能执行的代价，选择一个代价较低(VolcanoPlanner)<br>计算LogicalProject、LogicalFilter、LogicalTableScan转为不同的执行计划所具有的代价，选择不是最坏的、相对较小的。</p>
+<h3 id="实战总结"><a href="#实战总结" class="headerlink" title="实战总结"></a>实战总结</h3><p>以上介绍了Calcite的基本特性和原理，以及在大数据计算引擎领域的应用情况。以下是本人在实际使用过程中（1.5版本），遇到的一些坑，方便遇到同样问题的开发者排查问题。</p>
+<ul>
+<li>对于应用程序已经打开的JDBC连接，新增的表无法感知，需要重新建立连接，重新加载元数据；</li>
+<li>对于长度很长的大SQL，在翻译为物理执行计划（对接底层存储引擎的处理逻辑）时，有可能会超过Janino约束的64KB大小，导致物理计划生成失败；</li>
+<li>对于大SQL中的组合条件嵌套不可以太深，否则会导致SQL解析器报栈溢出；</li>
+<li>Calcite作为计算框架的SQL引擎，除了下推到底层存储的算子操作，其他都是在内存中计算的，因此对资源的要求比较高；</li>
+<li>同样的SQL或者预编译SQL生成的物理执行计划，目前发现JVM装载完成后并没有复用，持续的查询反而造成了方法区Class暴增，导致permgen overflow。然后，修改源码将每次创建的Statement强制关闭，使得FullGC时Class可以被unload，避免permgen overflow。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Calcite</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+        <tag>Calcite</tag>
+        <tag>大数据计算引擎</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>一个技术人30岁的自白</title>
+    <url>/blog/c6c421ae.html</url>
+    <content><![CDATA[<p>2018年度过了30岁生日，总结过去，展望未来，这次也打算写点东西，也算是对过去的一个交代，希望自己今后能够更加明确自己的道路，全身心地投入，平衡好工作和生活。2008年进入大学校园，从事计算机相关学习，算上本科和研究生，一共是七年的时间。2015年进入到现在的公司工作，到现在也有了三年半的时间。从求学到工作再到家庭，一路走来算是平平淡淡，有过开心也有过失落，如今又多了几分责任，2019年初即将迎接我的宝宝。<br><a id="more"></a></p>
+<p><strong>人生中非常重要的一个阶段–20岁到30岁，这是一个学习和积累的时间段，也是积累高效的学习能力和解决问题的能力的时期</strong>。</p>
+<p>2008年开始四年的本科学习生涯，当时的重心都放在了一些课程的学习和考试上，并没有什么职业规划的概念。记得当时，大家都在考公务员、教师、参加各种培训来选择毕业后的工作和发展。而我不知道是否是逃避就业，还是想有更好的发展平台，总之当时和几个同学一起加入了考研的队列。备战考研，始于大三的暑假，起早贪黑，找教室座位，复习知识点，做题目，日复一日，等待考试的那一刻。由于全部是自主学习，不像高考时老师带着，有点苦学的感觉，复习的效果和时间进度并不是很理想，最终还是坚持了下来。毕业设计也同样顺利地完成系统开发、论文撰写，帮助了身边很多的同学。<strong>这一阶段，我最大的收获，并不是在专业理论上，而是干一件事的专注度、进取心的增强</strong>。</p>
+<p>2012年进入研究生阶段后，第一学年是以基本理论课程为主，同样延续着本科的学习节奏完成了这一阶段的任务，和一直没过的CET6。第二学年开始论文选题、阅读核心期刊文献、发表论文、写毕业论文，<strong>这一阶段的收获不在于论文的撰写，而是经历了根据给定课题，如何去检索前沿文献、对比总结已有研究成果，得出自己的一些思考和想法</strong>。</p>
+<p>当然，最重要的事情还是要能够找到心仪的、感兴趣的工作。本科研究生阶段对编程还是很感兴趣的，课程设计、毕业设计、上机操作、程序设计比赛等等，都有参与过并能够完成得很好。当时自己对行业的区别、业务场景并没有什么概念，校园期间只要是感兴趣的技术，都会去了解并学习。本科期间，对Spring技术栈用得比较多，当时主要围绕Java开发做了一些项目，前后端都能基本应付。读研期间，由于课题实验要求，主要围绕兴起的大数据技术和经典的数据挖掘算法来完成论文实验需要。平时，也会关注一些大牛的博客、GITHUB等技术网站。所以，当时给自己的定位就是找Java或大数据相关的开发岗位。临近毕业，就开启了跑各种宣讲会的模式，夸校园、夸城市，到处地跑。<strong>这个阶段，给我最大的感受：以前学的计算机基础课程，技术书籍的阅读量，框架源码研究，算法等方面都是非常重要的，要持续地积累，形成自己的技术优势，才能符合一线大厂的要求</strong>。</p>
+<p>2015年开始正式参加工作，进入了数据分析部门，遇到同校的学姐（也是我的组长），还蛮开心的。主要工作是设计和开发一个数据分析平台，从RP框图、技术选型、系统设计到最后编码出demo，在师傅的带领下，入职的这一年确实成长了很多，还要再次感谢部门领导和组长的栽培。由于客观原因，项目中止，另外考虑到个人发展，我申请调到数据应用平台，从事RPC服务框架、大数据平台SQL组件等方面的开发。这三年多的工作经历，使我在编码能力上有了一定的提升，但我知道还要多看优秀项目的源代码，现在想想GITHUB就是程序员的天堂，设计能力和解决问题的能力还需要进一步加强；技术广度上，实现一套高可用、高性能、可扩展的系统架构、技术选型已经是很高的要求了，这是我一直努力的目标；技术深度上，对分布式系统充满了浓厚的兴趣，比如在通信机制、存储结构、检索算法等方面。<strong>这个阶段，我的收获是：更加明确了个人的发展道路，技术深度还有待提高，制定计划并有效地实施显得至关重要，毕竟机会都是留给有准备的人的。沟通和表达能力也需要提高，建立个人影响力、推销自己、赢得领导的信任是一门学问</strong>。</p>
+<p>十年的时间，走过一些弯路，悟到一些道理。希望下一个5到10年，能够走好自己的路，做一个懂得“投资”的人。2019年我就要当爸爸了，感恩生活，珍惜生活，希望我们每个技术人都能把握新的机遇，创造更多的可能性。</p>
+<p>附赠: <a href="http://naotu.baidu.com/file/276fd9839e8c28f0e121b1334464d798?token=595143b48bb3296d" target="_blank" rel="noopener">架构师技能图谱思维导图链接</a>, 来自<a href="https://www.geekbang.org/" target="_blank" rel="noopener">极客专栏</a>整理。</p>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+      <tags>
+        <tag>职场感悟</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>基于Arthas的Java应用线上诊断方法</title>
+    <url>/blog/8c700280.html</url>
+    <content><![CDATA[<h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>针对Java应用在生产环境下出现的问题，通常开发者想通过远程debug的方式来排查问题是不可行的。一是私有云的客户系统无法连接去调试，连接上也会由于debug断点导致所有业务请求被暂停。二是需要额外添加日志来部署到线上观察，效率非常低下。当然，线上问题远不止这些，还需要结合Linux和JVM指令来监控系统整体运行指标。</p>
+<p>因此，为了能够解决上述常规排查手段的弊端，这里介绍一款开源的Java诊断工具<a href="https://alibaba.github.io/arthas/" target="_blank" rel="noopener">Arthas</a>，该工具提供了jvm整体监控、线程堆栈、类加载器检查、方法级别的监控等丰富的操作，来定位在线Java应用问题。另外，值得注意的是由于该工具采用字节码植入方式，对于应用的运行性能和安全性需要考虑一下。<br><a id="more"></a></p>
+<h3 id="使用说明"><a href="#使用说明" class="headerlink" title="使用说明"></a>使用说明</h3><h4 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h4><p>下载<code>arthas-packing-xxx-bin.zip</code>直接解压，进行本地安装，默认安装在<code>user.home</code>的用户目录下面。</p>
+<ul>
+<li>启动：<br>执行<code>java –jar arthas-boot.jar</code>，进入交互式命令行界面，选择需要监控的java应用进程号，控制台打印attach process xxx success 表示连接成功，输入help显示指令帮助说明，表示可以开始正式使用了。注意：如果没有第一步的本地安装，执行启动命令，会访问网络下载安装，内网用户将会无法使用。</li>
+<li>卸载：<br>标准安装的话，安装目录在<code>~/.arthas</code>，执行<code>rm –rf ~/.arthas</code>即可。否则直接删除当前所在目录的sh和jar。</li>
+</ul>
+<h4 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h4><ul>
+<li><p>基础命令<br><code>help</code>——查看命令帮助信息<br><code>cls</code>——清空当前屏幕区域<br><code>session</code>——查看当前会话的信息<br><code>reset</code>——重置增强类，将被 Arthas 增强过的类全部还原，Arthas 服务端关闭时会重置所有增强过的类<br><code>version</code>——输出当前目标 Java 进程所加载的 Arthas 版本号<br><code>history</code>——打印命令历史<br><code>quit</code>——退出当前 Arthas 客户端，其他 Arthas 客户端不受影响<br><code>shutdown</code>——关闭 Arthas 服务端，所有 Arthas 客户端全部退出<br><code>keymap</code>——Arthas快捷键列表及自定义快捷键  </p>
+</li>
+<li><p>jvm相关<br><code>dashboard</code>——当前系统的实时数据面板<br><code>thread</code>——查看当前 JVM 的线程堆栈信息<br><code>jvm</code>——查看当前 JVM 的信息<br><code>sysprop</code>——查看和修改JVM的系统属性<br><code>sysenv</code>——查看JVM的环境变量<br><code>getstatic</code>——查看类的静态属性</p>
+</li>
+<li><p><code>class</code>/<code>classloader</code>相关<br><code>sc</code>——查看JVM已加载的类信息<br><code>sm</code>——查看已加载类的方法信息<br><code>dump</code>——dump 已加载类的 byte code 到特定目录<br><code>redefine</code>——加载外部的.class文件，redefine到JVM里<br><code>jad</code>——反编译指定已加载类的源码<br><code>classloader</code>——查看classloader的继承树，urls，类加载信息，使用classloader去getResource</p>
+</li>
+<li><p><code>monitor/watch/trace</code>相关<br>请注意，这些命令，都通过字节码增强技术来实现的，会在指定类的方法中插入一些切面来实现数据统计和观测，因此在线上、预发使用时，请尽量明确需要观测的类、方法以及条件，诊断结束要执行 <code>shutdown</code> 或将增强过的类执行 <code>reset</code> 命令。<br><code>monitor</code>——方法执行监控<br><code>watch</code>——方法执行数据观测<br><code>trace</code>——方法内部调用路径，并输出方法路径上的每个节点上耗时<br><code>stack</code>——输出当前方法被调用的调用路径<br><code>tt</code>——方法执行数据的时空隧道，记录下指定方法每次调用的入参和返回信息，并能对这些不同的时间下调用进行观测  </p>
+</li>
+<li><p><code>options</code><br><code>options</code>——查看或设置Arthas全局开关</p>
+</li>
+<li><p>管道<br>Arthas支持使用管道对上述命令的结果进行进一步的处理，如<code>sm org.apache.log4j.Logger | grep &lt;init&gt;</code><br>grep——搜索满足条件的结果<br>plaintext——将命令的结果去除颜色<br>wc——按行统计输出结果  </p>
+</li>
+<li><p>后台异步任务<br>当线上出现偶发的问题，比如需要watch某个条件，而这个条件一天可能才会出现一次时，异步后台任务就派上用场了<br>使用 <code>&gt;</code> 将结果重写向到日志文件，使用 <code>&amp;</code> 指定命令是后台运行，session断开不影响任务执行（生命周期默认为1天）<br><code>jobs</code>——列出所有job<br><code>kill</code>——强制终止任务<br><code>fg</code>——将暂停的任务拉到前台执行<br><code>bg</code>——将暂停的任务放到后台执行  </p>
+</li>
+<li><p>ognl相关<a href="https://commons.apache.org/proper/commons-ognl/language-guide.html" target="_blank" rel="noopener">官方文档</a><br>一般配合watch指令使用，其中的express、condition-express 采用ognl表达式<br>用于监控成员方法和类级别静态方法的入参(<code>params</code>)、返回值(<code>returnObj</code>)、抛出异常(<code>throwExp</code>)等。示例：  </p>
+<p>执行一次查看Test类的test方法的第一个参数(list)的第一个对象(pojo)中的age属性<br><code>watch Test test params[0].get(0).age -n 1</code><br>//还可以通过下标的方式访问params[0][0][“age”] ，这个写法等效于params[0][0].age</p>
+<p> 执行一次查看Test类的test方法的第一个参数(list)的所有对象(pojo)中age&gt;5的姓名<br> <code>watch Test test &quot;params[0].{? #this.age &gt; 5}.{name}&quot; -n 1</code><br> //那如果要找到第一个age大于5的Pojo的name，可以用^ 或$ 来进行第一个或最后一个的匹配</p>
+<p> 执行一次查看Test类中的静态变量m<br> <code>watch Test test &#39;@Test@m&#39; -n 1</code></p>
+</li>
+</ul>
+<h3 id="应用场景"><a href="#应用场景" class="headerlink" title="应用场景"></a>应用场景</h3><ul>
+<li><p>定位内存泄露、资源未释放等问题：<br>查看系统整体运行情况，包括线程概览、堆与非堆内存使用、GC次数与耗时、操作系统等信息<br><code>dashboard –i 10000</code> //十秒钟刷新一次</p>
+</li>
+<li><p>定位有问题的处理逻辑<br>查看前3个占用cpu比较高的线程堆栈<br><code>thread –n 3</code></p>
+</li>
+<li><p>定位jar包冲突的问题<br>查看使用的类所在的jar以及类加载器<br><code>sc –d 全路径类名`</code></p>
+</li>
+<li><p>性能测试，统计方法的执行平均耗时、成功/失败次数统计<br>确认要统计的业务类中的方法名<br><code>monitor 全路径类名 方法名 -c 1</code></p>
+</li>
+<li><p>定位耗时的业务逻辑处理，从而有针对性地优化<br>通过trace方法查看指定方法的调用堆栈和最耗时的方法<br><code>trace全路径类名 方法名</code></p>
+</li>
+<li><p>查看方法的入参和返回值，确认业务逻辑处理的正确性<br>通过watch和ognl表达式来检测结果<br><code>watch 全路径类名 方法名 ‘params[0] + “, ”+ returnObj’</code></p>
+</li>
+</ul>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>以上介绍了Arthas是如何解决以往线上Java应用程序诊断的不足带来的问题，用好这些命令还需要多多结合实际问题去实践。最重要的，还是需要具备程序运行诊断的思路，工具只是辅助我们采集想要的信息，并且需要具备从这些信息中分析出问题，给出解决方案的能力。</p>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+        <tag>故障诊断</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>24个职场感悟-阿里技术专家至简</title>
+    <url>/blog/55ff8bff.html</url>
+    <content><![CDATA[<p>至简以自传的形式讲述了他的<a href="https://mp.weixin.qq.com/s/kI1u0ENe1tDTI2DXUJG4JA" target="_blank" rel="noopener">成长历程</a>，并提炼出24个职场感悟。这些经历和感悟，本人读完后觉得对日常的工作、学习和写作具有一定的指导意义，故整理如下和读者们共同学习成长。</p>
+<ul>
+<li><strong> 自学能力是竞争力之本 </strong></li>
+<li>自信能让你与众不同，尽管有时的自信有点莫名其妙</li>
+<li>兴趣是学习效率的催化剂，培养自己的职业兴趣</li>
+<li><strong> 学习应给自己设置虚拟的项目目标，以做项目的形式提升学习效果，只有这样学到的内容才会深入而实用，切忌无目标地学到哪算哪 </strong><a id="more"></a></li>
+<li>话语权首先来自能力，而不是职位权力</li>
+<li><strong> 难学的技能一旦掌握更具竞争优势 </strong></li>
+<li>用阶段性成果不断增强自己的自信，且最终支持自信的是能力，而不是自大</li>
+<li>做自己喜欢的事，如果那是自己的兴趣最好</li>
+<li><strong> 不论身处多么困难的环境，即使觉得前途渺茫，也不要放弃学习，否则就是“自断筋脉” </strong></li>
+<li><strong> 长期安逸的工作意味着将来更大的风险 </strong></li>
+<li><strong> 机遇很重要，但你得有能力才能抓住它 </strong></li>
+<li>职场首先比拼的不是智商，而是坚持与好习惯</li>
+<li>当短期利益与长远利益无法得兼时，选择长远利益</li>
+<li>学历是很重要的敲门砖，即便你的能力很强；学历尽管很重要，但能力才是最终的通行证</li>
+<li>技术细节掌握得越深，解决问题时就越能游刃有余</li>
+<li><strong> 技能的发展应采取深度先于广度且交替进行的方式，只有这样，面对大量的新知识才能更淡定 </strong></li>
+<li>越难的技术问题，其所蕴藏的知识越丰富，也越具学习价值</li>
+<li>每次积累的点滴知识，一定会在将来不知不觉地发挥效能</li>
+<li><strong> 通过文档化的方式传承知识给后继者是你的基本责任，因为你作为后继者时也希望如此，这也是对自己负责的一种表现 </strong></li>
+<li><strong> 别人对你价值的认可，其实不是简单地根据你的自身能力，而是根据你对他人和团队的贡献 </strong></li>
+<li>英语的听说能力只要有合适的环境，并勇于张嘴练习的情况下能快速地提高，不必担心</li>
+<li>在软件开发活动中，应设法通过有效的技术途径去解决工程困境</li>
+<li><strong> 不要用沉默的方式一味地迎合别人的要求，据理力争或许才是作为的表现 </strong></li>
+<li><strong> 流程、文档的作用，不只是引导我们做完事，更能规范我们的行为和帮助培养工作习惯 </strong></li>
+</ul>
+<blockquote><p>尽管我们常将“职业规划”挂在嘴边，实际上职场发展真的是一种“布朗运动”。你不知道下一站会是哪、也不知道后面将要从事什么工作、更不清楚后面会碰到怎样的老板。在众多不确定因素面前，或许以上总结出的职场感悟能让你不断地朝好的方向发展。</p>
+<footer><strong>至简</strong><cite>阿里巴巴高级技术专家集团Service Mesh方向的重要参与者和推动者</cite></footer></blockquote>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+      <tags>
+        <tag>职场感悟</tag>
+        <tag>技术管理</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>工作中如何做好技术积累</title>
+    <url>/blog/759b03e6.html</url>
+    <content><![CDATA[<p><strong>文章转自：<a href="https://tech.meituan.com/study_vs_work.html" target="_blank" rel="noopener">美团技术团队</a> @ 刘丁</strong></p>
+<h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>古人云：“活到老，学到老。”互联网算是最辛苦的行业之一，“加班”对工程师来说已是“家常便饭”，同时互联网技术又日新月异，很多工程师都疲于应付，叫苦不堪。以至于长期以来流传一个很广的误解：35岁是程序员工作的终点。</p>
+<p>如何在繁忙的工作中做好技术积累，构建个人核心竞争力，相信是很多工程师同行都在思考的问题。本文是我自己的一些总结，试图从三个方面来解答：</p>
+<ul>
+<li><p>第一部分阐述了一些学习的原则。任何时候，遵循一些经过检验的原则，都是影响效率的重要因素，正确的方法是成功的秘诀。</p>
+</li>
+<li><p>提升工作和学习效率的另一个重要因素是释惑和良好心态。第二部分分析了我在工作中碰到和看到的一些典型困惑。</p>
+</li>
+<li><p>成为优秀的架构师是大部分初中级工程师的阶段性目标。第三部分剖析架构师的能力模型，让大家对目标所需能力有一个比较清晰的认知。</p>
+</li>
+</ul>
+<a id="more"></a>
+<h2 id="如何学习"><a href="#如何学习" class="headerlink" title="如何学习"></a>如何学习</h2><p>在繁忙的工作中，持之以恒、不断学习和进步是一件艰巨的任务，需要坚强的毅力和坚定的决心。如果方法不得当，更是事倍功半。幸好我们的古人和现在哲人已经总结了很多优秀的学习方法论，这里汇总了一些重要原则。遵循这些方法必会对大家的工作学习大有裨益。</p>
+<h3 id="贵在坚持"><a href="#贵在坚持" class="headerlink" title="贵在坚持"></a>贵在坚持</h3><p>有报道指出，过去几十年的知识量超过之前人类几千年的知识量总和。而计算机领域绝对是当代知识更新最快的领域之一，因此，工程师必须要接受这样一个现实，现在所掌握的深厚知识体系很快就会被淘汰。要想在计算机领域持续做优秀架构师，就必须不停的学习，掌握最新技术。总之，学不可以已。</p>
+<p>所谓“冰冻三尺，非一日之寒，水滴石穿，非一日之功”，通往架构师的道路漫长而又艰巨，轻易放弃，则所有付出瞬间付之东流。要想成为优秀的架构师，贵在坚持！</p>
+<p>虽然知识更新很快，但是基础理论的变化却非常缓慢。这就是“道”和“象”关系，纵是世间万象，道却万变不离其宗。对于那些非常基础的理论知识，我们需要经常复习，也就是“学而时习之”。</p>
+<h3 id="重视实践"><a href="#重视实践" class="headerlink" title="重视实践"></a>重视实践</h3><p>古人云：“纸上得来终觉浅，绝知此事要躬行。” 学习领域有所谓721模型：个人的成长70%来自于岗位实践，20%来自向他人学习，10%来自于培训。虽然这种理论存在争议，但对于工程师们来说，按照实践、学习和培训的方式进行重要性排序，大致是不错的。所以重视实践，在实践中成长是最重要的学习原则。</p>
+<p>人类的认知有两种：感性认知和理性认知。这两种认知互相不可替代性。实践很大程度来自于感性学习，看书更像是理性学习。以学开汽车做例子，很难想象什么人能够仅仅通过学习书本知识就会开汽车。</p>
+<p>书本知识主要是传道——讲述抽象原型，而对其具体应用场景的讲述往往含糊其辞，对抽象原型之间的关系也是浅尝辄止。采用同样精确的语言去描述应用场景和关联关系将会失去重点，让人摸不着头脑。所以，仅仅通过看书来获得成长就像是用一条腿走路。</p>
+<p>重视实践，充分运用感性认知潜能，在项目中磨炼自己，才是正确的学习之道。在实践中，在某些关键动作上刻意练习，也会取得事半功倍的效果。</p>
+<h3 id="重视交流"><a href="#重视交流" class="headerlink" title="重视交流"></a>重视交流</h3><p>牛顿说：“如果说我看得比别人远一些，那是因为我站在巨人的肩膀上。”我们需要从别人身上学习。从老师、领导、同事、下属甚至对手身上学习，是快速成长的重要手段。</p>
+<p>向老师和领导学习已经是人们生活习惯的一部分了。但是从同事甚至对手那里学习也很重要，因为这些人和我们自身更相似。所以要多多观察，取其所长，弃其所短。对于团队的小兄弟和下属，也要“不耻下问”。</p>
+<p>此外，在项目中积极参与具体方案讨论也非常重要。参与者先验感知了相关背景，并且讨论的观点和建议也是综合了发言者多种知识和技能。所以，讨论让参与者能够非常全面，立体地理解书本知识。同时，和高手讨论，他们的观点就会像修剪机剪树枝一样，快速的剪掉自己知识领域里面的疑惑点。</p>
+<h3 id="重视总结和输出"><a href="#重视总结和输出" class="headerlink" title="重视总结和输出"></a>重视总结和输出</h3><p>工程师在实践中会掌握大量细节，但是，即使掌握了所有细节，却没有深刻的总结和思考，也会陷入到“学而不思则罔”的境地。成长的“量变”来自于对细节的逐渐深入地把控，而真正的“质变”来自于对“道”的更深层次的理解。</p>
+<p>将经验输出，接受别人的检验是高层次的总结。这种输出不仅帮助了别人，对自身更是大有裨益。总结的方式有很多，包括组织分享，撰写技术文章等等。当然“日三省吾身”也是不错的总结方式。总之，多多总结，多多分享，善莫大焉！</p>
+<p>解答别人的问题也是个人成长的重要手段。有时候，某个问题自己本来不太懂，但是在给别人讲解的时候却豁然开朗。所以，“诲人不倦”利人惠己。</p>
+<h3 id="重视规划"><a href="#重视规划" class="headerlink" title="重视规划"></a>重视规划</h3><p>凡事预则立，不预则废。对于漫长的学习生涯而言，好的计划是成功的一半。</p>
+<h4 id="长期规划"><a href="#长期规划" class="headerlink" title="长期规划"></a>长期规划</h4><p>长期规划的实施需要毅力和决心，但是做正确的长期规划还需要高瞻远瞩的眼界、超级敏感的神经和中大奖的运气。对于大部分人来说，长期规划定主要是“定方向”。但遵循如下原则能够减少犯方向性错误的概率：</p>
+<ul>
+<li>远离日暮西山的行业。</li>
+<li>做自己感兴趣的事情。</li>
+<li>做有积累的事情。</li>
+<li>一边走一边看，切勿一条道走到黑。</li>
+</ul>
+<h4 id="短期规划"><a href="#短期规划" class="headerlink" title="短期规划"></a>短期规划</h4><p>良好的短期规划应该在生活、成长、绩效和晋升之间取得平衡。大部分公司都会制定一个考核周期——少则一个月，多则一年。所以不妨以考核周期作为短期学习规划周期。本质上，规划是一个多目标优化问题，它有一系列的理论方案，这里不一一细说。基于相关理论，我给出一个简单易行的方案：</p>
+<ul>
+<li>确定目标优先级。比如：成长、生活、绩效。</li>
+<li>确定每个目标的下限。从优化理论的角度来看，这被称为约束。比如绩效必须在一般以上，之前已经规划好的旅行不能更改，必须读完《Effective Java》等等。</li>
+<li>优先为下限目标分配足够的资源。比如，事先规划好的旅行需要10天，这10天就必须预算出去。</li>
+<li>按照各主目标的顺序依次分配资源。比如，最终分配给学习的时间是10天。</li>
+<li>在给定的学习预算下，制定学习目标，要激进。然后给出执行方案。比如，学习目标是掌握基本的统计学知识，并成为Java专家。具体方案为：完成《Effective Java》、《Java Performance》、《Design Pattern》、《Head First Statistics》四本书的阅读。</li>
+<li>对规划中的各学习任务按目标优先级进行排序，并最先启动优先级最高的任务。比如，最高优先级是掌握统计理论，那么就要先看《Head First Statistics》。</li>
+</ul>
+<p>对于该方案，要注意以下几点：</p>
+<ul>
+<li>最低目标必须能够轻松达成的目标，否则，从优化理论的角度来讲，该命题无解。比如，类似“半年内完成晋级两次、绩效全部S、从菜鸟成为Java专家”就不太合适作为最低目标。总之，要区分理想和梦想。</li>
+<li>主要目标规划必须具备一定的挑战性，需要规划出不可能完成的目标。过度规划本质上是一种贪婪算法，目的是目标价值最大化。因为一切皆有变数，如果其他目标能够提前完成，就不妨利用这些时间去完成更多的学习目标。总之，前途必须光明，道路必须坎坷。</li>
+<li>各目标之间不一定共享资源，规划不一定互有冲突。</li>
+</ul>
+<p>此外，短期规划还可以从如下几个方面进行优化：</p>
+<ul>
+<li>学习计划最好能结合工作计划，理论联系实际结合，快速学以致用。比如，本季度规划去做一些数据分析工作，那么不妨把学习目标设置为学习统计知识。</li>
+<li>要灵活对待规划的目标和具体执行步骤，需要避免“郑人买履”式的笑话。面临新的挑战和变化，规划需要不断地调整。</li>
+</ul>
+<h2 id="那些令人纠结的困惑"><a href="#那些令人纠结的困惑" class="headerlink" title="那些令人纠结的困惑"></a>那些令人纠结的困惑</h2><p>人生是一场马拉松，在漫长的征途中，难免有很多困惑。困惑就像枷锁，使我们步履蹒跚，困惑就像死锁，让我们停滞不前。</p>
+<p>接下来我将总结自己在工作中碰到和看到的一些典型困惑。这些困惑或者长期困扰作者本人，或者困扰我身边的同事和朋友。当这些困惑被释然之后，大家都感觉如重获释，为下一阶段的征程提供满满的正能量。人生就像一场旅途，不必在乎目的地，在乎的，应该是沿途的风景，以及看风景的心情。良好的心态是技术之旅最好的伴侣。期望通过这个解惑之旅，让大家拥有一个愉快的心情去感受漫长的学习旅途。</p>
+<h3 id="学无止境吗"><a href="#学无止境吗" class="headerlink" title="学无止境吗"></a>学无止境吗</h3><p>必须要承认一个残酷的现实：人的生命是有限的，知识却是无限的。用有限的生命去学习无限的知识是不可能完成的任务。一想到此，有些工程师不免产生一些悲观情绪。如果方法得当并且足够勤奋，悲伤大可不必。</p>
+<p>虽然，人类的整体知识体系一直在扩张。但是就很多重要的工程细分领域，基础理论并不高深。计算机的很多重要领域，工程师有能力在有限时间内抓住核心要害。</p>
+<p>比如，密码学被认为是门非常高深的学科，但是一大类密码技术的基础是数论中一个非常简单的理论——素因数分解：给出两个素数，很容易算出它们的积，然而反过来给定两个素数的积，分解的计算量却非常惊人。</p>
+<p>“一致性”算得上是计算机领域里面最经典的难题，它是所有分布式系统的基础，从多核多CPU到多线程，从跨机器到跨机房，无所不在，几乎所有的计算机从业人员都在解决这个问题，但是Paxos给出了一个很优雅的解决方案。</p>
+<p>权限管理是很多工程师的噩梦，但如果你能搞定“Attribute Based Access Control(ABAC)”和“Role-Based Access Control(RBAC)”，也能达到相当高度。</p>
+<p>另外，技术学习是一场对抗赛，虽然学无止境，超越大部分对手就是一种胜利。所以，以正确的学习方式，长时间投入就会形成核心竞争力。</p>
+<h3 id="没有绝对高明的技术，只有真正的高手"><a href="#没有绝对高明的技术，只有真正的高手" class="headerlink" title="没有绝对高明的技术，只有真正的高手"></a>没有绝对高明的技术，只有真正的高手</h3><p>致力于在技术上有所成就的工程师，都梦想有朝一日成为技术高手。但技术高手的标准却存在很大的争议。这是一个有着悠久历史的误解：以某种技术的掌握作为技术高手的评判标准。我经常碰到这样一些情景：因为掌握了某些技术，比如Spring、Kafka、Elasticsearch等，一些工程师就自封为高手。有些工程师非常仰慕别的团队，原因竟是那个团队使用了某种技术。</p>
+<p>这种误解的产生有几个原因：首先，技多不压身，技术自然是掌握的越多越好，掌握很多技术的人自然不是菜鸟。其次，在互联网时代来临之前，信息获取是非常昂贵的事情。这就导致一项技能的掌握可以给个人甚至整个公司带来优势地位。互联网时代，各种框架的出现以及开源的普及快速淘汰或者降低了很多技能的价值，同时降低了很多技术的学习门槛。所以，在当前，掌握某项技能知识只能是一个短期目标。怀揣某些技能就沾沾自喜的人需要记住：骄傲使人退步。</p>
+<p>所谓麻雀虽小，五脏俱全。如果让你来做造物主，设计麻雀和设计大象的复杂度并没有明显区别。一个看起来很小的业务需求，为了达到极致，所需要的技术和能力是非常综合和高深的。真正的高手不是拿着所掌握的技术去卡客户需求，而是倾听客户的需求，给出精益求精的方案。完成客户的需求是一场擂台赛，真正的高手，是会见招拆招的。</p>
+<h3 id="不做项目就无法成长吗"><a href="#不做项目就无法成长吗" class="headerlink" title="不做项目就无法成长吗"></a>不做项目就无法成长吗</h3><p>在项目中学习是最快的成长方式之一，很多工程师非常享受这个过程。但是一年到头都做项目，你可能是在一家外包公司。对于一个做产品的公司，如果年头到年尾都在做项目，要不然就是在初步创业阶段，要不然就是做了大量失败的项目，总之不算是特别理想的状态。正常情况，在项目之间都会有一些非项目时间。在这段时间，有些同学会产生迷茫，成长很慢。</p>
+<p>项目真的是越多越好吗？答案显然是否定的。重复的项目不会给工程师们带来新的成长。不停的做项目，从而缺乏学习新知识的时间，会导致“做而不学则殆”。真正让工程师出类拔萃的是项目的深度，而不是不停地做项目。所以，在项目之间的空档期，工程师们应该珍惜难得的喘息之机，深入思考，把项目做深，做精。</p>
+<p>如何提高项目的深度呢？一般而言，任何项目都有一个目标，当项目完成后，目标就算基本达成了。但是，客户真的满意了吗？系统的可用性、可靠性、可扩展性、可维护性已经做到极致了吗？这几个问题的答案永远是否定的。所以，任何一个有价值的项目，都可以一直深挖。深挖项目，深度思考还可以锻炼工程师的创造力。期望不停地做项目的人，就像一个致力于训练更多千里马的人是发明不出汽车的。锻炼创造力也不是一蹴而就的事情，需要长时间地思考。总之，工程师们应该总是觉得时间不够用，毕竟时间是最宝贵的资源。</p>
+<h3 id="职责真的很小吗"><a href="#职责真的很小吗" class="headerlink" title="职责真的很小吗"></a>职责真的很小吗</h3><p>很多时候，一个工程师所负责系统的数量和团队规模与其“江湖地位”正相关。但是，江湖地位与技术成长没有必然关联。提升技术能力的关键是项目深度以及客户的挑剔程度。项目越多，在单个项目中投入的时间就越少，容易陷入肤浅。特别需要避免的是“ 在其位不谋其政”的情况。团队越大，在管理方面需要投入的精力就越多。在管理技巧不成熟，技术眼界不够高的前提强行负责大团队，可能会导致个人疲于应付，团队毫无建树。最终“ 一将无能，累死三军”，效果可能适得其反。</p>
+<p>从技术发展的角度来说，技术管理者应该关注自己所能把控的活跃项目的数量，并致力于提高活跃项目的影响力和技术深度。团队人数要与个人管理能力、规划能力和需求把控能力相适应。一份工作让多个人来干，每个人的成长都受限。每个人都做简单重复的工作，对技术成长没有任何好处。团队管理和项目管理需要循序渐进，忌“拔苗助长”。</p>
+<h3 id="一定要当老大吗"><a href="#一定要当老大吗" class="headerlink" title="一定要当老大吗"></a>一定要当老大吗</h3><p>有一些工程师的人生理想是做团队里的技术老大，这当然是一个值得称赞的理想。可是，如果整个团队技术能力一般，发展潜力一般，而你是技术最强者，这与其说是幸运，不如说是悲哀。这种场景被称之为“武大郎开店”。 团队里的技术顶尖高手不是不能做，但为了能够持续成长，需要满足如下几个条件：</p>
+<ul>
+<li>首先你得是行业里面的顶尖专家了——实在很难找到比你更强的人了！</li>
+<li>其次，你经常需要承担对你自己的能力有挑战的任务，但同时你拥有一批聪明能干的队友。虽然你的技术能力最高，但是在你不熟悉的领域，你的队友能够进行探索并扩展整个团队的知识。</li>
+<li>最后，你必须要敏而好学，不耻下问。</li>
+</ul>
+<p>否则，加入更强的技术团队或许是更好的选择，最少不是什么值得骄傲的事情。</p>
+<h3 id="平台化的传说"><a href="#平台化的传说" class="headerlink" title="平台化的传说"></a>平台化的传说</h3><p>平台化算得上是“高大上”的代名词了，很多工程师挤破头就为了和“平台化”沾点边。然而和其他业务需求相比，平台化需求并没有本质上的区别。无论是平台化需求还是普通业务需求，它的价值都来自于客户价值。不同点如下：</p>
+<ul>
+<li>很多平台化需求的客户来自于技术团队，普通需求的客户来自于业务方。</li>
+<li>产品经理不同。普通业务需求来自于产品经理，平台化需求的产品经理可能就是工程师自己。长期被产品经理“压迫”的工程师们，在平台化上终于找到“翻身农奴把歌唱”的感觉。</li>
+<li>很多平台化的关注点是接入能力和可扩展性，而普通业务的关注点更多。</li>
+</ul>
+<p>归根结底，平台化就是一种普通需求。在实施平台化之前，一定要避免下面两个误区：</p>
+<ul>
+<li><p>平台化绝对不是诸如“统一”、“全面”之类形容词的堆砌。是否需要平台化，应该综合考虑：客户数量，为客户解决的问题，以及客户价值是否值得平台化的投入。</p>
+</li>
+<li><p>平台化不是你做平台，让客户来服务你。一些平台化设计者的规划设计里面，把大量的平台接入工作、脏活累活交给了客户，然后自己专注于所谓“最高大上”的功能。恰恰相反，平台化应该是客户什么都不做，所有的脏活累活都由平台方来做。本质上讲，平台化的价值来自于技术深度。真正体现技术深度的恰恰是设计者能够很轻松的把所有的脏活累活搞定。</p>
+</li>
+</ul>
+<h3 id="搞基础技术就一定很牛吗"><a href="#搞基础技术就一定很牛吗" class="headerlink" title="搞基础技术就一定很牛吗"></a>搞基础技术就一定很牛吗</h3><p>经常听到同学们表达对基础技术部同学的敬仰之情，而对搞业务技术的同学表现出很轻视，认为存储、消息队列、服务治理框架（比如美团点评内部使用的OCTO）、Hadoop等才能被称为真正的技术。事实并非如此，更基础的并不一定更高深。</p>
+<p>比如下面这个流传很久的段子：越高级的语言就越没有技术含量。但真是这样吗，就拿Java和C来说，这是完全不同的两种语言，所需要的技能完全不同。C或许跟操作系统更加接近一点，和CPU、内存打交道的机会更多一点。但是为了用好Java，程序员在面向对象、设计模式、框架技术方面必须要非常精通。Java工程师转到C方向确实不容易，但作者也见过很多转到Java语言的C工程师水土不服。</p>
+<p>基础技术和业务应用技术必然会有不同的关注点，没有高低之分。之所以产生这种误解，有两个原因：</p>
+<ul>
+<li>基础技术相对成熟，有比较完整的体系，这给人一个高大上的感觉。业务应用技术相对来说，由于每个团队使用的不一样，所以成熟度参差不齐，影响力没有那么大。</li>
+<li>基础技术的门槛相对来说高一点，考虑到影响面，对可靠性、可用性等有比较高的最低要求。但是门槛高不代表技术含量高，另外成熟技术相对来说在创新方面会受到很大的约束。但是最先进的技术都来自活跃的创新。</li>
+</ul>
+<p>对比下来，业务技术和基础技术各有千秋。但真正的高手关注的是解决问题，所有的技术都是技能而已。</p>
+<h3 id="可行性调研的那些坑"><a href="#可行性调研的那些坑" class="headerlink" title="可行性调研的那些坑"></a>可行性调研的那些坑</h3><p>工作中开展可行性调研时有发生。做可行性调研要避免如下情况：</p>
+<ul>
+<li>把可行性调研做成不可行性调研。这真的非常糟糕。不可行性的结论往往是：因为这样或者那样的原因，所以不可行。</li>
+<li>避免“老鼠给猫挂铃铛”式的高风险可行性方案。“天下大事必作于细”，可行性调研一定要细致入微，避免粗枝大叶。</li>
+<li>避免调研时间过长。如果发现调研进展进入到指数级复杂度，也就是每前进一步需要之前两倍的时间投入，就应该果断的停止调研。</li>
+</ul>
+<p>可行性调研的结论应该是收益与成本的折衷，格式一般如下：</p>
+<ul>
+<li>首先明确预期的结果，并按照高中低收益进行分级。</li>
+<li>阐述达成每种预期结果需要采取的措施和方案。</li>
+<li>给出实施各方案需要付出的成本。</li>
+</ul>
+<h3 id="工程师天生不善沟通吗"><a href="#工程师天生不善沟通吗" class="headerlink" title="工程师天生不善沟通吗"></a>工程师天生不善沟通吗</h3><p>实际工作中，沟通所导致的问题层出不穷。工程师有不少是比较内向的，总是被贴上“不善沟通”的标签。实际上，沟通能力是工程师最重要的能力之一，良好的沟通是高效工作学习的基础，也是通过学习可以掌握的。下面我按工程师的语言说说沟通方面的经验。</p>
+<p>第一类常见的问题是沟通的可靠性。从可靠性的角度来讲，沟通分为TCP模式和UDP模式。TCP模式的形象表述是：我知道你知道。UDP模式的形象表述是：希望你知道。TCP模式当然比较可靠，不过成本比较高，UDP模式成本低，但是不可靠。在沟通可靠性方面，常见错误有如下两种：</p>
+<ul>
+<li>经常听到的这样的争论。一方说：“我已经告诉他了”，另一方说：“我不知道这个事情呀”。把UDP模式被当作TCP模式来使用容易产生扯皮。</li>
+<li>过度沟通。有些同学对沟通的可靠性产生了过度焦虑，不断的重复讨论已有结论问题。把TCP模式当成UDP来使用，效率会比较低。</li>
+</ul>
+<p>第二类沟通问题是时效性问题。从时效性讲，沟通分为：同步模式和异步模式。同步沟通形象地说就是：你现在给我听好了。异步沟通的形象表述是：记得给我做好了。在沟通时效性方面，有如下两种常见错误：</p>
+<ul>
+<li>已经出现线上事故，紧急万分。大家你一言，我一语，感觉事故可能和某几个人有关，但是也不能完全确定，所以没有通知相关人员。最终，一个普通的事故变成了严重事故。对于紧急的事情，必须要同步沟通。</li>
+<li>半夜三点你正在熟睡，或者周末正在逛街，接到一个电话：“现在有个需求，能否立刻帮忙做完。”这会非常令人郁闷，因为那并不是紧急的事情。不是所有的需求都需要立刻解决。</li>
+</ul>
+<p>有效沟通的一个重要原则是提前沟通。沟通本质是信息交流和处理，可以把被沟通对象形象地比喻成串行信息处理的CPU。提前沟通，意味着将处理请求尽早放入处理队列里面。下面的例子让很多工程师深恶痛绝：一个需求策划了1个月，产品设计了2周。当开发工程是第一次听说该需求的时候，发现开发的时间是2天。工程师据理力争，加班加点1周搞定。最后的结论是工程师非常不给力，不配合。就像工程师讨厌类似需求一样。要协调一个大项目，希望获得别人的配合，也需要尽早沟通。</p>
+<p>有效沟通的另外一个重点是“不要跑题”。很多看起来很接近的问题，本质上是完全不同的问题。比如：一个会议的主题是“如何实施一个方案”，有人却可能提出“是否应该实施该方案”。 “如何实施”和“是否应该实施”是完全不同的两个问题，很多看起来相关的问题实际上跑题很远。“跑题”是导致无效沟通的重要原因。</p>
+<p>良好沟通的奥秘在于能掌握TCP模式和UDP模式精髓，正确判断问题的紧急性，尽量提前沟通，避免跑题。</p>
+<h3 id="带人之道"><a href="#带人之道" class="headerlink" title="带人之道"></a>带人之道</h3><p>有些初为导师的工程师由于担心毕业生的能力太弱，安排任务时候谆谆教诲，最后感觉还是有所顾虑，干脆自己写代码。同样的事情发生在很多刚刚管理小团队的工程师身上。最终的结果他们：写完所有的代码，让下属无代码可写。“ 事必躬亲”当然非常糟糕，最终的往往是团队的整体绩效不高，团队成员的成长很慢，而自己却很累。</p>
+<p>古人说：“用人不疑，疑人不用。”这句话并非“放之四海而皆准”。在古代，受限于通信技术，反馈延迟显著，而且信息在传递过程中有大量噪音，变形严重。在这种情况下，如果根据短期内收集的少量变形的信息做快速决断，容易陷于草率。在公司里，这句话用于选人环节更为恰当，应该改为：录用不疑，疑人不录。</p>
+<p>考虑到招聘成本，就算是在录用层面，有时候也无法做到。作为一个小团队的管理者，能够快速准确的获取团队成员的各种反馈信息，完全不需要“用人不疑，疑人不用”。用人的真正理论基础来自于“探索和利用”(Exploration and Exploitation )。不能因为下属能做什么就只让他做什么，更不能因为下属一次失败就不给机会。</p>
+<p>根据经典的“探索和利用”(Exploration and Exploitation )理论，良好的用人方式应该如下：</p>
+<ul>
+<li>首选选择相信，在面临失败后，收缩信任度。</li>
+<li>查找失败的原因，提供改进意见，提升下属的能力。</li>
+<li>总是给下属机会，在恰当地时机给下属更高的挑战。 总之，苍天大树来自一颗小种子，要相信成长的力量。</li>
+</ul>
+<h3 id="效率、效率、效率"><a href="#效率、效率、效率" class="headerlink" title="效率、效率、效率"></a>效率、效率、效率</h3><p>经常看到有些同学给自己的绩效评分是100分——满分，原因是在过去一段时间太辛苦了，但最终的绩效却一般般。天道酬勤不错，但是天道更酬巧。工程师们都学过数据结构，不同算法的时间复杂度的差距，仅仅通过更长的工作时间是难以弥补的。为了提升工作学习效率，我们需要注意以下几点：</p>
+<ul>
+<li>主要关注效率提升。很多时候，与效率提升所带来的收益相比，延长时间所带来的成果往往不值得一提。</li>
+<li>要有清晰的结果导向思维。功劳和苦劳不是一回事。</li>
+<li>做正确的事情，而不仅仅正确地做事情。这是一个被不断提起的话题，但是错误每天都上演。为了在规定的时间内完成一个大项目，总是要有所取舍。如果没有重点，均匀发力，容易事倍功半。如果“南辕北辙”，更是可悲可叹。</li>
+</ul>
+<h2 id="架构师能力模型"><a href="#架构师能力模型" class="headerlink" title="架构师能力模型"></a>架构师能力模型</h2><p>前面我们已经讲完了原则和一些困惑，那么工程师到底应该怎么提升自己呢？</p>
+<p>成为优秀的架构师是大部分初中级工程师的阶段性目标。优秀的架构师往往具备八种核心能力：编程能力、调试能力、编译部署能力、性能优化能力、业务架构能力、在线运维能力、项目管理能力和规划能力。</p>
+<p>这几种能力之间的关系大概如下图。编程能力、调试能力和编译部署能力属于最基础的能力。不能精通掌握这三种能力，很难在性能优化能力和业务架构能力方面有所成就。具备了一定的性能优化能力和业务架构能力之后，才能在线运维能力和项目管理能力方面表现优越。团队管理能力是最高能力，它对项目管理能力的依赖度更大。</p>
+<h3 id="编程能力"><a href="#编程能力" class="headerlink" title="编程能力"></a>编程能力</h3><p>对工程师而言，编程是最基础的能力，必备技能。其本质是一个翻译能力，将业务需求翻译成机器能懂的语言。</p>
+<p>提升编程能力的书籍有很多。精通面向对象和设计模式是高效编程的基础。初级工程师应该多写代码、多看代码。找高手做Code Review，也是提升编程水平的捷径。</p>
+<h3 id="调试能力"><a href="#调试能力" class="headerlink" title="调试能力"></a>调试能力</h3><p>程序代码是系统的静态形式，调试的目的是通过查看程序的运行时状态来验证和优化系统。本质上讲，工程师们通过不断调试可以持续强化其通过静态代码去预测运行状态的能力。所以调试能力也是工程师编程能力提升的关键手段。很早之前有个传说：“调试能力有多强，编程能力就有多强。”不过现在很多编辑器的功能很强大，调试能力的门槛已经大大降低。</p>
+<p>调试能力是项目能否按时、高质量提交的关键。即使一个稍具复杂度的项目，大部分工程师也无法一次性准确无误的完成。大项目都是通过不断地调试进行优化和纠错的。所以调试能力是不可或缺的能力。</p>
+<p>多写程序，解决Bug，多请教高手是提升调试能力的重要手段。</p>
+<h3 id="编译部署能力"><a href="#编译部署能力" class="headerlink" title="编译部署能力"></a>编译部署能力</h3><p>编译并在线上部署运行程序是系统上线的最后一个环节。随着SOA架构的普及以及业务复杂度的增加，大部分系统只是一个完整业务的一个环节，因此，本地编译和运行并不能完全模拟系统在线运行。为了快速验证所编写程序的正确性，编译并在线上部署就成了必要环节。所以编译部署能力是一个必备技能。</p>
+<p>让盘根错节的众多子系统运行起来是个不小的挑战。得益于SOA架构的普及以及大量编译、部署工具的发展，编译部署的门槛已经大大降低。基于应用层进行开发的公司，已经很少有“编译工程师”的角色了。但是对于初级工程师而言，编译部署仍然不是一个轻松的事情。</p>
+<h3 id="性能优化能力"><a href="#性能优化能力" class="headerlink" title="性能优化能力"></a>性能优化能力</h3><p>衡量一个系统成功的一个重要指标是使用量。随着使用量的增加和业务复杂度的增加，大部分系统最终都会碰到性能问题。 性能优化能力是一个综合能力。因为：</p>
+<ul>
+<li>影响系统性能的因素众多，包括：数据结构、操作系统、虚拟机、CPU、存储、网络等。为了对系统性能进行调优，架构师需要掌握所有相关的技术。</li>
+<li>精通性能优化意味着深刻理解可用性、可靠性、一致性、可维护性、可扩展性等的本质。</li>
+<li>性能优化与业务强耦合，最终所采取的手段是往往折衷的结果。所以，性能优化要深谙妥协的艺术。</li>
+</ul>
+<p>可以说，性能优化能力是工程师们成长过程中各种技能开始融会贯通的一个标志。这方面可以参考之前的博客文章“常见性能优化策略的总结”。市场上还有很多与性能优化相关的书籍，大家可以参考。多多阅读开源框架中关于性能优化方面的文档和代码也不失为好的提升手段。动手解决线上性能问题也是提升性能优化能力的关键。如果有机会，跟着高手学习，分析性能优化解决方案案例（我们技术博客之前也发表了很多这方面的文章），也是快速提升性能优化能力的手段。</p>
+<h3 id="在线运维能力"><a href="#在线运维能力" class="headerlink" title="在线运维能力"></a>在线运维能力</h3><p>如果说性能优化能力体现的是架构师的静态思考能力，在线运维能力考验的就是动态反应能力。残酷的现实是，无论程序多么完美，Bug永远存在。与此同时，职位越高、责任越大，很多架构师需要负责非常重要的在线系统。对于线上故障，如果不能提前预防以及快速解决，损失可能不堪设想，所以在线运维能力是优秀架构师的必备技能。</p>
+<p>为了对线上故障进行快速处理，标准化的监控、上报、升级，以及基本应对机制当然很重要。通过所观察到的现象，快速定位、缓解以及解决相关症状也相当关键。这要求架构师对故障系统的业务、技术具备通盘解读能力。解决线上故障的架构师就好比一个在参加比赛F1的车手。赛车手必须要了解自身、赛车、对手、同伴、天气、场地等所有因素，快速决策，不断调整。架构师必须要了解所有技术细节、业务细节、处理规范、同伴等众多因素，快速决断，迅速调整。</p>
+<p>在线运维本质上是一个强化学习的过程。很多能力都可以通过看书、查资料来完成，但在线运维能力往往需要大量的实践来提升。</p>
+<h3 id="业务架构能力"><a href="#业务架构能力" class="headerlink" title="业务架构能力"></a>业务架构能力</h3><p>工程师抱怨产品经理的故事屡见不鲜，抱怨最多的主要原因来自于需求的频繁变更。需求变更主要有两个来源：第一个原因是市场改变或战略调整，第二个原因是伪需求。对于第一个原因，无论是工程师还是产品经理，都只能无奈的接受。优秀的架构师应该具备减少第二种原因所导致的需求变更的概率。</p>
+<p>伪需求的产生有两个原因：</p>
+<p>第一个原因是需求传递变形。从信息论的角度来讲，任何沟通都是一个编码和解码的过程。典型的需求从需求方到产品经理，最终到开发工程师，最少需要经历三次编码和解码过程。而信息的每一次传递都存在一些损失并带来一些噪音，这导致有些时候开发出来的产品完全对不上需求。此外，需求方和产品经理在需求可行性、系统可靠性，开发成本控制方面的把控比较弱，也会导致需求变形。</p>
+<p>第二个原因就是需求方完全没有想好自己的需求。</p>
+<p>优秀的架构师应该具备辨别真伪需求的能力。应该花时间去了解客户的真实业务场景，具备较强的业务抽象能力，洞悉客户的真实需求。系统的真正实施方是工程师，在明确客户真实需求后，高明的架构师应该具备准确判断项目对可行性、可靠性、可用性等方面的要求，并能具备成本意识。最后，由于需求与在线系统的紧耦合关系，掌握在线系统的各种细节也是成功的业务架构的关键。随着级别的提升，工程师所面对的需求会越来越抽象。承接抽象需求，提供抽象架构是架构师走向卓越的必经之途。</p>
+<p>市场上有一些关于如何成为架构师的书，大家可以参考。但是架构能力的提升，实践可能是更重要的方式。业务架构师应该关注客户的痛点而不是PRD文档，应该深入关注真实业务。掌握现存系统的大量技术和业务细节也是业务架构师的必备知识。</p>
+<h3 id="项目管理能力"><a href="#项目管理能力" class="headerlink" title="项目管理能力"></a>项目管理能力</h3><p>作为工业时代的产物，分工合作融入在互联网项目基因里面。架构师也需要负责几个重大项目才能给自己正名。以架构师角色去管理项目，业务架构能力当然是必备技能。此外，人员管理和成本控制意识也非常重要。</p>
+<p>项目管理还意味着要有一个大心脏。重大项目涉及技术攻关、人员变动、需求更改等众多可变因素。面临各种变化，还要在确保目标顺利达成，需要较强的抗压能力。</p>
+<p>人员管理需要注意的方面包括：知人善用，优化关系，简化沟通，坚持真理。</p>
+<ul>
+<li>知人善用意味着架构师需要了解每个参与者的硬技能和软素质。同时，关注团队成员在项目过程中的表现，按能分配。</li>
+<li>优化关系意味着管理团队的情绪，毕竟项目的核心是团队，有士气的团队才能高效达成目标。</li>
+<li>简化沟通意味着快速决策，该妥协的时候妥协，权责分明。</li>
+<li>坚持真理意味着顶住压力，在原则性问题上绝不退步。</li>
+</ul>
+<p>成本控制意味着对项目进行精细化管理，需要遵循如下几个原则：</p>
+<ul>
+<li>以终为始、确定里程碑。为了达成目标，所有的计划必须以终为始来制定。将大项目分解成几个小阶段，控制每个阶段的里程碑可以大大降低项目失败的风险。</li>
+<li>把控关键路径和关键项目。按照关键路径管理理论（CPM）的要求，架构师需要确定每个子项目的关键路径，确定其最早和最晚启动时间。同时，架构师需要关注那些可能会导致项目整体延期的关键节点，并集中力量攻破。</li>
+<li>掌控团队成员的张弛度。大项目持续时间会比较长，也包含不同工种。项目实施是一个不断变化的动态过程，在这个过程中不是整个周期都很紧张，不是所有的工种都一样忙。优秀的架构师必须要具备精细阅读整体项目以及快速反应和实时调整的能力。这不仅仅可以大大降低项目成本，还可以提高产出质量和团队满意度。总体来说，“前紧后松”是项目管理的一个重要原则。</li>
+</ul>
+<p>项目管理方面的书籍很多。但是，提高业务架构能力同样重要。积极参与大项目并观察别人管理项目的方式也是非常重要的提升手段。</p>
+<h3 id="团队管理能力"><a href="#团队管理能力" class="headerlink" title="团队管理能力"></a>团队管理能力</h3><p>不想做CTO的工程师不是一个好的架构师。走向技术管理应该是工程师的一个主流职业规划。团队管理的一个核心能力就是规划能力，这包括项目规划和人员规划。良好的规划需要遵循如下原则：</p>
+<ul>
+<li>规划是利益的博弈。良好的规划上面对得起老板，中间对得起自己，下面对得起团队。在三者利益者寻找平衡点，实现多方共赢考验着管理者的智慧和精细拿捏的能力。</li>
+<li>任何规划都比没有规划好。没有规划的团队就是没头的苍蝇，不符合所有人的利益。</li>
+<li>规划不是本本主义。市场在变，团队在变，规划也不应该一成不变。</li>
+<li>客户至上的是项目规划的出发点。</li>
+<li>就人员规划而言，规划需要考量团队成员的能力、绩效、成长等多方面的因素。</li>
+</ul>
+<p>市场上有很多规划管理方面的书籍，值得阅读。最优化理论虽然是技术书籍，但它是规划的理论基础，所以不妨多看看翻阅一下。从自我规划开始，多多学习别人的规划也是规划能力提升的重要手段。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>因为受邀去做一个关于“一边工作，一边学习”的分享，作者花了一段时间去思考和汇总学习方法论，接着每天不断地采集谣言并尝试解惑，再根据个人经验绘制出优秀架构师的能力模型，最后汇集成文。</p>
+<p>文章系统性地阐述了学习原则、分析了常见困惑，并制定明确学习目标，期望对工程师们的工作学习有所帮助。需要申明的是，文章内容挂一漏万，所谓的架构师能力模型也是作者的个人观点。欢迎大家在评论中分享自己在学习成长方面的心得。</p>
+]]></content>
+      <categories>
+        <category>技术管理</category>
+      </categories>
+      <tags>
+        <tag>技术管理</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Redis持久化机制</title>
+    <url>/blog/199092f6.html</url>
+    <content><![CDATA[<h4 id="问题背景"><a href="#问题背景" class="headerlink" title="问题背景"></a>问题背景</h4><p>由于<a href="https://redis.io/" target="_blank" rel="noopener">Redis</a>（Remote Dictionary Server）将所有数据都存放在内存，因此读写性能非常高（同时也取决于机器性能）。存放在内存就需要考虑机器断电或故障带来的数据丢失问题，这里Redis提供不同等级的磁盘持久化方式来保证数据不会丢失。</p>
+<h4 id="持久化方案"><a href="#持久化方案" class="headerlink" title="持久化方案"></a>持久化方案</h4><p>持久化可以有效避免宕机带来数据丢失问题，重启时利用之前持久化的文件即可实现数据恢复。Redis支持RDB和AOF两种持久化机制。</p>
+<h5 id="RDB"><a href="#RDB" class="headerlink" title="RDB"></a>RDB</h5><p>把当前进程数据形成快照后保存在磁盘，命令有save和bgsave。重点说一下bgsave，触发后redis进程fork出一个子进程（fork过程中父进程会阻塞），用于完成rdb文件的写入，保证原进程能正常读写，不被阻塞（redis是单线程模型）。save配置中，”save m n”表示m秒内数据集发生n次修改后，触发bgsave。</p>
+<ul>
+<li>优点：</li>
+</ul>
+<ol>
+<li>适合备份、全复制场景，定时备份压缩，同步到从节点等；</li>
+<li>数据恢复数据快于AOF。</li>
+</ol>
+<ul>
+<li>缺点：</li>
+</ul>
+<ol>
+<li>fork重量级操作，频繁执行成本高，定期执行做不到实时持久化；</li>
+<li>rdb二进制格式，redis版本迭代无法兼容新版的rdb。</li>
+</ol>
+<h5 id="AOF"><a href="#AOF" class="headerlink" title="AOF"></a>AOF</h5><p>Append only file(类似hbase的WAL、mysql的binlog)，以独立日志的方式记录每次写命令，重启时REDO AOF中的命令，达到恢复数据的目的，该方式解决了持久化的实时性问题。配置文件开启：appendonly yes，默认不开启。</p>
+<p>由于AOF实时记录每次操作的命令，需要加入缓冲区来保证性能。同时，AOF文件会越来越大，需要进行压缩重写。具体操作流程如下图：</p>
+<p><img src="https://img-blog.csdnimg.cn/20181117145604317.jpg?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3N1Y2FiaXQ=,size_16,color_FFFFFF,t_70" alt="img"><img src="data:image/gif;base64,R0lGODlhAQABAPABAP///wAAACH5BAEKAAAALAAAAAABAAEAAAICRAEAOw==" alt="点击并拖拽以移动"></p>
+<p> 同步：对于缓冲区同步数据到AOF文件的策略，appendfsync=always/everysec/no，建议配置everysec，命令写入aof_buf，调用系统write操作返回，write写入系统缓冲区，有单独线程一秒调用一次fsync，写入硬盘。保证写入性能和数据安全。</p>
+<p> 重写：采用copy-on-write机制，子进程新写的aof_rewrite_buf文件，父进程接收的写入命令也同样记录，保证数据不丢失。同时，将无效命令去除缩小文件大小，完成后替换旧AOF。</p>
+<ul>
+<li>优点：</li>
+</ul>
+<ol>
+<li>解决实时性持久化</li>
+</ol>
+<ul>
+<li>缺点：</li>
+</ul>
+<ol>
+<li>AOF不断追加命令，容易造成阻塞，受限硬盘资源；</li>
+<li>AOF文件体积逐渐变大，需要定期重写，其中还需要维护重写缓冲区。</li>
+</ol>
+<h4 id="实际应用"><a href="#实际应用" class="headerlink" title="实际应用"></a>实际应用</h4><p>Redis是否要开启持久化，取决于实际的应用场景。例如：</p>
+<ul>
+<li><p>为了降低数据库的读取压力，redis作为读缓存使用，就不需要开启持久化。可以考虑开启从DB向Redis的定期同步任务；</p>
+</li>
+<li><p>为了提供写入性能，引入缓存机制。需要考虑数据的丢失风险，必须开启持久化。此时，需要考虑机器的配置，包括CPU、内存、硬盘。fork进程的开销、AOF和RDB写入硬盘压力等。</p>
+</li>
+</ul>
+<h4 id="扩展链接"><a href="#扩展链接" class="headerlink" title="扩展链接"></a>扩展链接</h4><ul>
+<li><a href="https://github.com/linyiqun/Redis-Code" target="_blank" rel="noopener">redis键值数据库源码分析</a></li>
+<li>《Redis开发与运维》付磊 张益军</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Redis</category>
+      </categories>
+      <tags>
+        <tag>redis</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>业界大牛博客收藏</title>
+    <url>/blog/ec4cdf4c.html</url>
+    <content><![CDATA[<p>收藏中间件、算法、大数据、人工智能等领域业界大牛、团队博客、论坛、站点等链接，研究、探索和跟踪前沿技术。持续更新中…</p>
+<p><img src="/blog/ec4cdf4c/fczlm.jpg" alt></p>
+<ol>
+<li><a href="https://pingcap.com/blog-cn/" target="_blank" rel="noopener">PingCAP博客</a> 开源的新型分布式数据库公司  | 代表作品TiDB</li>
+<li><a href="https://blog.csdn.net/v_JULY_v/" target="_blank" rel="noopener">July </a> | 深入数据结构与算法  <a href="https://www.julyedu.com/" target="_blank" rel="noopener">七月在线</a>创始人，专注AI教育</li>
+<li><a href="http://wuchong.me/" target="_blank" rel="noopener">Jark’s Blog</a>  伍翀（花名：云邪） | 阿里巴巴高级开发工程师 Apache Flink Committer</li>
+<li><a href="https://matt33.com/" target="_blank" rel="noopener">Matt’s Blog</a> 王蒙 蚂蚁金服 | Kafka，Java, 分布式存储，分布式计算，AI</li>
+<li><a href="https://www.iteblog.com" target="_blank" rel="noopener">过往记忆</a> 吴阳平（花名：明慧 ） | 阿里云HBASE业务架构 热衷于大数据技术（Hadoop、HBase、Spark）等</li>
+<li><a href="http://dongxicheng.org/" target="_blank" rel="noopener">董的博客</a> 董西成 | 前Hulu基础架构部负责人，现就职快手 | 大数据架构hadoop/spark/flink</li>
+<li><a href="http://hbasefly.com" target="_blank" rel="noopener">hbasefly</a> 范欣欣  | 网易杭州研究院数据科学中心，负责HBase以及分布式时序数据库的内核开发运维工作</li>
+<li><a href="http://openinx.github.io/" target="_blank" rel="noopener">Openinx Blog</a> 胡争  | 小米公司HBase工程师，Apache HBase PMC成员，负责Apache HBase项目研发及小米HBase集群维护，对HBase及相关分布式存储系统有很多独到的见解</li>
+<li><a href="https://github.com/oldratlee" target="_blank" rel="noopener">李鼎的github</a> 李鼎(花名：哲良)  | 淘宝高级技术专家  （paas、dubbo、rpc）</li>
+<li><a href="http://bluedavy.me" target="_blank" rel="noopener">bluedavy的blog</a> | <a href="http://hellojava.info/" target="_blank" rel="noopener">hellojava</a> 毕玄 （java、分布式）</li>
+<li><a href="http://jm.taobao.org/" target="_blank" rel="noopener">阿里中间件团队博客</a></li>
+<li><a href="https://tech.meituan.com/" target="_blank" rel="noopener">美团技术团队博客</a></li>
+<li><a href="http://www.rowkey.me" target="_blank" rel="noopener">后端技术杂谈</a> （微鲤技术团队 | 著有《Java工程师修炼之道》一书）</li>
+<li><a href="http://www.ityouknow.com/" target="_blank" rel="noopener">纯洁的微笑</a> （spring boot/cloud 深度使用和分享者）</li>
+<li><a href="https://coolshell.cn" target="_blank" rel="noopener">左耳朵耗子 </a>（陈皓 | 专注高可用、高性能、分布式等底层技术 | 创业中）</li>
+<li><a href="http://www.javastack.cn/" target="_blank" rel="noopener">Java技术栈</a> （多年Java开发和架构实践经验）</li>
+<li><a href="https://moelove.info/" target="_blank" rel="noopener">MoeLove </a>(张晋涛 TaoBeier) 网易有道资深运维 | Docker/K8s深度使用者</li>
+<li><a href="https://www.phodal.com/" target="_blank" rel="noopener">Phodal</a>   ThoughtWorks咨询师 | InfoQ编辑 | Serverless深度使用者</li>
+<li><a href="https://www.yangcs.net/" target="_blank" rel="noopener">Ryan Yang</a> Cloud Native工程 | 目前就职上海DaoCloud | K8s深度使用者</li>
+<li><a href="http://www.huaxiaozhuan.com/" target="_blank" rel="noopener">huaxiaozhuan</a> (AI算法工程师手册) 资深算法工程师 | 智易科技首席算法研究员</li>
+<li><a href="https://blog.csdn.net/u013256816" target="_blank" rel="noopener">朱小厮的博客</a> 深入中间件、消息队列 </li>
+<li><a href="https://damo.alibaba.com/labs/database-and-storage?lang=zh" target="_blank" rel="noopener">阿里达摩院-数据库与存储实验室</a></li>
+<li><a href="https://github.com/apachecn" target="_blank" rel="noopener">ApacheCN</a> 可能是东半球最大的 AI 社区 | <a href="http://apachecn.org/" target="_blank" rel="noopener">iBooker 布客</a></li>
+</ol>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+      <tags>
+        <tag>博客</tag>
+        <tag>IT资讯</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>HBase原理与实战</title>
+    <url>/blog/662f2d37.html</url>
+    <content><![CDATA[<h4 id="基础理论"><a href="#基础理论" class="headerlink" title="基础理论"></a>基础理论</h4><ol>
+<li><a href="https://blog.csdn.net/Yaokai_AssultMaster/article/details/72877127" target="_blank" rel="noopener">深入理解HBase的系统架构</a></li>
+</ol>
+<h4 id="大会前沿"><a href="#大会前沿" class="headerlink" title="大会前沿"></a>大会前沿</h4><ol>
+<li><a href="https://mp.weixin.qq.com/s/Qqz3dSwyxwR4D915OFybpA" target="_blank" rel="noopener">漫谈HBaseCon Asia 2018大会精华总结</a></li>
+<li><a href="https://mp.weixin.qq.com/s/GQeVyR8qMnvHl14xJgaUWA" target="_blank" rel="noopener">从HBase中移除WAL？3D XPoint技术带来的变革</a></li>
+<li><a href="https://mp.weixin.qq.com/s/3Bhwn-019LcpkuUxNAfkAw" target="_blank" rel="noopener">HBase2.0重新定义小对象实时存取</a> （天引 阿里巴巴 技术专家）</li>
+<li><a href="https://mp.weixin.qq.com/s/yHvOmf_HK_5qy7C5X1Ukaw" target="_blank" rel="noopener">NoSQL漫谈：2018年文章汇总</a> (毕杰山之HBase&amp;OpenTSDB博客2018年终总结)</li>
+<li><a href="https://yq.aliyun.com/articles/685217?spm=a2c4e.11153940.0.0.6ada72deuOHiYj" target="_blank" rel="noopener">HBase生态介绍</a></li>
+<li><a href="https://yq.aliyun.com/articles/684011?spm=a2c4e.11153940.0.0.35992815p1Iq9e" target="_blank" rel="noopener">2018年HBase生态社群画像 +最全资料汇总下载</a></li>
+</ol>
+<h4 id="应用实战"><a href="#应用实战" class="headerlink" title="应用实战"></a>应用实战</h4><ol>
+<li><p>RIT(Region-In-Transition)问题解决方案</p>
+<p>​    a) <a href="https://mp.weixin.qq.com/s/sLZo7a23BJUtOiapLnncgQ" target="_blank" rel="noopener">HBase应用实践专场-HBase问题排查思路</a></p>
+<p>​    b) <a href="https://mp.weixin.qq.com/s/viDy2_qpFqZz1Me5ALr8LQ" target="_blank" rel="noopener">HBase运维实践－聊聊RIT的那点事</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/uvr9mdTci-Qw3IuFbEuj4Q" target="_blank" rel="noopener">一种HBase表数据迁移方法的改进</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/mwllZtK_nAEqNv0VZq3ULw" target="_blank" rel="noopener">HBase基本知识介绍及典型案例分析</a></p>
+</li>
+<li><p><a href="https://mp.weixin.qq.com/s/Jf4FVUJWroRgHLTLquAOOQ" target="_blank" rel="noopener">从MySQL到HBase：数据存储方案转型的演进</a> (HBASE技术社区)</p>
+</li>
+<li><p>阿里云云<a href="https://help.aliyun.com/document_detail/49501.html?spm=5176.10695662.1996646101.searchclickresult.75da4648pjXq4y" target="_blank" rel="noopener">HBase X-Pack生态应用</a> （一站式数据处理平台，涵盖关系Phoenix SQL、时序OpenTSDB、全文Solr、时空GeoMesa、图GraphDB、分析Spark）</p>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>HBase</category>
+      </categories>
+      <tags>
+        <tag>HBase</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>SQL标准演化</title>
+    <url>/blog/43ea8e84.html</url>
+    <content><![CDATA[<h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>SQL是在1974年有Boyce和Chamberlin提出，最初叫Sequel[ˈsiːkwəl]。由于简单易学，功能丰富，大受欢迎，被各大数据库厂商所采用。在1986年10月，美国国家标准局（American National Standard Institue，ANSI）的数据库委员会X3H2将SQL作为关系数据库语言美国标准，同年公布SQL-86标准，并在次年通过国际标准化组织（International Organization for Standardization，ISO)标准。</p>
+<h3 id="标准演化"><a href="#标准演化" class="headerlink" title="标准演化"></a>标准演化</h3><p>随着数据库技术的不断发展，SQL标准也在不断发展和改进，见下表。</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:left">标准</th>
+<th>页数</th>
+<th style="text-align:left">说明</th>
+<th>发布日期</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left">SQL-86</td>
+<td></td>
+<td style="text-align:left"></td>
+<td>1986</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-89(FIPS 127-1)</td>
+<td>120</td>
+<td style="text-align:left"></td>
+<td>1989</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-92</td>
+<td>622</td>
+<td style="text-align:left">除SQL基础部分外，增加SQL调用接口、SQL永久存储模块</td>
+<td>1992</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-99(SQL 3)</td>
+<td>1700</td>
+<td style="text-align:left">进一步扩展为框架、SQL基础部分、SQL调用接口、SQL永久存储模块、SQL宿主语言绑定、SQL外部数据管理、SQL对象语言绑定</td>
+<td>1999</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-2003</td>
+<td>3600</td>
+<td style="text-align:left"></td>
+<td>2003</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-2008</td>
+<td>3777</td>
+<td style="text-align:left">针对2003的修改和补充</td>
+<td>2006</td>
+</tr>
+<tr>
+<td style="text-align:left">SQL-2011</td>
+<td></td>
+<td style="text-align:left">针对2003的修改和补充</td>
+<td>2010</td>
+</tr>
+</tbody>
+</table>
+<p>目前，没有一个数据库是能够支持SQL标准中所有概念和特性的。大多数支持SQL-92标准大部分功能以及SQL-99、SQL-2003中的部分新概念。并且，各数据库厂商也对SQL基本命令集进行了不同程序的扩充和修改，支持标准以外的一些功能特性。</p>
+<h3 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h3><ul>
+<li>《数据库系统概论 第五版》，王珊、萨师煊著，2014</li>
+<li><a href="https://ronsavage.github.io/SQL/" target="_blank" rel="noopener">BNF Grammars for SQL-92, SQL-99 and SQL-2003</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>南京大数据技术Meetup第四次活动</title>
+    <url>/blog/224204e7.html</url>
+    <content><![CDATA[<h4 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h4><p>很有幸今天去参加了“南京大数据技术Meetup第四次活动”，前三次由于不知道这样的活动，错过了非常可惜。以下就是我了解到的一些内容，在这里做一些记录。</p>
+<h4 id="演讲嘉宾"><a href="#演讲嘉宾" class="headerlink" title="演讲嘉宾"></a>演讲嘉宾</h4><ul>
+<li><p>汪军（伦敦大学学院，博士生导师，教授，AI、互联网变现和计算广告学）</p>
+</li>
+<li><p>王胤然（烽火通信大数据专家）</p>
+</li>
+<li><p>张毅（苏宁云商，软件工程师）</p>
+</li>
+<li><p>黄宜华（博士，教授，博导，NJU PASA实验室负责人）</p>
+</li>
+<li><p>顾荣（NJU PH.D，PASA成员，Tachyon和Spark Contributor）</p>
+</li>
+<li><p>罗胜美（中国电子学会云计算专委会委员、中兴通讯集团首席架构师）</p>
+</li>
+<li><p>樊建（华泰证券，南京载玄信息科技有限公司联合创始人，技术总监）</p>
+</li>
+</ul>
+<h4 id="行业应用"><a href="#行业应用" class="headerlink" title="行业应用"></a>行业应用</h4><h5 id="苏宁云商"><a href="#苏宁云商" class="headerlink" title="苏宁云商"></a>苏宁云商</h5><ul>
+<li><p>主要介绍了从2014年至今几大阶段的大数据技术演化；</p>
+</li>
+<li><p>SQL on Storm -&gt; Storm Monitor -&gt; Libra … -&gt; Spark Streaming（内测）</p>
+</li>
+<li><p>资产管理、资源隔离、Docker的应用研究</p>
+</li>
+</ul>
+<h5 id="烽火安全云"><a href="#烽火安全云" class="headerlink" title="烽火安全云"></a>烽火安全云</h5><ul>
+<li><p>主要介绍了从2010年至今大数据技术架构的情况；</p>
+</li>
+<li><p>互联网和信息安全这两个领域的大数据技术的主要区别；</p>
+</li>
+<li><p>HBase的二级索引解决方案；</p>
+</li>
+<li><p>针对业务需要、屏蔽底层实现方案，向上层两个主要服务，分别为：queryService（查询引擎）和taskService（任务调度引擎）</p>
+</li>
+</ul>
+<h4 id="专家探讨"><a href="#专家探讨" class="headerlink" title="专家探讨"></a>专家探讨</h4><p>参与者： 樊建、汪军、黄宜华、罗胜美</p>
+<p>话题一：大数据在行业落地过程中主要存在哪些问题？（如大数据不易获取、大数据技术使用困难）？应当如何解决？</p>
+<blockquote>
+<p>罗：数据获取有多种途径，需要企业或研究者们，关注相关行业的情况，比如政府可以免费提供一段时间内的交通数据，给大家进行挖掘和分析研究等。之后，就要看如何使用这些数据和基于这些数据分析方法。</p>
+<p>樊：对企业内部上百个项目的业务系统和存储数据的总体把握，是目前比较困难的地方。大数据系统的架构设计、开发和部署的落地是其次。</p>
+</blockquote>
+<p>话题二： 预测大数据在未来两年可能会在哪几个行业进一步产生Killer App？</p>
+<blockquote>
+<p>樊：将传统的关系数据库的磁盘存储迁移到分布式文件系统上来，或者是基于内存级别的方式；还特别提到了后期对Docker的研究。</p>
+</blockquote>
+<p>话题三：大数据教育和人才培养方面有哪些建议和想法？（对学生和老师的建议）？</p>
+<blockquote>
+<p>黄：单位和高校的深度合作，定向培养；熟悉storm、spark等框架的部署、开发以及运维等系统性的知识。</p>
+</blockquote>
+<p>话题四：大数据技术和云计算技术的关系以及如何进一步理解？</p>
+<blockquote>
+<p> 罗：云计算技术侧重的是存储和计算，而大数据技术侧重基于上层服务或应用的需求而产生的各种大数据解决方案。但从某种程度上来说，这两者确实存在一定的交差关系，这一层可以抽象为一个服务层，主要是基于云向上层提供的以及基于大数据业务向下层索取的特定实现。</p>
+</blockquote>
+<h4 id="个人总结"><a href="#个人总结" class="headerlink" title="个人总结"></a>个人总结</h4><p>今天的meet up让我受益很多，了解到南京地区的企业在大数据技术方面的实践历程和演化之路，尤其表现出了对Docker和Spark的研究和应用的关注。其中，企业要不要使用大数据，如何落地大数据技术，最后的效果又是如何的？都是值得深入思考的。</p>
+<p>同时也让我看到了南京大学PASA实验室的强悍之处，作为实验室的成员，meet up的主持人，顾荣博士更是Spark和Tachyon的Contributor，他和他的导师黄教授合作开发了一个v0.1的大章鱼项目。科研与学术的结合，算法模型的多角度验证、offline数据的测试到online数据的证实，是发表顶级paper的前提和过程。</p>
+<p>由此可见，国内的大数据技术氛围也是越来越好，最后听取了四位专家的座谈，通过对topics的回答，由浅入深地从学术角度和企业应用方面提出了各自的见解，确实开阔了视野，激起了我学习大数据技术的热情！</p>
+<h4 id="相关连接"><a href="#相关连接" class="headerlink" title="相关连接"></a>相关连接</h4><ul>
+<li><a href="http://pasa-bigdata.nju.edu.cn/" target="_blank" rel="noopener">南京大学PASA大数据技术实验室</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+      <tags>
+        <tag>大数据meetup</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>我的书单</title>
+    <url>/blog/fa1b3b3e.html</url>
+    <content><![CDATA[<h2 id="在读"><a href="#在读" class="headerlink" title="在读"></a>在读</h2><ul>
+<li><a href="http://e.dangdang.com/products/1900396912.html" target="_blank" rel="noopener">大规模分布式存储系统:原理解析与架构实战</a></li>
+<li><a href="http://product.dangdang.com/23462041.html" target="_blank" rel="noopener">大型网站系统与Java中间件实践</a></li>
+<li><a href="https://book.douban.com/subject/1467587/" target="_blank" rel="noopener">Unix编程艺术</a></li>
+<li><a href="http://product.dangdang.com/25184920.html" target="_blank" rel="noopener">Kafka入门与实践</a></li>
+<li>MySQL技术内幕 InnoDB存储引擎第2版</li>
+<li>编程之法-面试和算法心得</li>
+</ul>
+<h2 id="待读"><a href="#待读" class="headerlink" title="待读"></a>待读</h2><ul>
+<li><a href="http://e.dangdang.com/products/1900679392.html" target="_blank" rel="noopener">企业IT架构转型之道：阿里巴巴中台战略思想与架构实战</a></li>
+<li><a href="http://e.dangdang.com/products/1900752857.html" target="_blank" rel="noopener">淘宝技术这十年</a></li>
+<li><a href="http://product.dangdang.com/23690515.html" target="_blank" rel="noopener">Netty权威指南(第2版)</a></li>
+<li><a href="http://product.dangdang.com/25107115.html" target="_blank" rel="noopener">大数据之路：阿里巴巴大数据实践</a></li>
+<li><a href="https://book.douban.com/subject/1477390/" target="_blank" rel="noopener">代码大全（第2版）</a></li>
+<li>从Paxos到Zookeeper分布式一致性原理与实践</li>
+</ul>
+<h2 id="已读"><a href="#已读" class="headerlink" title="已读"></a>已读</h2><ul>
+<li><a href="http://book.douban.com/subject/24868904/" target="_blank" rel="noopener">高效能程序员的修炼</a></li>
+<li><a href="http://book.douban.com/subject/6522893/" target="_blank" rel="noopener">深入理解Java虚拟机：JVM高级特性与最佳实践</a></li>
+<li><a href="http://product.dangdang.com/25346848.html" target="_blank" rel="noopener">码出高效：Java开发手册</a></li>
+<li><a href="https://book.douban.com/subject/30335935/" target="_blank" rel="noopener">从零开始学架构</a></li>
+</ul>
+<h2 id="大牛推荐"><a href="#大牛推荐" class="headerlink" title="大牛推荐"></a>大牛推荐</h2><ul>
+<li><a href="https://www.iteblog.com/recommend_book/" target="_blank" rel="noopener">过往记忆·程序员图书推荐</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1401391" target="_blank" rel="noopener">Java后端工程师必备书单(含大后端方向相关书籍)</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>技术管理</tag>
+        <tag>书籍</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Ubuntu-linux学习笔记</title>
+    <url>/blog/d563d963.html</url>
+    <content><![CDATA[<h1 id="一、ubuntu的安装"><a href="#一、ubuntu的安装" class="headerlink" title="一、ubuntu的安装"></a>一、ubuntu的安装</h1><ol>
+<li><strong>所需资源</strong>：（1）Ubuntu的iso文件，可从<a href="http://www.ubuntu.com/" target="_blank" rel="noopener">ubuntu官网</a>下载；(2)u盘刻录软件<a href="http://dl.pconline.com.cn/download/58150.html" target="_blank" rel="noopener">unetbootin</a>。</li>
+<li><strong>安装步骤</strong>：<ol>
+<li>进入bois界面，设置usb优先启动，进入ubuntu的安装界面；</li>
+<li>一些简单的前期设置这里直接忽略，主要说明一下磁盘分区。<blockquote>
+<p>1）至少需要两个磁盘分区，分别用于创建”/“文件系统与交换分区。其中，linux系统使用交换分区提供虚拟内存，在一个32位的pc中，不超过2GB。2）若磁盘存储空间较大，可划分多个磁盘分区，在每一个磁盘分区中创建一个单独的文件系统，如/usr,/var,/home等文件系统，但不能把/bin,/dev/,/etc/,/lib,/root和/sbin目录作为单独的文件系统分区，这些目录应位于”/“文件系统分区中。3）若要创建多个磁盘分区，查阅分区要求与建议。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+<a id="more"></a>
+<h1 id="二、命令行基础知识"><a href="#二、命令行基础知识" class="headerlink" title="二、命令行基础知识"></a>二、命令行基础知识</h1><ol>
+<li><span class="red-back">对于ubunut桌面版(若为服务器版，略过)，进入终端的方式：</span><ol>
+<li><code>ctrl+alt+T</code>，默认屏幕大小打开终端；</li>
+<li><code>alt+F2</code>，进入执行命令文本框，输入<code>gnome-terminal --full-screen</code>，即进入全屏显示，输入<code>exit</code>，即可退到1中打开的状态；</li>
+<li>非Gnome图形界面，进入字符终端，输入<code>crtl+alt+f1-6</code>，打开<code>tty1-6</code>的终端界面。输入<code>ctrl+alt+f7</code>，返回GNOME界面；</li>
+<li>也可以通过设置/etc/default下的grub文件，设置开启启动到图形界面还是字符界面。</li>
+</ol>
+</li>
+<li>Linux系统默认的命令解释程序是bash，GNU Bourne-Again Shell, 是GNU组织开发和推广的一个项目。</li>
+<li>一个命令由以下3部分内容组成，中间以空格或制表符等空白字符隔开，形如：<strong>&lt;命令名&gt; &lt;命令选项&gt; &lt;命令参数&gt;</strong><ol>
+<li>其中的命令选项以”-“开头，以”–”为起始标志的命令选项，称为<strong>GUN</strong>选项。除个别命令选项外，大部分”–”开头的是”-“的同义词，可替换使用。</li>
+</ol>
+</li>
+<li><span class="red-back">普通用户与超级用户的切换</span><ol>
+<li><strong>超级用户</strong>的默认命令提示符为”#”,<strong>普通用户</strong>的默认命令提示符为”$”；</li>
+<li>在终端，键入sudo su，输入密码，进入超级用户模式；键入exit，回到普通用户模式。</li>
+</ol>
+</li>
+<li>前后台进程切换<ol>
+<li>前台形式，在shell执行命令期间，用户只能等待，不能做其他操作；</li>
+<li>后台形式，在命令执行同时，shell会立即输出命令提示符，等待用户输入新的命令。<strong>只要在命令的后面加上”&amp;”即可</strong>。</li>
+</ol>
+</li>
+<li>输入输出<ol>
+<li>从终端输入，这个数据输入源是标准输入<strong>stdin（0）</strong>；</li>
+<li>运行结果返回到终端屏幕上，这个输入目的是标准输出<strong>stdout（1）</strong>；</li>
+<li>运行期间的错误也显示在屏幕上<strong>stderr(2)</strong>。<blockquote>
+<p><strong>注意</strong>：其中（n），n指文件描述符。Linux系统启动一个进程（该进程可能用于执行Shell命令）时，将自动为该进程打开三个文件：标准输入、标准输出和标准错误输出，分别由文件标识符0、1、2标识。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li><p><strong>输入输出重定向</strong></p>
+<ol>
+<li><code>&lt;fname</code>，使用指定的文件作为标准输入（其文件描述符为0），以便从指定的文件中接收输入数据；<blockquote>
+<p><code>wc -l &lt; io.txt</code>,表示将io.txt中的记录行数显示到屏幕终端。</p>
+</blockquote>
+</li>
+<li><code>&gt;fname</code>，使用指定的文件作为标准输出（其文件描述符为1），若文件不存在则新建，存在且noclobber标志已经设置，将产生错误，否则覆盖原文件中所有内容。若需要追加在原文件内容后面，需要用<code>&gt;&gt;fname</code>。<blockquote>
+<p>例如：<code>ls -l &gt; io.txt</code>,表示将当前目录下的所有文件信息写入io.txt文件中，若io.txt没有，则自动创建，存在则直接覆盖其中的内容。</p>
+</blockquote>
+</li>
+<li><code>&gt;|fname</code>,除了忽略noclobber标致之外，其功能与<code>&gt;fname</code>相同。<blockquote>
+<p>注意：&gt;|符号是强制覆盖文件的符号，它与Shell的noclobber选项有关系，如果noclobber选项开启，表示不允许覆盖任何文件，而&gt;|符号则可以不管noclobber选项的作用，强制将文件覆盖。<code>set -C noclobber</code>开启noclobber，<code>set +C noclobber</code>关闭noclobber。</p>
+</blockquote>
+</li>
+<li><code>&lt;&gt;fname</code>，以读写方式打开指定的文件，并使之作为标准输入。</li>
+<li><code>&lt;&lt;[-]fstr</code>，<a href="http://zh.wikipedia.org/wiki/Here文档" target="_blank" rel="noopener">Here document</a>文档的使用技巧。</li>
+<li><code>&lt;&amp;digti</code>，使用指定的文件描述符复制一个标准输入。</li>
+<li><code>&gt;&amp;digti</code>，使用指定的文件描述符复制一个标准输出。</li>
+<li><code>&lt;&amp;-</code>，关闭标准输入，而”n&lt;&amp;-“则表示关闭输入文件描述符n。</li>
+<li><code>&gt;&amp;-</code>，关闭标准输出，而”n&gt;&amp;-“则表示关闭输出文件描述符n。</li>
+<li><code>&lt;&amp;j</code>，把标准输入重定向到文件描述符j表示的输入文件中。</li>
+<li><code>&gt;&amp;j</code>，把标准输出重定向到文件描述符j表示的输出文件中。</li>
+<li><code>&amp;&gt;fname</code>，把标准输出和标准错误输出均重定向到指定的文件中。<blockquote>
+<p>以下I/O重定向符号”&lt;”或”&gt;”前面有一个数字，则表示相应的文件描述符对应的文件。</p>
+</blockquote>
+</li>
+<li><code>0&lt;fname</code>，把标准输入重定向到指定的文件中。</li>
+<li><code>1&gt;fname</code>，把标准输出重定向到指定的文件中；<code>1&gt;&gt;fname</code>，把标准输出重定向并附加到指定的文件中。</li>
+<li><code>2&gt;fname</code>，把标准错误输出重定向到指定的文件中；<code>2&gt;&gt;fname</code>，把标准错误输出重定向并附加到指定的文件中。例如:<blockquote>
+<p><code>$ errfile=script.errors</code>(errfile就是文件描述符);<br><br><code>$ sss 2&gt;$errfile</code>，sss是错误指令，则输出错误信息，2被重定向到了errfile对应的文件中，故错误信息写在script.errors;<br><br><code>$ aaa 2&gt;&gt;$errfile</code>，继续追加错误信息；<br>cat script.errors，显示错误信息。</p>
+</blockquote>
+</li>
+<li><p><code>i&gt;&amp;j</code>，把文件描述符i表示的输出文件重定向到文件描述符j表示的文件中。例如：</p>
+<blockquote>
+<p><code>command &gt;command.log 2&gt;&amp;1</code>，标准输出和标准错误输出都重定向到同一个文件中<br><br><code>$ echo &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code><br><br><code>$ sss &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code></p>
+</blockquote>
+</li>
+<li><p><code>[j]&lt;&gt;fname</code>，以读写方式打开指定的文件，并把文件描述符j分配到指定的文件。如果文件不存在，则创建该文件。如果未指定文件描述符j，则表示默认的文件描述符0，即标准输入。</p>
+</li>
+</ol>
+</li>
+<li><p><strong>管道</strong></p>
+<ol>
+<li>基本概念：在linux系统中，<strong>管道</strong>是一种先进先出的单向数据通路。是一种特殊的管道重定向。</li>
+<li>用途：<ol>
+<li><span class="red-back">利用管道符号”|”,可以把一个命令的标准输出连接到另一个命令的标准输入。</span>例如：<blockquote>
+<p><code>ls /usr | wc -w</code>，统计/usr目录下文件的数量（利用管道把ls和wc两个命令连接在一起）<br> 传统的方法，是利用一个中间临时文件，如<code>ls /usr &gt; file.tmp ; wc -w &lt; file.tmp</code>。</p>
+</blockquote>
+</li>
+<li><span class="red-back">为滤通程序提供原始数据。由该程序读取来自标准输入的数据，按照指定的检索原则和模式，从输入数据中提取期望的，包含给定字符串的数据</span>，如<a href="http://zh.wikipedia.org/wiki/Grep" target="_blank" rel="noopener">grep</a>。</li>
+<li>可以依次加工处理多个命令、脚本和程序的输出数据。<code>command1 | command2 | command3 &gt; output-file</code>。</li>
+<li><code>tee</code>命令，一个相当于三通管的实用程序。主要功能是通过标准输入接收并显示数据，同时把数据存储到指定的文件中。</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>元字符与文件名生成<ol>
+<li>linux中，很多命令采用文件名作为命令参数，例如：<blockquote>
+<p><code>$ ls -l io.txt</code><br><br><code>-rw-rw-r-- 1 sucab sucab 12 5月 14 10：42 io.txt</code></p>
+</blockquote>
+</li>
+<li>Shell支持的与文件名生成有关的元字符极其说明。注意，元字符可以组合使用。<ol>
+<li><code>*</code>，可以匹配任何数量的字符或字符串，包括空字符串。例如：<blockquote>
+<p><code>ls -l *.txt</code>，列出所有<code>.txt</code>为文件后缀名的txt文件。<code>su*</code>，表示任何一个以”su”为起始的字符串。</p>
+</blockquote>
+</li>
+<li><code>?</code>，匹配单字符串。</li>
+<li><code>[...]</code>，匹配给定范围的字符。例如[a-z]，[0-9]。<code>[!...]或[^...]</code>，表示不在该范围中。例如：<blockquote>
+<p>列出当前目录下，以s或i开头的文件。<code>ls -l [io]*</code><br><br>列出不是a-z中字母开头的文件。ls -l [^a-z]*</p>
+</blockquote>
+</li>
+<li><strong>注意</strong>：<code>set -f</code>，<span class="red-back">能够禁止文件名的生成。当shell无法解释元字符时，应注意检查是否设置了该标志。</span></li>
+</ol>
+</li>
+<li>转义和引用<ol>
+<li>本身具有特殊意义的元字符，在前面加上转义符号<code>\</code>，则失去其特殊意义。而对于一些普通字符，加上转义符号<code>\</code>，则具有特殊意义。例如：<blockquote>
+<p><code>\a</code>,生成声音提示；<code>\b</code>退格符；<code>\e</code>Esc字符；<code>\f</code>换页符；<code>\n</code>换行符；<code>\r</code>回车符；<code>\t</code>制表符；<code>\v</code>竖向制表符；<code>\\反</code>斜线；\’单引号；<code>\nnn</code>采用1-3位8进制数值表示等价ASCII字符；<code>\xHH</code>采用1-2位16进制数值表示的等价ASCII字符；<code>\cX</code>Ctrl+X字符。<br><br>其中，<code>\n</code>换到下一行，\r`回到本行的开头。<span class="red-back">Unix系统里，每行结尾只有”\n”;Windows系统里面，每行结尾是”\n\r”；Mac系统里，每行结尾是”\r”。</span></p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>历史命令（很强大呀！）<ol>
+<li><span class="red-back">fc命令的常见用法</span><ol>
+<li><code>fc -l 10 20</code>，显示命令缓冲区或文件中序号为10-20的命令；</li>
+<li><code>fc -l -10</code>，列出最近输入的10条命令；</li>
+<li><code>fc -l cat</code>，列出最近一次输入的以<code>cat</code>命令为其实字符串的命令；</li>
+<li><code>fc -e gedit/vim 10 20</code>，要利用vim或gedit编辑并执行序号为10-20的命令</li>
+<li>先执行<code>ls -l /ect/profile</code>，要想再执行一遍该指令，可以输入<code>fc -s</code>；</li>
+<li><code>fc -s 100</code>，执行先前的第100号命令。</li>
+</ol>
+</li>
+<li>history命令的常见用法<ol>
+<li>其实是fc的一个特列，是<code>fc -l</code>命令的别名。在bash中，列出所有命令；在korn shell中，仅列出16条命令。经实验，在ubuntu linux中执行<code>fc -l</code>，显示16条；执行<code>history</code>，显示所有；</li>
+<li><code>history 10</code>，列出最近执行的10条命令；</li>
+<li><code>history -c</code>，清除命令历史缓冲区中的命令。</li>
+</ol>
+</li>
+<li>重复执行先前命令的方式<ol>
+<li>在bash中，执行<code>$ !!</code>；</li>
+<li>常用的部分”!”命令，自行查阅。</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>命令的别名（略）</li>
+<li>作业控制<ol>
+<li>在bash中，set命令的”-m”或”-o monitor”选项用于启用shell的作业控制功能。</li>
+<li>除了进程ID之外，shell还会为每个作业分配一个数字较小的作业号。例如，利用”&amp;”符号启动后台作业，并使之异步运行，shell将会输出如下信息。<blockquote>
+<p><code>$ find / -name &quot;*conf&quot; -print &gt; conf.log 2&gt;&amp;1 &amp;</code><br><br><code>[1] 2136</code>，<code>[1]</code>作业号，<code>2136</code>作业的进程ID。</p>
+</blockquote>
+</li>
+<li><span class="red-back"> shell 采用作业控制表记录和跟踪当前的作业</span>。利用<code>jobs</code>内部命令，可以显示作业控制表中保存的当前作业。</li>
+<li>linux中的作业有运行running，停止stopping，退出exited，完成finished等状态。<blockquote>
+<p><code>$ bg %1(作业号)</code>，把停止运行的作业放到后台运行；<br><br><code>$ fg %2</code>，让一个后台作业回到前台继续运行； <br><br><code>kill %1</code>，停止后台作业 <code>wait %2</code>，等待当前正在运行的作业完成。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li>会话记录与命令确认<ol>
+<li>保存会话记录：在linux中提供了<code>script</code>命令，可以记录用户从注册到推出系统的整个或部分会话过程，包括用户的输入和系统的响应信息。例如：<blockquote>
+<p>$ script，在当前目录自动产生typescript文件<br><br>script started，file is typescript<br><br>$ ….，用户操作<br><br>$ exit<br><br>exit<br><br>script done, file is typescript<br><br>$ cat typescript，显示用户相关操作信息<br></p>
+</blockquote>
+</li>
+<li><span class="red-back">确保使用命令的正确性</span><ol>
+<li><code>which</code>：区分同名指令，如tar命令，如何知道是用的哪个tar命令，<code>$ which tar</code>，显示<code>/bin/tar</code>；</li>
+<li><code>whereis</code>，显示所有与给定命令相关的文件，如$ <code>whereis tar</code>，显示<code>tar:/bin/tar /usr/lib/tar /usr/include/tar.h /usr/share/man/man1/tar.1.gz</code>。</li>
+<li>通过<code>apropos</code>命令，模糊查找给定命令在文档中的说明；<code>whatis</code>命令，完全匹配给定的关键字命令。</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="三、文件系统"><a href="#三、文件系统" class="headerlink" title="三、文件系统"></a>三、文件系统</h1><ol>
+<li>路径名称规则<ol>
+<li>如果路径名以”/“开头，则说明该路径名是从根目录开始的<strong>绝对路径名</strong>，除此之外，其他所有的路径名都是相对于当前目录的<strong>相对路径名</strong>；</li>
+<li>路径名要么是单个名字，或者是以”/“分隔的多个名字，最后一个是文件，可以是任何类型；</li>
+<li>在任何目录位置，在路径名中使用”..”，可以往上攀升系统的目录层次。</li>
+</ol>
+</li>
+<li>树形层次结构<ol>
+<li><code>-/</code><br></li>
+<li><code>--/bin</code>，<span class="red-back">其中包含系统、系统管理员和普通用户可以共享的各种通用程序，如cat、cp、mv、mkdir、rm、ls及ps等常用的基本命令，以及如bash等的各种shell。</span><br></li>
+<li><code>--/boot</code>，其中包含系统引导程序、linux内核程序文件vmlinuz、磁盘内存印象文件initrd以及GRUB初始引导程序和配置文件等。<br></li>
+<li><code>--/dev</code>，在linux系统中，任何设备均对应一个或多个特殊文件（或称为设备文件），这个目录包含了系统支持的所有设备文件。例如：console表示控制台，lp0表示打印机。<br><blockquote>
+<p><code>----/mem</code>，表示系统的物理内存。<br><br><code>----/sda</code>，sda表示连接到主控制器的第一个磁盘，sda1或sda2等则分别表示其中的第一个和第二个磁盘分区等。<br><br><code>----/...</code>，其他相关，这里略。<br><br><code>----/tty</code>，表示系统的串口设备。<br></p>
+</blockquote>
+</li>
+<li><code>--/etc</code>，<span class="red-back">该目录是整个linux系统的中心，其中包含所有系统管理和维护方面的配置文件，如host.conf，syslog.conf和vsftpd.conf等。</span><br><blockquote>
+<p><code>----/apache2</code>，apache配置文件的根目录，其中包含apache服务器的各种配置文件，如apache2.conf等。<br><br><code>----/apt</code>，<span class="red-back">其中包含了软件管理工具使用的配置文件，如sources.list等。</span><br><br><code>----/cron.d</code>，用于存储cron进程调度运行后台进程所用的配置和控制文件。<br><br><code>----/init.d</code>，用于存储系统启动过程中需要有init调度执行的脚本文件。<br><br><code>----/mysql</code>，<span class="red-back">其中包含MySQL数据库的配置文件，如my.cnf等。</span><br><br><code>----/network</code>，其中包含网络接口的配置文件interfaces，以及相关的配置工具。<br><br><code>----/...</code><br><br><code>----/ssh</code>，<span class="red-back">OpenSHH网络服务所在配置和控制文件的根目录，其中含有sshd_config等重要配置文件。</span><br></p>
+</blockquote>
+</li>
+<li><code>--/home</code>，<span class="green-back">用户主目录的根目录。新增一个用户，系统将会在/home目录中创建一个形如/home/$USER的子目录，作为用户的目录，其中的$USER为用户名。也可以作为<em>单独的文件系统</em>。</span><br></li>
+<li><code>--/lib</code>，该目录含有系统引导过程，以及运行系统命令所需要的内核模块和各种动态链接共享库文件（扩展名为.so，相当于windows系统中的.dll文件）。其中，内核模块（驱动程序）位于/lib/modules/kernel-version子目录中。<br></li>
+<li><code>--/lost+found</code>，每个文件系统分区都存在一个lost+found目录，用于存储fsck命令在检测与修复文件系统时删除的文件或目录。<br></li>
+<li><code>--/media</code>，移动存储介质的安装点，当利用GNOME界面安装移动存储介质时，系统将会自动地把移动介质安装到此目录下的某个子目录中。<br></li>
+<li><code>--/mnt</code>，文件系统的临时安装点。<br></li>
+<li><code>--/opt</code>，应用程序等附加软件的安装目录。<br></li>
+<li><code>--/proc</code>，进程文件系统proc的根目录，其中的部分文件分别对应当前正在运行的进程，可用于访问当前进程的地址空间。<br><blockquote>
+<p><code>----/net</code>，其中的文件分别表示各种网络协议（如tcp，udp及arp等）的状态与统计信息。<br></p>
+</blockquote>
+</li>
+<li><code>--/root</code>，<span class="red-back">超级用户root的主目录（在linux系统中，”/“是整个系统的根目录，而非超级用户的主目录）</span><br></li>
+<li><code>--/sbin</code>，该目录中的命令主要供超级用户使用，普通用户通常无法使用。其中包含与系统引导、管理维护，以及与硬件配置等方面有关的命令和脚本文件，符fdisk、init和ifconfig等。<br></li>
+<li><code>--/tmp</code>，临时文件目录，用于存储系统运行过程中生成的临时文件，也可以用户存储自己的临时文件。一般不要自己删除这个目录中的文件。<br></li>
+<li><code>--/usr</code>，<span class="green-back">既可以作为一个<em>单独的文件系统</em>，也可以作为根目录下的一个子目录，其中存有系统提供的各种共享数据（如用户命令、库函数、头文件和文档等）</span><br><blockquote>
+<p><code>----/include</code>，用于存储各种c语言文件。是c开发人员需要经常引用的文件。<br><code>----/bin</code>，其中包含用户经常使用的各种命令(find,make,…,who)<br><br><code>----/lib</code>，包含各种共享的库函数，可供程序员以静态或动态链接自己开发的应用程序。<br><br><code>----/sbin</code><br><br><code>----/share</code><br><br><code>----/src</code>，用于存放linux系统内核的源代码和文档等。<br></p>
+</blockquote>
+</li>
+<li><code>--/var</code>，<span class="green-back">既可作为一个 <em>单独的文件系统</em>，也可作为根目录下的一个子目录，用于存储各种可变长的数据文件（如日志文件）、暂存文件或待处理的临时文件等。</span><br><blockquote>
+<p><code>----/lib</code>，用于存储软件包特定的动态链接共享库、配置文件和状态信息等。<br><code>----/lock</code><br><code>----/log</code>，用于守护进程日志文件的存储目录<br><br><code>----/mail</code><br><br><code>----/run</code><br><br><code>----/spool</code>，用于缓存各种待处理的文件。<br><br><code>----/tmp</code>，用于存储各种临时文件。<br><br><code>----/www</code>，<span class="red-back">apache服务器的用户文档根目录，用于存储和发布各种HTML文档。</span></p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li>文件的类型<ol>
+<li>普通文件</li>
+<li>目录文件<ol>
+<li><code>$ pwd</code>，查看当前所处的目录；</li>
+<li><code>$ mkdir dirname</code>，创建一个目录；</li>
+<li><code>$ rmdir dirname</code>，删除一个目录。</li>
+</ol>
+</li>
+<li>特殊文件：也称设备文件，linux系统利用特殊文件作为用户与I/O设备之间的接口，使用户能够像读写普通文件一样访问外部设备。</li>
+<li>链接文件</li>
+<li>符号链接文件</li>
+<li>管道文件</li>
+</ol>
+</li>
+<li><span class="red-back">文件保护机制</span><ol>
+<li>linux系统把用户分为三类：<ol>
+<li>文件属主</li>
+<li>同组用户</li>
+<li>其他用户</li>
+</ol>
+</li>
+<li>文件的三种基本访问权限<ol>
+<li>r（读）：如果文件具有读许可，则相应的用户额可以读文件，如显示文件内容、复制文件等，但不能修改文件。如果允许用户进入某个目录，列举目录下的文件，则至少应赋予用户“读”目录的访问权限；</li>
+<li>w（写）:如果文件具有写许可，则相应的用户可以读、写文件，包括显示文件内容以及复制、修改、移动和删除文件等。对于目录而言，如果允许用户创建新文件和删除文件，则必须赋予用户“写”目录的访问权限；</li>
+<li>x（执行）：如果具有执行许可，则相应的用户可以运行文件（如程序文件）。对于目录而言，如果允许用户访问其中的任何子目录，则必须赋予用户“执行”目录的访问权限。</li>
+</ol>
+</li>
+<li>举例<blockquote>
+<p><code>$ ls -l /bin</code>，查看对bin目录的访问权限<br><br><code>drwxr-xr-x 2 root root 4096 5月 9 05：47 /bin</code><br><br>d表示文件类型为目录，rwx r-x r-x表示文件属主的访问权限为rwx、同组用户的访问权限为r-x、其他用户的访问权限为r-x。</p>
+</blockquote>
+</li>
+<li><span class="red-back">修改文件的访问权限</span><ol>
+<li>前提条件<ol>
+<li>用户必须是文件或目录的属主</li>
+<li>或超级用户</li>
+</ol>
+</li>
+<li>chmod用法示例<ol>
+<li>相对权限设置法：<blockquote>
+<p>格式<code>$ chmod permissions dir-or-file</code> <br><br><span class="red-back">用字符表示用户类型：u（文件属主），g（同组用户），o（其他用户），a(所有用户)</span>；<br><br>“+”或”-“表示增加或撤销相应的权限；<br><br><code>$ chmod o+w script</code>，表示对其他用户添加写权限<br><br><code>$ chmod o-rw script</code>，表示对其他用户撤销读写权限。</p>
+</blockquote>
+</li>
+<li>绝对权限设置法<blockquote>
+<p>格式<code>$ chmod numcode dir-or-file</code>，numcode是一个数字代码，用于表示文件的访问权限，由3位数字组成，分别对应于文件属主、同组用户和其他用户。<br><br><code>$ chmod 755 file</code>，表示对属主用户设定权限码为7，同组用户权限码为5，其他用户权限码为5。<br><br><span class="red-back">“r”对应的二进制码为100（4）,”w”对应的二进制码为010（2），”x”对应的二进制为001。其中，rwx构成的某一用户的权限码是8进制的。</span>。<br><br>解读755，7=4+2+1（rwx），5=4+0+1（r-x），5=4+0+1（r-x）。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li>其他访问权限设置<ol>
+<li>默认权限：无论何时创建一个文件，linux系统通常会为用户设置一个默认的访问权限。用<span class="red-back">umask</span>命令。<blockquote>
+<p>格式，<code>umask [-S] [nnn]</code>，这个[nnn]与chmod命令中的numcode相反，在对应位上设置1，即为撤销该权限。如000 000 000，设置为000 010 010，即为022，表示u有rwx权限，g有r-x权限，o有r-x权限。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="四、文件和目录操作"><a href="#四、文件和目录操作" class="headerlink" title="四、文件和目录操作"></a>四、文件和目录操作</h1><ol>
+<li><p><strong>创建文件</strong></p>
+<p> <code>$ touch emptyfile</code>，当前目录下，要是没有该文件，就自动创建一个，有则不产生作用；<br><br> <code>$ &gt; emptyfile</code>，利用重定向，产生的文件将覆盖已有的同名文件；<br><br> <code>$ echo &quot;hello word!&quot; &gt; newfile</code>，创建一个含有内容为”hello world”的新文件；<br><br> <code>$ cat &gt; myfile</code>，通过终端输入内容，创建并写入myfile文件；<br><br> 还可以通过vim编辑器，在terminal里面进行操作。</p>
+</li>
+</ol>
+<ol start="2">
+<li><p><strong>显示文件列表</strong></p>
+<ol>
+<li>使用<code>ls</code>命令：ls [options] [dir or file]</li>
+<li><p>几个常用的参数：<code>ls -a</code>，列出当前目录下的所有文件（包括.*隐藏文件）;<code>ls -d</code>如果指定的参数是目录，只显示目录的名字，而不是列出目录下的文件；<code>ls -l</code>，这个经常使用，以每行一个文件的长格式列出文件的类型、访问权限、链接数、用户属主、用户组、文件大小、最后修改时间和文件名等；<code>ls -r</code>，以文件名反向排序显示文件列表（–reverse）；<code>ls -R</code>，注意区分与<code>r</code>的区别(–recursive)，递归显示目录及子目录下的所有文件；<code>ls -s</code>，显示分配给文件的数据块，因此，当文件大小相近时，它们的数据块可能是一样的。</p>
+<blockquote>
+<p><strong> 示例：</strong><br></p>
+<ol>
+<li>列出当前目录下的文件，<code>ls</code><br></li>
+<li>列出指定目录下的文件，<code>ls /</code><br></li>
+<li>利用通配符显示文件，如<code>ls -l *.c</code>，<code>*</code>匹配多个字符，列出当前目录下以c结尾的所有文件，为了避免列出子目录中的文件，可以使用<code>ls -ld *</code><br></li>
+</ol>
+</blockquote>
+</li>
+</ol>
+</li>
+<li><p><strong>显示文件内容</strong></p>
+<ol>
+<li><code>cat [options] [file]</code>，将文件中的内容全部显示到终端，若内容太多，只能看到最后部分；</li>
+<li><code>more [options] [file]</code>，将从头到尾一页一页地仔细阅读文件。如果文件很长，在左下角会出现<code>--More--(n%)</code>，<code>（n%）</code>表示已显示的数据内容占整个文件的百分比。<code>less</code>命令的功能与<code>more</code>类似且比它强大；</li>
+<li><code>head [-number | -n number] [file]</code>，number表示需要输出的行数。默认，输出前10行（包括空行）；</li>
+<li><code>tail [+/-number [-lbcf]] [file]</code>，<code>+</code>表示从文件的其实位置开始计算，<code>-</code>表示从文件的结束位置开始计算。number表示要输出的行数。<strong>备注</strong>：<code>tail</code>，只能访问静态文件的最后几行，对于内容动态增长的文件如日志文件，需要这样访问，<code>tail -f somelogfile</code>。也就是说，somelogfile文件内容加一行，终端就显示一行，实时的。</li>
+</ol>
+</li>
+<li><p><strong>复制文件</strong></p>
+<ol>
+<li><code>cp [-ir] source_file target_file</code>，其中，<code>-i</code>表示交互复制方式。例如，要将src文件拷贝到target文件时，如果target文件存在，则给出提示信息，是否要覆盖已有的文件。<code>-r</code>表示递归操作，就是如果src是目录文件，则将目录中的子目录递归复制，拷贝到目标文件中。</li>
+</ol>
+</li>
+<li><p><strong>移动文件</strong></p>
+<ol>
+<li><code>mv [-fi] source_file target_file</code>，把文件从一个目录移动到另外一个目录中，或者重新命名一个文件。<code>-f</code>表示强制移动或改名（force），<code>-i</code>用于交互，给出目标文件存在时的提示信息。</li>
+</ol>
+</li>
+<li><p><strong>删除文件</strong></p>
+<ol>
+<li><code>rm [-rfi] [file]</code>，<code>-r</code>表示递归地删除目录中的文件及目录本身；<code>-i</code>表示交互操作，询问是否真的要删除；<code>-f</code>表示强制删除，即使不存在该文件，也不会输出任何信息。</li>
+</ol>
+</li>
+<li><p><strong>改换目录</strong></p>
+<ol>
+<li>在linux系统，每个用户都有一个属于自己的主目录。在注册之后，系统将会自动地把用户引导至自己的主目录；</li>
+<li>在bash、korn shell等shell中，<code>~</code>表示用户主目录缩写，在bourne shell中，停替代方法是引用<code>$HOME</code>。</li>
+</ol>
+</li>
+<li><p><strong>创建、移动和复制目录</strong></p>
+<ol>
+<li><code>mkdir src</code></li>
+<li><code>mv src</code></li>
+<li><code>cp -r dir1 dir2</code></li>
+</ol>
+</li>
+<li><p><strong>删除目录</strong></p>
+<ol>
+<li>指令模版，<code>rmdir [-p] directory</code>；</li>
+<li>删除一个空的目录，其指令为<code>rmdir dir1</code>；</li>
+<li>删除一个非空目录，需要添加<code>-r</code>参数选项,意思是recursive递归，即<code>rm -r dir1</code>，可以把指定目录及其任何子目录中的所有文件全部删除。</li>
+</ol>
+</li>
+<li><p><strong>比较文件之间的差别</strong></p>
+<ol>
+<li>当面对两个类似的文件，想找出其中的细微差别时，可以使用diff命令比较，<code>diff file1 file2</code></li>
+<li>比较三个文件的不同，可以使用<code>diff3 file1 file2 file3</code>。</li>
+</ol>
+</li>
+<li><p><strong>从系统中检索文件</strong></p>
+<ol>
+<li><code>find directory [options]</code><ol>
+<li>find命令将按用户指定的检索条件，从指定的目录开始，找出满足匹配准则的所有文件。指定的检索条件可以是文件（包括通配符）、文件大小及文件修改日期等。</li>
+<li>其中，directory是检索的起始目录，options是一种表达式选项，用于指定各种匹配准则或检索条件。</li>
+<li>find命令的部分常用选项，自查。</li>
+</ol>
+</li>
+<li><hr>
+</li>
+<li><hr>
+</li>
+</ol>
+</li>
+<li><p><strong>检索文件内容</strong></p>
+<ol>
+<li>利用grep检索文件内容<ol>
+<li>检索文件中的特定字符串，<code>grep [-inv] string file</code>，其中，<code>-i</code>表示忽略字母大小写，<code>-n</code>表示在输出结果之前给出文本行所在文件中的行号，<code>-v</code>表示检索不包含个i定字符串或模式的所有文本行。<code>string</code>是一个检索模式。检索模式可以是一个准备检索的字符串、一个单词或词语。</li>
+</ol>
+</li>
+<li>在grep中使用正则表达式<ol>
+<li>在grep中可使用简单的正则表示，复杂的模式匹配需要使用egrep；</li>
+<li><hr>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p>排序</p>
+<ol>
+<li><code>sort [-bdfimnru] -k key -t sepchar -o output [file]</code>，可对输入的数据或文件内容进行排序。其中，<code>-n</code>按照字符串数值进行排序，<code>-r</code>表示按照从大到小或反向顺序排序，<code>-k</code>表示关键字的字段位置或关键字字段起止字符位置或范围，<code>-b</code>表示忽略前置的空白字符，<code>-d</code>表示仅考虑字母数字和空格字符，按照字典顺序排序；</li>
+<li>使用示例：<blockquote>
+<p><code>ls -l /var/log/syslog*</code>，该指令是显示所有系统日志的，显示的部分结果如下：<br><br><code>-rw-r----- 1 syslog adm 552   6月 8 15：17 syslog</code> <br><br><code>-rw-r----- 1 syslog adm 103381 6月 8 13：30 syslog.1</code> <br><br><code>...</code><br><br>现在需要根据文件的大小降序排列，具体指令如下：<br><br><code>ls -l /var/log/syslog* | sort -rn -k5</code><br><br><code>-rw-r----- 1 syslog adm 103381 6月 8 13：30 syslog.1</code> <br><br><code>-rw-r----- 1 syslog adm 552   6月 8 15：17 syslog</code> <br><br><code>...</code><br><br>其中，-r表示降序排序，-n表示按照数值大小，-k按照第5个关键字字段位置（也就是文件的大小），实现最终的排序。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="五、编辑文件（vim）"><a href="#五、编辑文件（vim）" class="headerlink" title="五、编辑文件（vim）"></a>五、编辑文件（<a href="http://www.vim.org" target="_blank" rel="noopener">vim</a>）</h1><ol>
+<li><p><strong>vim来源</strong>：vim是对unix系统上vi编辑器的扩充与增强，提供许多附加的功能特性，与vi几乎完全兼容。可运行在windows、Macintosh、Unix和Linux系统上。</p>
+</li>
+<li><p><strong>启动vim</strong></p>
+<ol>
+<li><code>$ vim myfile</code>，若myfile存在，则会打开指定的文件，并显示文件第一页的内容。若文件不存在，vim将会打开一个新文件；</li>
+<li>进入vim编辑器界面之后，屏幕左边的波浪符”~”表示空行；</li>
+<li>vim可以同时编辑多个文件，也可以不指定文件名，等到完成文件再写入新文件，然后退出；</li>
+<li>直接输入<code>vim</code>命令而未指定文件的名字，会显示vim的介绍信息。此时，可以直接进入插入模式（输入i），编写文件，然后保存（:w filename），退出（:q）。如果想放弃保存当前的操作，则可以强制退出（：qa!）。具体可同:help查看帮助；</li>
+<li>状态行：编辑窗口的最后一行是vim的状态行，用于显示编辑器的状态、编辑过程中出现的错误信息、光标所在的行列位置、删除或复制的行数等。初始启动时，状态行会显示文件的名字、行数和字节数。</li>
+</ol>
+</li>
+<li><p><strong>vim编辑器的工作模式</strong></p>
+<ol>
+<li>命令模式：按下<code>esc</code>键，总是进入命令模式；</li>
+<li>输入模式：在要输入文本之前，输入i或a进入输入模式，然后esc，返回命令模式，执行保存退出；</li>
+<li>输入”:”开始执行命令的时候</li>
+</ol>
+</li>
+<li><p><strong>保存编辑文件并退出vim</strong></p>
+<ol>
+<li>注意随时保存数据，特别是当编辑重要的文件时，vim编辑器提供了许多命令，用于把内存缓冲区中的数据内容保存到磁盘文件中，然后退出vim。如”保存并退出”、”强制退出并不保存”等；</li>
+<li><strong>相关命令</strong><ol>
+<li><code>:w</code>，保存编辑后的文件内容，但不退出vim编辑器。把内存缓冲区中的数据写到启动vim时指定的文件中</li>
+<li><code>:w!</code>，强制写文件，即强制覆盖原有的文件。如果原文件是只读文件，并且当前用户是该文件的属主，则可以强制写入；</li>
+<li><code>:wq</code>，保存文件内容后退出vim编辑器。写入并退出。另一个替代指令为<code>ZZ</code>；</li>
+<li><code>：wq!</code>，强制保存文件内容后退出；</li>
+<li><code>ZZ</code>，如果文件已经做过编辑处理，则把内存缓冲区中的数据强制写到启动vim时指定的文件中，然后退出。否则只是退出而已；</li>
+<li><code>:q</code>，在未做任何编辑处理而准备退出vim时，使用；</li>
+<li><code>:q!</code>，强制退出vim编辑器，放弃编辑处理的结果。如果确实不需要保存修改后的文件内容，可输入该命令，强制退出；</li>
+<li><code>:w filename</code>，把编辑处理后的结果写到指定的文件中保存；</li>
+<li><code>:w! filename</code>，把编辑处理后的结果强制保存在指定的文件中，如果文件已经存在，则覆盖现有的文件；</li>
+<li><code>:wq! filename</code>，把编辑处理后的结果强制保存在指定的文件中，如果文件已经存在，则覆盖现有的文件，最后退出；</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>vim编辑器基本命令</strong></p>
+<ol>
+<li>移动光标位置：</li>
+<li>输入文本：<ol>
+<li><code>a</code>，可在当前光标所在字符位置之后输入数据；</li>
+<li><code>A</code>，可在光标当前所在行的行尾输入数据；</li>
+<li><code>i</code>，可在光标当前所在字符位置之前输入数据；</li>
+<li><code>I</code>，可在当前光标所在行的行首输入数据；</li>
+<li><code>o</code>，可在光标所在行的下一行新起，输入数据；</li>
+<li><code>O</code>，可在光标所在行的上一行新起，输入数据。</li>
+</ol>
+</li>
+<li>修改和替换文本<ol>
+<li><code>C</code>，替换从光标位置<strong>开始直至行尾</strong>的所有数据内容，然后输入数据；</li>
+<li><code>cw</code>，替换单个字。如”hello world”，光标在hello的h上，输入cw，会取代hello(以空格分隔，一个单词为一个字)，输入新的字替换，而不会去掉world；</li>
+<li><code>[n]cc</code>，cc命令，指将光标所在行，全部去掉，输入新数据；加上n后，表示要替换的行数，从光标所在位置，往下替换掉n行；</li>
+<li><code>[n]s</code>，表示替换字符，s表示替换光标所在位置的字符，n表示从光标开始往后的n个字符要被替换；</li>
+<li><code>S</code>，替换当前光标所在的行；类似cc；</li>
+<li><code>r</code>，替换单个字符，类似与1s。<strong>唯一不同的是，r执行完后，自动返回命令模式</strong>;</li>
+<li><code>R</code>，替换多个字符，可以从光标位置开始，替换多个字符，数量不限，直至按下esc；</li>
+<li><code>[n]~</code>，转换光标当前所在位置字母的大小写，一直按<code>~</code>或者指定需要替换字母大小写的个数，可实现多个字母大小写转换。</li>
+</ol>
+</li>
+<li>撤销先前的修改<ol>
+<li><code>u</code>，用于撤销先前执行的编辑命令；</li>
+<li><code>U</code>，用于撤销或回复最精一次的操作。</li>
+</ol>
+</li>
+<li>删除文件（一直处于命令模式，而非输入模式（插入，取代））<ol>
+<li><code>[n]x</code>，删除字符。n为要删除字符的个数，从光标所在位置的字符往后开始（相当于往后删除），<strong>包括当前光标所在位置</strong>；</li>
+<li><code>[n]X</code>，删除字符。n为要删除字符的个数，从光标所在位置的字符往前开始（相当远往前删除），<strong>不包括当前光标所在位置</strong>；</li>
+<li><code>dw</code>，删除单个字或部分字。删除整个字的话，包括其占用的空间位置，如字与字之间的分隔符；</li>
+<li><code>[n]dd</code>，删除文本行。dd为删除当前光标所在行，n为删除多行；</li>
+<li><code>D</code>，表示删除本行的行尾部分。</li>
+</ol>
+</li>
+<li>复制、删除和粘贴文本<ol>
+<li>复制-粘贴：先yy复制文本行，再用p（或P）实际复制，</li>
+<li>剪切-粘贴：先dd删除文本行，再用p（或P）实现文本行的移动。</li>
+<li>具体命令：<ol>
+<li><code>[n]yy</code>，记住，<strong>该命令是复制文本行的，不是选中的部分</strong>，过程：<ol>
+<li>把光标移至准备复制的文本行的任何位置；</li>
+<li>输入<code>yy</code>命令；</li>
+<li>再把光标移至目标行的任何位置；</li>
+<li><code>p</code>，复制到所在行的<strong>下面</strong>，<code>P</code>，复制所在行的<strong>上面</strong>；</li>
+<li>如果在yy前面输入n，可以复制多个文本行。</li>
+</ol>
+</li>
+<li><code>[n]Y</code>，同yy；</li>
+<li><code>[n]dd</code>，删除文本行。然后操作过程同yy类似；</li>
+<li><strong>上面的指令必须结合p，P使用</strong>。</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>按指定的数量重复执行指令<ol>
+<li>许多vim命令前面都可以加一个计数值，表明相应的命令重复执行的次数；</li>
+<li>使用<code>.</code>，可以重复执行先前的文本编辑命令；</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>使用ex命令</strong></p>
+<ol>
+<li>显示行号，<code>:set nu</code>，挺实用的！！！</li>
+<li>取消行号，<code>:set nonu</code></li>
+<li>多行复制，<code>:line#1，line#2 co line#3</code>，其中，<code>co</code>相当于copy<ol>
+<li>例如，<code>:1,5 co 12</code>把第1行到第5行复制到第12行；</li>
+<li>其中，<code>.</code>表示当前光标所在的行，<code>$</code>表示最后一行；</li>
+</ol>
+</li>
+<li>移动文本，<code>:line#1, line#2 m line#3</code>，其中，<code>m</code>相当于move</li>
+<li>删除文本，<code>:line#1, line#2 d</code></li>
+</ol>
+</li>
+<li><p><strong>检索与替换</strong></p>
+<ol>
+<li>概述：使用户能够以检索指定字符串的方式，直接跳转至期望的文件位置。还提供全局检索和替换功能；</li>
+<li>检索命令：<ol>
+<li><code>:/str</code>，检索给定的字符；</li>
+<li><code>:?str</code>，从当前位置开始，反向检索给定的字符串；</li>
+<li><code>n</code>，从当前位置开始，继续检索下一个匹配的字符串；</li>
+<li><code>N</code>，从当前位置开始，反向检索；</li>
+<li><code>:/str/+n</code>，将光标移至匹配的字符串str所在行之后的第n行；</li>
+<li><code>:?str?-n</code>，将光标移至匹配的字符串str所在行之前的第n行；</li>
+</ol>
+</li>
+<li>模式检索<ol>
+<li>仅检索出现在行首位置的字符串，<code>:/^search</code>；</li>
+<li>仅检索出现在行尾位置，<code>:/search$</code>；</li>
+<li>仅检索出现在字首位置的字符串，</li>
+<li><hr>
+</li>
+</ol>
+</li>
+<li>替换字符串</li>
+</ol>
+</li>
+<li><p><strong>编辑多个文件</strong></p>
+<ol>
+<li>编辑多个文件<ol>
+<li><code>vim file1 file2</code>，先进入file1文件，编辑好后，<code>:w</code>保存；输入<code>:n</code>或<code>:n file2</code>，进入file2文件，编辑好后，输入<code>:w</code>保存。</li>
+<li>可以使用<code>:e filename，:n filename</code>直接转到指定的文件，也可以使用<code>:n</code>命令转到下一个文件。<code>:n#</code>交替编辑最近处理过的两个文件。</li>
+<li><code>:e! filename</code>，强行转到指定的文件。</li>
+</ol>
+</li>
+<li>合并文件与合并文本行<ol>
+<li><code>line# r filename</code>，将filename中的内容读到指定行line中；</li>
+<li>如果未指定line，则默认是当前光标所在的行</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>定制vim编辑器的运行环境</strong></p>
+<ol>
+<li>vim编辑器采用一系列默认的选项定义作为自己的运行环境。为了提高编辑效率，需要改变部分选项的默认值。</li>
+<li><code>:set all</code>，可以查看到所有的可设置选项，<code>:set option</code>，设置该选项，<code>:set nooption</code>取消该选项设置。</li>
+<li>具体options如下：<blockquote>
+<p>all，在编辑器窗口中列出编辑器支持的所有选项；<br><br>magic，设置magic，可启动字符的特殊意义，如”.”表示匹配任意一个字符；”[…]”表示匹配指定字符集和或字符范围中的任何一个字符。设置nomagic就会使特殊字符意义失效。<br><br>autoindent，这个选项与shiftwidth选项一起使用，使新输入的文本行与上一行起始位置自动对齐。<br><br>autowrite，自动保存，当打开多个文件的时候，当前编辑完成后，要切换到另一个文件，就会将当前文件自动保存；<br><br>ignorecase，字符串匹配时，可设置忽略大小写；<br><br>laststatus，是否在编辑窗口中显示状态行；<br><br>number，显示文本行的行号；<br><br>readonly，对正在编辑的文件进行写保护；<br><br>report，默认值为2，表示复制或删除了多少行，在状态栏中报告；<br><br>scroll，设置前滚（ctrl+U）多少行，后滚(ctrl+D)多少行，如:set scroll=10;<br><br>shell，确定vim调用哪一个shell，如:set shell=path，path为shell的绝对路径；<br><br>shiftwidth，这个选项用于设定制表符的跳转位置，按下<strong>ctrl+t或ctrl+d</strong>，自动跳转到下一个或上一个制表符位置，默认为8；<br><br>showmatch，输入右圆括号、花括号或方括号时，提示与左边的括号相匹配；<br><br>tabstop，设置制表键tab的右移距离。默认为8；<br><br>wrap，控制vim显示较长的文本行。把较长的文本行延续到下一行，可利用该选项实现自动折行；<br><br>wrapmargin，指定编辑器窗口的右边距；</p>
+</blockquote>
+</li>
+<li>永久性定制vim运行环境<ol>
+<li>上面的方法都只能临时地设置vim编辑器的当前运行环境，一旦退出，这种临时设置也随之作废；</li>
+<li>永久性设置<ol>
+<li>需要设置<strong>VIMINTI变量</strong>。在.bash_profile中添加export VIMINTI = ‘set para1 para2 …’；</li>
+<li>也可以把常用的vim选项以及定义加到系统范围的初始化文件<code>/etc/vim/vimrc</code>文件，或用户主目录下的.vimrc(或.exrc) 文件中，可以自己在用户主目录下建立.vimrc文件，在里面写入<code>ab abc 中国农业银行</code>，等</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>其他特殊说明</strong></p>
+<ol>
+<li>删除或替换特殊字符</li>
+<li>在编辑期间运行linux命令<ol>
+<li><code>:sh</code>，在vim编辑器中，要转到执行shell的命令话，可使用该命令。此时，使用ctrl+d或exit命令，可退回到vim编辑，继续刚才文件的编辑；</li>
+<li><code>:!command</code>，在编辑期间，如果想临时地运行某一个shell命令，可使用该命令，执行完毕后，按enter，即可回复原来的编辑处理状态；</li>
+<li><code>!!command</code>，在编辑期间，如果想把某个shell命令的运行结果直接加到当前编辑的文件中</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="六、Shell"><a href="#六、Shell" class="headerlink" title="六、Shell"></a>六、Shell</h1><ol>
+<li>基础知识</li>
+<li>高级编程</li>
+</ol>
+<h1 id="七、软件管理"><a href="#七、软件管理" class="headerlink" title="七、软件管理"></a>七、软件管理</h1><ol>
+<li><p><strong>软件维护工具</strong></p>
+<ol>
+<li><strong>命令行</strong>的软件维护工具，包括<code>apt-get</code>、<code>aptitude</code>以及<code>dpkg</code>等；</li>
+<li><strong>图形界面</strong>的软件维护工具，包括<code>gnome-app-install</code>与<code>snaptic</code>。</li>
+</ol>
+</li>
+<li><p><strong>软件管理</strong></p>
+<ol>
+<li>软件包：在ubuntu Linux系统中，所有的软件和文档都是以软件包档案文件的形式提供的。软件包可分为<strong>二进制软件包</strong>（用于封装可执行程序、相关文档以及配置文件等）和源代码软件包（包含源代码以及生成二进制软件包的制作方法）；</li>
+<li>常见的软件包的格式：<ol>
+<li><strong>Debian</strong>格式软件包（.deb）:<strong>ubuntu软件仓储中提供的软件包均采用这种封装格式</strong>，<strong>apt-get、aptitude和synaptic都支持此类软件包</strong>；</li>
+<li><strong>Red Hat</strong>格式软件包（.rpm）:RPM（Red hat Package Manager）是另外一种流行的Linux系统软件包，是Red hat以及派生（如fedora）支持的；</li>
+<li><strong>Tarball</strong>:一种由大量文件（包括目录结构）组装成单个档案文件的大型文件集合。其中<code>tar</code>命令用于组合多个文件，生成一个文档，以便于发行；<code>gzip</code>用于压缩文件的容量，以便节省文件的存储空间。Tarball非常类似于windows的”.zip”文件。Tarball文件具有<code>.tar.gz</code>，<code>.tar.bz2</code>或<code>TGZ</code>形式的文件扩展名。<strong>在命令行终端窗口，可以使用</strong><code>tar -xzf filename</code><strong>来解压相应的文件，然后在执行其中包含的软件安装命令</strong>。</li>
+</ol>
+</li>
+<li>软件仓库:指的是一个网站或存储目录，其中提供按一定组织形式存储的软件包与索引文件。</li>
+</ol>
+</li>
+<li><p><strong>利用apt-get管理软件包</strong></p>
+<ol>
+<li>APT（advanced package tool）:<strong>一个通用的综合软件管理与维护工具，apt-get、aptitude和synaptic等软件工具包都是基于APT及其配置文件发展而来，是APT的前端软件管理工具</strong>。</li>
+<li>早期，APT配置命令都存储在单独的配置文件中<strong>/etc/apt/apt.conf</strong>中。在ubuntu linux中，把这个文件分解成多个小型文件，存储在<strong>/etc/apt/apt.conf.d</strong>目录中。<strong>/var/lib/apt/lists</strong>目录存有APT本地软件包索引文件。<strong>/var/cache/apt/archives</strong>目录是APT的本地缓冲目录，其中缓存了最近下载的deb软件包文件。</li>
+<li>APT将采用<strong>/etc/apt/sources.list</strong>和<strong>/etc/apt/apt.conf.d目录中所有文件</strong>作为配置文件。</li>
+<li>apt-get是一个命令行软件管理工具，能够利用软件仓库安装选定的软件包，或者删除、更新系统中已经安装的软件包，升级linux系统。具体的使用命令为：<code>apt-get [-hvs] [-o=config string] [-c file] {[update] | [upgrade] | [dselect-upgrade] | [install pkgs] | [remove pkgs] | [purge pkgs] | [check] | [clean] | [autoclean] | [autoremove]}</code>，其中，apt-get命令支持的部分功能选项，自查。</li>
+<li><strong>常见使用</strong><ol>
+<li><code>sudo apt-get install packagename</code>，安装指定的软件包；</li>
+<li><code>sudo apt-get update</code>，用于同步软件源的软件包索引，获取最新的可用软件包版本信息；<code>sudo apt-get upgrade</code>，用于升级整个Ubuntu Linux系统（升级的过程，就是软件包的删除和重装过程）；</li>
+<li><code>sudo apt-get remove/purge packagename</code>，用于删除软件包，其中remove属于部分删除，保留软件包中配置文件，而purge属于彻底删除；</li>
+</ol>
+</li>
+<li><strong>sources.list配置文件</strong><ol>
+<li>apt-get、aptitude以及synaptic是基于APT的，而ATP是使用<strong>/etc/apt/sources.list</strong>配置文件来定义软件的发行源的；</li>
+<li>sources.list是主配置文件，可以在/etc/apt/sources.list.d目录中定义其他辅助配置文件，作为sources.list的补充；</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>利用aptitude管理软件包</strong></p>
+<ol>
+<li>aptitude是一个可以替代apt-get的软件管理工具，语法格式：<blockquote>
+<p><code>aptitude [options] {updtae | autoclean | clean | safe-upgrade}</code> <br><br><code>aptitude [options] {install | reinstall | full-upgrade | download | purge | remove | show} pkgs</code> <br><br><code>aptitude [options] search patterns</code> <br><br><code>aptitude help</code></p>
+</blockquote>
+</li>
+<li>常见使用<ol>
+<li><code>sudo aptitude install package</code>，安装软件包；</li>
+<li><code>sudo aptitude safe-update</code>同步软件源的软件包索引文件，<code>sudo aptitude safe-upgrade</code>升级整个系统；</li>
+<li><code>aptitude show vsftpd</code>用于查询各种软件包信息；</li>
+<li><code>aptitude search pkg-pattern</code>，用于检索软件包，可以检索系统中已经安装的软件包；</li>
+<li><code>aptitude search ~T</code>，查询所有的软件包；</li>
+<li><code>aptitude search ~U</code>，列出软件仓库中可供更新的软件包；</li>
+<li><code>aptitude search ~i</code>，列出系统中已经安装的软件包，如aptitude search ‘-i apache’表示要检索系统中已经安装的apache服务器软件包；</li>
+</ol>
+</li>
+</ol>
+</li>
+<li><p><strong>synaptic图形界面软件管理工具</strong></p>
+<ol>
+<li>synaptic软件包管理器是一种基于APT开发的高级图形界面软件管理工具，其中实现了apt-get命令行工具的所有功能;</li>
+<li>在命令行输入synaptic命令，启动；</li>
+<li><hr>
+</li>
+</ol>
+</li>
+<li><p><strong>GNOME软件增删工具</strong></p>
+<ol>
+<li>是一种GNOME桌面菜单的软件管理工具，可以根据软件的功能或菜单分类，补充安装或删除选定的软件包，也可用于浏览、检索及查询软件包的说明信息；</li>
+<li>在命令行，输入gnome-app-install启动；</li>
+<li><hr>
+</li>
+</ol>
+</li>
+</ol>
+<h1 id="八、用户管理"><a href="#八、用户管理" class="headerlink" title="八、用户管理"></a>八、用户管理</h1><ol>
+<li><p><strong>相关概念</strong></p>
+<ol>
+<li>linux系统中的用户可以分为3类：<strong>超级用户</strong>(root)、<strong>管理用户</strong>和<strong>普通用户</strong>。但也可以把<strong>超级用户</strong>和<strong>管理用户</strong>通称为<strong>系统用户</strong>；<ol>
+<li><strong>超级用户</strong>是一个特殊的用户，<strong>用户标识号为0</strong>，可以访问任何程序和文件，任何系统都会自动提供一个超级用户帐号；</li>
+<li><strong>管理用户</strong>用于运行一定的系统服务程序，支持和维护相应的系统功能，<strong>用户标识号在1-999范围之内</strong>；</li>
+<li>除了超级用户和管理用户，其他均为<strong>普通用户</strong>。访问linux系统的每个用户，都需要有一个用户帐号。只有利用用户名和密码注册到系统之后，才能够访问系统提供的资源和服务；</li>
+</ol>
+</li>
+<li>Ubuntu linux系统强烈建议，应尽量避免使用超级用户注册到系统中，如果确实需要执行系统管理与维护任务，可以在具体的命令前冠以sudo命令；</li>
+</ol>
+</li>
+<li><p><strong>/etc/passwd文件</strong></p>
+<ol>
+<li>安装linux系统之后，系统已经事先创建了若干系统用户帐号，其中包括超级用户root和管理用户daemon、bin和sys等，用于执行不同类型的系统管理和日常维护任务；</li>
+<li>用户的帐号信息是有/etc/passwd和/etc/shadow文件共同维护的；</li>
+<li>passwd文件中包含了linux系统中每个用户除密码之外的重要信息，每个用户信息占用一行，每一行由7个字段组成，中间以冒号分开：<code>username:password:uid:gid:comment:home_dir:login_shell</code><strong>(用户名:密码:用户id:用户组id:主目录:命令解释程序)</strong>，在passwd中部分内容如下：<blockquote>
+<p><code>root:x:0:0:root:/root:/bin/bash</code> <br><br><code>daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin</code> <br><br>…. <br><br><code>sucab:x:1000:1000:sucab,,,:/home/sucab:/bin/bash</code> <br><br>其中，每一个字段的具体说明如下：username:注册用户名，用户名在linux系统中必须是唯一的，且至少第一个字符选用字母；password为用户密码，但实际的密码已移至/etc/shadow文件中，如果用户设有密码，会显示为x，若显示*，则用户无法正常地注册到系统；uid用户id，是系统识别用户的主要手段，由系统或系统管理员分配，id为32为无符号整数，即为0-65536，其中0为超级用户，1-999为管理用户，1000-65536为普通的自定义用户；gid用户组id，系统中的每个用户均属于某个用户组，每个用户组除有组名之外，也有一个相应的用户组id，在0-999保留作系统用户组使用；comment为注释信息，包含用户全名，电话号码和电子邮件等用户信息；home_dir指定用户的主目录，环境变量${HOME}，形如/home/username；login_shell指定用户注册后调用的shell，即命令解释程序，如果该字段为空，则默认的命令解释程序为/bin/bash，用户可以根据自己的爱好，选用其他命令解释程序，如korn shell，zsh，tcsh等。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li><p><strong>/etc/shadow文件</strong></p>
+<ol>
+<li>是一个限制访问的系统文件，其中存有加密形式的密码和其他相关信息，格式如下：<code>username:password:lastchanged:mindays:maxdays:warn:inactive:expire:reserve</code>，在shadow中的部分内容如下：<blockquote>
+<p><code>root:!:16198:0:99999:7:::</code><br><br><code>daemon:*:16177:0:99999:7:::</code><br><br>…. <br><br><code>sucab:$6$En29/eVv$n1IaVG0PJ0x3QQtEoTDQU...FVYD.1:16198:0:99999:7:::</code><br><br>其中，password是加密形式的密码，通常用crypt(3)函数生成；lastchanged是从1970年1月1日开始算起，直至最后一次修改密码之日的天数；mindays保持密码稳定不变的最小天数，必须大于等于0，仅当超过此限才能修改密码；maxdays保持密码有效的最大天数，超过此限，系统将会强制提示用户更换新密码；warn指定在密码有效期到期之前需提前多少天向用户发出警告信息；</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li><p><strong>增加、修改和删除用户</strong></p>
+<ol>
+<li>添加用户<ol>
+<li><code>useradd [-u uid] [-g group] [-d home_dir] [-s shell] [-c comment] [-m [-k skel_dir]] [-N] [-f inactive] [-e expire] login</code></li>
+<li>其中，login表示新用户的注册用户名；</li>
+<li><code>-u uid</code>，（–uid uid），用于指定新增用户的用户id，是当前已经分配的最大id号加1；</li>
+<li><code>-g group</code>，（–gid group），用于指定一个现有用户组的id或用户组名；</li>
+<li><code>-N</code>，（–no-user-group），？</li>
+<li><code>-d home_dir</code>，（–home home_dir），用于指定新增用户的主目录；</li>
+<li><code>-s shell</code>，（–shell shell），用与指定命令解释程序shell的完整路径名。默认为/bin/bash</li>
+<li><code>-c comment</code>，（–comment comment），用于指定用户全名、电话号码以及电子邮件地址等注释信息；</li>
+<li><code>-m</code>，（–create-home），在增加新用户时，如果用户的主目录不存在，则创建用户主目录。同时，把/etc/skel目录或<code>-k</code>选项指定目录中的初始化文件复制到用户主目录中；</li>
+<li><code>-k skel_dir</code>，（–skel skel_dir），用于指定存储用户初始化文件（.profile）的目录，以便useradd命令能够把其中的文件复制到用户主目录；</li>
+<li><code>-f inactive</code>，（–inactive inactive），用于指定相应用户一直未访问系统，但仍保证其注册帐号信息有效的最多天数，超过此限将锁住用户帐号；</li>
+<li><code>-e expire</code>，（–expiredate expire），指定注册用户的有效期，即截止日期；<blockquote>
+<p><code>sudo useradd -u 1001 -d /home/sucab -m -s /bin/bash sucab</code> <br><br>系统将会在/etc/passwd、/etc/shadow、/etc/group文件中各添加一行与用户sucab相关的信息。一旦创建了用户帐号，就可以使用passwd命令设置密码，使用usermod等命令修改passwd和shadow文件，更改用户的其他相关属性</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li>修改用户<ol>
+<li>除非用户名或用户id与其他用户冲突，一般情况下不要轻易修改用户帐号中的用户名和用户id，因为这将涉及到用户已经创建的所有文件和目录。但commnet，shell，password，home_dir等可以修改；</li>
+<li>修改用户信息时，可以利用编辑器，直接修改passwd和shadow，也可以使用usermode命令，自查。</li>
+</ol>
+</li>
+<li>删除用户<ol>
+<li>使用userdel命令，只需要一个命令即可删除passwd，shadow和group文件中的相应用户和用户组信息，同时还会把用户主目录中的所有文件和目录一同删除；</li>
+<li><code>userdel [-r] login</code>，-r表示删除用户主目录，包括其中的文件和子目录。</li>
+</ol>
+</li>
+<li>封锁用户帐号<ol>
+<li>在/etc/shadow文件的密码字段增加一个感叹号”!”前缀；</li>
+<li>在/etc/passwd文件的密码字段增加一个星号”*”；</li>
+<li>修改shadow的expire字段为一个过时的日期。</li>
+</ol>
+</li>
+<li>定期更改密码<ol>
+<li>普通用户可以使用不带任何选项和参数的passwd命令修改自己的密码，使用实例如下：<blockquote>
+<p><code>$ passwd</code><br><br> 更改 username 的密码。<br><br> （当前）unix密码：输入原密码 <br><br> 输入新的unix密码：输入新密码 <br><br> 重新输入新的unix密码:再输一次<br><br> 修改成功</p>
+</blockquote>
+</li>
+<li><code>passwd [-adehlSu] [-i inactive] [-m min] [-m warn] [-x max] [login]</code>。超级用户则可以利用此命令的大量选项及参数维护系统中的用户帐号信息，passwd命令的部分选项自查，可以通过<code>$ passwd --help</code>，查看参数选项的作用，部分如下:<blockquote>
+<p><code>-a</code>，只能与<code>-S</code>选项一起使用，以查询所有用户帐号的状态信息，必须具有超级用户权限，即<code>sudo passwd -aS</code>；<br><br><code>-d</code>，删除指定账户的密码；<br><br><code>-e</code>，强制指定账户密码过期；<br><br><code>-h</code>，显示此帮助信息并退出；<br><br><code>-l</code>，锁住指定的账户；<br><br><code>-S</code>，（–status），报告指定账户密码的状态；<br><br><code>-u</code>，(–unlock)，解锁被指定账户。<br><br>使用示例：<br><br><code>$ sudo passwd -S sucab</code><br><br><code>sucab P 05/08/2014 0 99999 7 -1</code>，其中，P表示用户sucab已经设置了密码；若为NP表示未设置密码，L表示账户已经锁住。</p>
+</blockquote>
+</li>
+</ol>
+</li>
+<li>检验用户的有效用户ID<ol>
+<li>要检查用户的有效用户ID，可以使用id命令。例如，当sucab注册到系统之后，id命令的输出结果如下：<blockquote>
+<p><code>$ id</code> <br><br><code>uid=1000(sucab) gid=1000(sucab) 组=1000(sucab),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),108(lpadmin),124(sambashare)</code></p>
+</blockquote>
+</li>
+<li>su命令<ol>
+<li>su命令能够改变用户的有效用户ID，而不必另行注册；</li>
+<li>使用示例(假设当前注册用户是sucab，另一个账户是zyt)：<blockquote>
+<p><code>sucab@X-PC:~$ su zyt</code> （切换到zyt身份）<br><br>密码：输入zyt的密码 <br><br><code>zyt@X-PC:/home/sucab$</code>，说明，即使改变用户身份，仍会保持之前的工作目录不变；<br><br>如果，在su命令之后加上”-“、”-l”或”–login”，则可以直接进入其他用户的主目录，相当于zyt的直接登录。命令如下：<br><br><code>sucab@X-PC:~$ su --login zyt</code> <br><br>密码：输入zyt的密码<br><br><code>zyt@X-PC:~$</code><br><strong>5. 定制用户的工作环境</strong></p>
+</blockquote>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+<li>相关概念：当用户注册到系统之后，用户的工作环境是由选定的命令解释程序和相应的用户初始化文件确定的。因此，<strong>用户管理的另一个任务是选择作为用户界面的命令解释程序和用户初始化文件。</strong></li>
+<li>选择命令解释程序<ol>
+<li>linux系统配备的标准命令解释程序是bash，但同时也支持korn shell(ksh)，基于C shell的TC shell（tcsh）以及Z shell（zsh）等，可以自由选用。</li>
+<li>/etc/shells中列出了ubuntu linux系统支持的所有命令解释程序，下面介绍4个常见的：<ol>
+<li><strong>Bourne Again Shell</strong><blockquote>
+<p>bash是基于POSIX 1003.2标准开发的一个免费版的shell，与Bourne shell和korn shell一脉相承，在功能上有较大的提高。bash，支持emacs与vi两种命令行编辑功能，支持历史命令、命令别名和作业控制等机制。因此，Bash是linux系统首选的shell。</p>
+</blockquote>
+</li>
+<li><strong>Korn shell</strong><blockquote>
+<p>(/bin/ksh)是Unix系统中继Bourne shell与C shell之后推出的第3个著名的shell。Korn shell以Borne shell为基础，同时充分吸纳了C shell的优点，极大增强和丰富了Bourne Shell的基础功能。</p>
+</blockquote>
+</li>
+<li><strong>TC shell</strong><blockquote>
+<p>C shell原为BSD版unix系统的命令解释程序，由加州大学伯克利分校计算机系的Bill Joy开发。TC shell（/bin/tcsh）是在C shell的基础上开发的，继承并发展了C shell的全部功能特性。但与bash 和korn shell等Bourne系列的shell不兼容。</p>
+</blockquote>
+</li>
+<li><strong>Z shell</strong><blockquote>
+<p>同上述的shell一样，zsh既是一个交互式的命令解释程序，也是一个强有力的编程语言。zsh吸收并集成了bash、ksh以及tcsh等shell的许多功能特性，能够提高用户与linux系统交互的效率，非常适合用作交互式shell。zsh是上述shell的超集。</p>
+</blockquote>
+</li>
+<li>任何时候，每个用户只能使用一个命令解释程序，但可以随时从一个shell切换到另一个shell环境。可以使用<code>ps -f</code>指令，找出ps的父进程，即可确定当前使用的哪一个shell。</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<style type="text/css">
+    .red-back {
+        background:#D9534F;
+        color:#FFF;
+    }
+    .green-back {
+        background:#228B22;
+        color:#FFF;
+    }
+</style>
+
+]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>linux</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Hadoop Ecosystem介绍</title>
+    <url>/blog/d0befed5.html</url>
+    <content><![CDATA[<h3 id="什么是Hadoop"><a href="#什么是Hadoop" class="headerlink" title="什么是Hadoop"></a>什么是Hadoop</h3><ol>
+<li><p>Hadoop是Apache基金会下的一个开源分布式计算平台，以Hadoop分布式文件系统（Hadoop distributed file system, HDFS）和MapReduce分布式计算框架为核心，为用户提供了底层细节透明的分布式基础设施。</p>
+</li>
+<li><p>经过几年的快速发展，Hadoop现在已经发展成为包含多个相关项目的软件生态系统。<strong>侠义的Hadoop核心</strong>：</p>
+<ul>
+<li><p><strong>Hadoop Common</strong>：0.20+版本中，从core更名为common，提供一些常用的工具，包括系统配置工具Configuration、远程过程调用RPC、序列化机制和Hadoop抽象文件系统FileSystem等。</p>
+</li>
+<li><p><strong>Hadoop HDFS</strong>：是一个高度容错的系统、能检测和应对硬件故障，用于在低成本的通用硬件上运行。HDFS简化了文件的一致性模型，通过流式数据访问，提供高吞吐量应用程序数据访问功能，适合带有大型数据集的应用程序。</p>
+</li>
+<li><p><strong>Hadoop MapReduce</strong>：是一种编程模型，用以进行大数据量的计算。将应用划分为Map和Reduce两个步骤，其中Map对数据集上的独立元素进行指定的操作，生成键-值对形式中间结果，Reduce对中间结果中相同的“键”的所有“值”进行规约，得到最终结果。</p>
+</li>
+</ul>
+</li>
+</ol>
+<a id="more"></a>
+<hr>
+<h3 id="Hadoop生态系统"><a href="#Hadoop生态系统" class="headerlink" title="Hadoop生态系统"></a>Hadoop生态系统</h3><ol>
+<li><p><strong>Sqoop</strong></p>
+<ul>
+<li><p>是SQL-to-Hadoop的缩写，是Hadoop的周边工具，主要作用是在结构化数据存储与Hadoop之间进行数据交换。</p>
+</li>
+<li><p>Sqoop可以将一个关系型数据库（Mysql、Oracle等）中的数据导入Hadoop的HDFS、Hive中，也可逆向导入。</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Mahout</strong></p>
+<ul>
+<li><p>主要目标是创建一些可扩展的机器学习领域经典算法的实现，旨在帮助开发人员更加方便快捷地创建智能应用程序。</p>
+</li>
+<li><p>Mahout现在已经包含了聚类、分类、推荐引擎（协同过滤）和频繁集挖掘等使用的数据挖掘方法。</p>
+</li>
+<li><p>除了算法，还包含数据的输入和输出工具、与其他存储系统集成（数据库、MongoDB）</p>
+</li>
+</ul>
+</li>
+<li><p><strong>ZooKeeper</strong></p>
+<ul>
+<li><p>作为一个分布式的服务框架，解决分布式计算中的一致性问题。</p>
+</li>
+<li><p>如统一命名服务、状态同步服务、集群管理、分布式应用配置项的管理等。常作为组件使用。</p>
+</li>
+<li><p>主要用于协调各个组件之间的一致性。</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Hive</strong></p>
+<ul>
+<li><p>最早由FaceBook设计，是建立在Hadoop基础上的<strong>数据仓库架构</strong>。</p>
+</li>
+<li><p>数据仓库的管理，包括了<strong>数据ETL（抽取、转换和加载）工具</strong>、数据存储管理和大型数据集的查询和分析能力。</p>
+</li>
+<li><p>Hive提供的是一种结构化数据机制，<strong>Hive QL</strong>，通过该查询语言，数据分析人员可以很方便地运行数据分析业务。</p>
+</li>
+</ul>
+</li>
+<li><p><strong>Pig</strong></p>
+<ul>
+<li><p>运行在Hadoop之上，是对<strong>大型数据集进行分析和评估</strong>的平台。</p>
+</li>
+<li><p>简化使用Hadoop进行数据分析的要求，<strong>提供一个高层次的、面向领域的抽象语言Pig Latin</strong>。</p>
+</li>
+<li><p>通过Pig Latin，可以将复杂且相互关联的数据分析任务编码为Pig操作上的数据流脚本，通过将脚本转换为MapReduce任务链。和Hive一样，Pig降低了对大型数据集进行分析和评估的门槛。</p>
+</li>
+</ul>
+</li>
+</ol>
+<ol start="6">
+<li><p><strong>HBase</strong></p>
+<ul>
+<li><p>继Google的BigTable系统论文，开源社区在HDFS上构建HBase。</p>
+</li>
+<li><p>是一个针对结构化数据的可伸缩、高可靠、高性能、分布式和面向列的动态模式数据库。</p>
+</li>
+<li><p>和传统的关系数据库不同，HBase采用了BigTable的数据模型：增强的稀疏排序映射表（Key/Value)，其中，<strong>键由行关键字、列关键字和时间戳构成</strong>。提供对大规模数据的随机、实时读写访问。</p>
+</li>
+<li><p>HBase中保存的数据可以使用MapReduce来处理，将数据存储和并行计算完美结合。</p>
+</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="Hadoop的Master和Slave"><a href="#Hadoop的Master和Slave" class="headerlink" title="Hadoop的Master和Slave"></a>Hadoop的Master和Slave</h3><h4 id="Namenode-和-Datanode"><a href="#Namenode-和-Datanode" class="headerlink" title="Namenode 和 Datanode"></a>Namenode 和 Datanode</h4><ol>
+<li><p>HDFS采用master/slave架构。一个HDFS集群是由一个Namenode和一定数目的Datanodes组成。</p>
+</li>
+<li><p>Namenode是一个中心服务器，负责管理文件系统的名字空间(namespace)以及客户端对文件的访问。Namenode执行文件系统的名字空间操作，比如打开、关闭、重命名文件或目录。它也负责确定数据块到具体Datanode节点的映射。</p>
+</li>
+<li><p>集群中的Datanode一般是一个节点一个，负责管理它所在节点上的存储。HDFS暴露了文件系统的名字空间，用户能够以文件的形式在上面存储数据。从内部看，一个文件其实被分成一个或多个数据块，这些块存储在一组Datanode上。</p>
+</li>
+<li><p>Datanode负责处理文件系统客户端的读写请求。在Namenode的统一调度下进行数据块的创建、删除和复制。</p>
+</li>
+</ol>
+<h4 id="JobTracker和TaskTracker"><a href="#JobTracker和TaskTracker" class="headerlink" title="JobTracker和TaskTracker"></a>JobTracker和TaskTracker</h4><ol>
+<li><p>Hadoop MapReduce采用Master/Slave结构</p>
+<ul>
+<li><p>Master：是整个集群的唯一的全局管理者，功能包括：作业管理、状态监控和任务调度等，即MapReduce中的JobTracker</p>
+</li>
+<li><p>Slave：负责任务的执行和任务状态的汇报，即MapReduce中的TaskTracker。</p>
+</li>
+</ul>
+</li>
+<li><p>JobTracker</p>
+<ul>
+<li><p>JobTracker是一个后台服务进程，启动之后，<strong>会一直监听并接收来自各个TaskTracker发送的心跳信息</strong>，包括资源使用情况和任务运行情况等信息。</p>
+</li>
+<li><p>作业控制：在hadoop中每个应用程序被表示成一个作业，每个作业又被分成多个任务，JobTracker的作业控制模块则负责作业的分解和状态监控。</p>
+</li>
+<li><p>资源管理</p>
+</li>
+</ul>
+</li>
+<li><p>TaskTracker</p>
+<ul>
+<li><p>TaskTracker是JobTracker和Task之间的桥梁：一方面，从JobTracker接收并执行各种命令：运行任务、提交任务、杀死任务等；另一方面，<strong>将本地节点上各个任务的状态通过心跳周期性汇报给JobTracker</strong>。TaskTracker与JobTracker和Task之间采用了RPC协议进行通信</p>
+</li>
+<li><p>汇报心跳：Tracker周期性将所有节点上各种信息通过心跳机制汇报给JobTracker。这些信息包括两部分：</p>
+<ul>
+<li><p>机器级别信息：节点健康情况、资源使用情况等</p>
+</li>
+<li><p>任务级别信息：任务执行进度、任务运行状态等</p>
+</li>
+</ul>
+</li>
+<li><p>执行命令：JobTracker会给TaskTracker下达各种命令.</p>
+</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h3 id="Hadoop集群配置"><a href="#Hadoop集群配置" class="headerlink" title="Hadoop集群配置"></a>Hadoop集群配置</h3><ol>
+<li><p>Hadoop现在的最新版本2.5.1，主要包括三个核心组件：</p>
+<ul>
+<li><p>Common</p>
+</li>
+<li><p>HDFS</p>
+</li>
+<li><p>YARN（0.23.0 +，新Hadoop MapReduce框架MapReduceV2 或者叫 Yarn）</p>
+<ul>
+<li>参考<a href="http://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-yarn/" target="_blank" rel="noopener">http://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-yarn/</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>配置前提</p>
+<ul>
+<li><p>平台：Unbuntu Linux</p>
+</li>
+<li><p>软件要求：JDK（与hadoop版本对应）、SSH   </p>
+</li>
+<li><p>下载Hadoop最新稳定版hadoop-2.5.1.tar.gz</p>
+</li>
+<li><p>解压hadoop-2.5.1.tar.gz，编辑<code>etc/hadoop/hadoop-env.sh</code>文件</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># set to the root of your Java installation</span></span><br><span class="line"> <span class="built_in">export</span> JAVA_HOME=/usr/java/latest</span><br><span class="line"></span><br><span class="line"> <span class="comment"># Assuming your installation directory is /usr/local/hadoop</span></span><br><span class="line"> <span class="built_in">export</span> HADOOP_PREFIX=/usr/<span class="built_in">local</span>/hadoop</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>执行<code>$ bin/hadoop</code>指令</p>
+</li>
+</ul>
+</li>
+<li><p>开启hadoop集群有三种模式</p>
+<ul>
+<li><p>本地（单例）模式</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ mkdir input</span><br><span class="line">$ cp etc/hadoop/*.xml input</span><br><span class="line">   $ bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.5.1.jar grep input output <span class="string">'dfs[a-z.]+'</span></span><br><span class="line">   $ cat output/*</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>伪分布式模式</p>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line"> <span class="comment">&lt;!--编辑 etc/hadoop/core-site.xml--&gt;</span></span><br><span class="line"> <span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>fs.defaultFS<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>hdfs://localhost:9000<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br><span class="line"></span><br><span class="line"> <span class="comment">&lt;!--编辑 etc/hadoop/hdfs-site.xml:--&gt;</span></span><br><span class="line"> <span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.replication<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>1<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 开启ssh</span></span><br><span class="line">$ ssh localhost</span><br><span class="line"><span class="comment"># 如果启动不了，执行以下操作</span></span><br><span class="line">$ ssh-keygen -t dsa -P <span class="string">''</span> -f ~/.ssh/id_dsa</span><br><span class="line">   $ cat ~/.ssh/id_dsa.pub &gt;&gt; ~/.ssh/authorized_keys</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 下面就可以在本地运行map reduce程序了</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 首先格式化文件系统</span></span><br><span class="line">$ bin/hdfs namenode -format</span><br><span class="line"></span><br><span class="line"><span class="comment"># 第二步，开启namenode和datanode后台守护进程。同时产生的日志将会写到$HADOOP_LOG_DIR目录中，默认为 $HADOOP_HOME/logs</span></span><br><span class="line">$ sbin/start-dfs.sh</span><br><span class="line"></span><br><span class="line"><span class="comment"># 第三步，浏览namenode的web界面，默认的地址是NameNode - http://localhost:50070/</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 第四步，设定mapreduce 程序运行要求的工作目录</span></span><br><span class="line">$ bin/hdfs dfs -mkdir /user</span><br><span class="line">   $ bin/hdfs dfs -mkdir /user/&lt;username&gt;</span><br><span class="line"></span><br><span class="line">   <span class="comment"># 第五步，将输入文件拷贝到hadoop的分布式文件系统中</span></span><br><span class="line">   $ bin/hdfs dfs -put etc/hadoop input</span><br><span class="line"></span><br><span class="line">   <span class="comment"># 第六步，运行hadoop中自带的一些例子程序</span></span><br><span class="line">   $ bin/hadoop jar share/hadoop/mapreduce/hadoop-mapreduce-examples-2.5.1.jar grep input output <span class="string">'dfs[a-z.]+'</span></span><br><span class="line"></span><br><span class="line">   <span class="comment"># 第七步，查看输出的结果</span></span><br><span class="line">   <span class="comment"># 可以将结果文件从分布式文件系统中拷贝到本地文件系统中查看</span></span><br><span class="line">    $ bin/hdfs dfs -get output output</span><br><span class="line">    $ cat output/*</span><br><span class="line">    <span class="comment"># 也可以直接在分布式文件系统中查看</span></span><br><span class="line">     $ bin/hdfs dfs -cat output/*</span><br><span class="line"></span><br><span class="line">     <span class="comment"># 第八步，完成任务后，关闭后台守护进程</span></span><br><span class="line">     $ sbin/stop-dfs.sh</span><br></pre></td></tr></table></figure>
+<figure class="highlight xml"><table><tr><td class="code"><pre><span class="line">  <span class="comment">&lt;!--如果想要在YARN上来运行map reduce程序，需要配置一些参数--&gt;</span></span><br><span class="line">     <span class="comment">&lt;!--从第五-八步有所区别--&gt;</span></span><br><span class="line">     <span class="comment">&lt;!--编辑etc/hadoop/mapred-site.xml--&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>mapreduce.framework.name<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>yarn<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">&lt;!--编辑etc/hadoop/yarn-site.xml:--&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">name</span>&gt;</span>yarn.nodemanager.aux-services<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">value</span>&gt;</span>mapreduce_shuffle<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 开启ResourceManager daemon和NodeManager daemon</span></span><br><span class="line">$ sbin/start-yarn.sh</span><br><span class="line"><span class="comment"># 浏览ResourceManage的web界面，默认地址为ResourceManager - http://localhost:8088/</span></span><br><span class="line"><span class="comment"># 运行MapReduce job</span></span><br><span class="line"><span class="comment"># 执行完成，关闭daemon</span></span><br><span class="line"> $ sbin/stop-yarn.sh</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>完全分布式模式  </p>
+<ul>
+<li><p>涉及到的主要配置文件</p>
+<ul>
+<li><p>只读默认配置：core-default.xml, hdfs-default.xml, yarn-default.xml and mapred-default.xml.</p>
+</li>
+<li><p>特定配置：conf/core-site.xml, conf/hdfs-site.xml, conf/yarn-site.xml and conf/mapred-site.xml.</p>
+</li>
+<li><p>Hadoop Daemon运行环境配置</p>
+<ul>
+<li>conf/hadoop-env.sh和conf/yarn-env.sh</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>参考文档：<a href="http://hadoop.apache.org/docs/r2.5.1/hadoop-project-dist/hadoop-common/ClusterSetup.html" target="_blank" rel="noopener">http://hadoop.apache.org/docs/r2.5.1/hadoop-project-dist/hadoop-common/ClusterSetup.html</a></p>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Hadoop</category>
+      </categories>
+      <tags>
+        <tag>Hadoop</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>正则表达式</title>
+    <url>/blog/2f57a694.html</url>
+    <content><![CDATA[<h3 id="Java中的正则表达式工具包"><a href="#Java中的正则表达式工具包" class="headerlink" title="Java中的正则表达式工具包"></a>Java中的正则表达式工具包</h3><p>包名：java.util.regex.用于匹配字符序列与正则表达式指定模式的类<br>接口：MatchResult:匹配操作的结果<br>类：</p>
+<ul>
+<li>Matcher:通过解释 Pattern 对 character sequence 执行匹配操作的引擎</li>
+<li>Pattern:正则表达式的编译表示形式。</li>
+<li>示例：<figure class="highlight java"><table><tr><td class="code"><pre><span class="line">Pattern p = Pattern.compile(<span class="string">"a*b"</span>);</span><br><span class="line">Matcher m = p.matcher(<span class="string">"aaaaab"</span>);</span><br><span class="line"><span class="keyword">boolean</span> b = m.matches();</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="正则表达式的基本语法-（部分参考）"><a href="#正则表达式的基本语法-（部分参考）" class="headerlink" title="正则表达式的基本语法 （部分参考）"></a>正则表达式的基本语法 （部分<a href="http://doslin.com/learn-regular-expressions-in-about-55-minutes/" target="_blank" rel="noopener">参考</a>）</h3><a id="more"></a>
+<p>由只代表自身的 <strong>字面值</strong> 和代表特定含义的 <strong>元字符</strong> 组成。  </p>
+<p>字面值：大部分字符，包括 <strong>字母数字字符</strong>，会以字面值的形式出现。这意味着它们 <strong>查找的是自身</strong>。比如，正则表达式 <code>bobo</code>，就是先找到b，接着o，然后是b，最后找到o。</p>
+<h4 id="元字符"><a href="#元字符" class="headerlink" title="元字符"></a>元字符</h4><ul>
+<li><code>.</code> 表示匹配任何单字符（与 <strong>行结束符</strong> 可能匹配也可能不匹配）</li>
+<li>任何 <strong>元字符</strong> 如果用一个 <strong>反斜杆</strong> <code>\</code> 进行转义就会变成字面值</li>
+<li><p>如果未指定 DOTALL 标志，则正则表达式 <code>.</code> 可以与任何字符（<strong>行结束符除外</strong>）匹配</p>
+</li>
+<li><p><strong>行结束符</strong></p>
+<ul>
+<li>一个或两个字符的序列，标记输入字符序列的行结尾。</li>
+<li>新行（换行）符 (‘\n’)</li>
+<li>后面紧跟新行符的回车符 (“\r\n”)</li>
+<li>单独的回车符 (‘\r’)</li>
+<li>下一行字符 (‘\u0085’)</li>
+<li>行分隔符 (‘\u2028’)</li>
+<li>段落分隔符 (‘\u2029)</li>
+</ul>
+</li>
+<li><p><code>\</code> <strong>反斜杠</strong> 是一个元字符，这意味着它也可以使用反斜杠转义。示例：</p>
+<ul>
+<li><code>b.b.</code> 能够匹配bobo,  b b</li>
+<li><code>b\.b\.</code> 只能匹配b.b. 这里的.是字面值，不是元字符；</li>
+<li><code>b\\</code> 只能匹配<code>b\</code> 这里 <code>\</code> 也是字面值。上述. <code>\</code>  都已经通过 <code>\</code> 进行转义,把元字符变为字面值</li>
+<li><code>\t</code> 制表符 (‘\u0009’)</li>
+<li><code>\n</code> 新行（换行）符 (‘\u000A’)</li>
+<li><code>\r</code> 回车符 (‘\u000D’)</li>
+<li><code>\f</code> 换页符 (‘\u000C’)</li>
+<li><code>\a</code> 报警 (bell) 符 (‘\u0007’)</li>
+<li><code>\e</code> 转义符 (‘\u001B’)</li>
+<li><code>\\</code> 反斜线字符</li>
+<li><code>x</code> 字符 x</li>
+</ul>
+</li>
+</ul>
+<h4 id="字符类"><a href="#字符类" class="headerlink" title="字符类"></a>字符类</h4><p><strong>字符类</strong> 是字符在方括号<code>[ ]</code>中的集合，表示“找到集合里任意一个字符”。<br>存在一些字符，在[ ]中和外面，有的含义是不一样的，有的含义一致。</p>
+<ul>
+<li>比如，<code>.</code>表示匹配任意字符，<code>[.]</code>表示匹配字面值<code>.</code></li>
+<li><code>[a-z]</code>表示匹配<code>a-z</code>范围中任意字符，<code>a</code>表示匹配<code>a</code></li>
+<li><code>a|b</code>表示匹配<code>a</code>或者<code>b</code>，<code>[a|b]</code>表示匹配字符<code>a</code>，字符<code>|</code>，字符<code>b</code></li>
+</ul>
+<p>常用字符类表</p>
+<table>
+<thead>
+<tr>
+<th>字符类</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>[abc]</code></td>
+<td>a、b 或 c（简单类）</td>
+</tr>
+<tr>
+<td> <code>[^abc]</code></td>
+<td>任何字符，除了 a、b 或 c（否定），其中<code>^</code>表示否定，通过<code>\^</code>可转义成字面值，如<code>[^\^]</code>表示找到除了插入符外的任意字符。</td>
+</tr>
+<tr>
+<td> <code>[a-zA-Z]</code></td>
+<td>a 到 z 或 A 到 Z，两头的字母包括在内（范围）</td>
+</tr>
+<tr>
+<td> <code>[a-d[m-p]]</code></td>
+<td>a 到 d <strong>或</strong> m 到 p：[a-dm-p]（并集）</td>
+</tr>
+<tr>
+<td> <code>[a-z&amp;&amp;[^bc]]</code></td>
+<td>a 到 z，<strong>除了 b 和 c</strong>：[ad-z]（减去）</td>
+</tr>
+<tr>
+<td> <code>[a-z&amp;&amp;[^m-p]]</code></td>
+<td>a 到 z，而非 m 到 p：[a-lq-z]（减去）</td>
+</tr>
+<tr>
+<td> <code>[0-9.,]</code></td>
+<td>匹配一个数字或者一个句点或者一个逗号</td>
+</tr>
+<tr>
+<td> <code>[0-9a-fA-F]</code></td>
+<td>匹配一位十六进制数</td>
+</tr>
+<tr>
+<td> <code>[a-zA-Z0-9\-]</code></td>
+<td>匹配一个字母数字字符或连字符</td>
+</tr>
+<tr>
+<td> <code>[0-9]</code></td>
+<td>表示匹配0-9中的一个数字，但是<code>[1-31]</code>并不是匹配1-31之间的数字，而是1或2或3，当成了<code>[1-3][1]</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="预定义字符类"><a href="#预定义字符类" class="headerlink" title="预定义字符类"></a>预定义字符类</h4><p> 用一些元字符来预先定义字符的范围。常见的对应关系：</p>
+<table>
+<thead>
+<tr>
+<th>预定义字符</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>  <code>\d</code></td>
+<td>数字：<code>[0-9]</code></td>
+</tr>
+<tr>
+<td>  <code>\D</code></td>
+<td>非数字： <code>[^0-9]</code></td>
+</tr>
+<tr>
+<td>  <code>\w</code></td>
+<td>单词字符：<code>[a-zA-Z_0-9]</code>，<strong>字母</strong> 或 <strong>数字</strong> 或 <strong>下划线</strong></td>
+</tr>
+<tr>
+<td>  <code>\W</code></td>
+<td>非单词字符：<code>[^\w]</code></td>
+</tr>
+<tr>
+<td>  <code>\s</code></td>
+<td>空白字符：<code>[ \t\n\x0B\f\r]</code> 空格，tab，回车或者换行等</td>
+</tr>
+<tr>
+<td>  <code>\S</code></td>
+<td>非空白字符：<code>[^\s]</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="乘法器"><a href="#乘法器" class="headerlink" title="乘法器"></a>乘法器</h4><p> 可以在一个<strong>字面值</strong>或者<strong>字符类</strong>后跟着一个<strong>大括号</strong>来使用乘法器。常见用法:</p>
+<table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>X{n}</code></td>
+<td>X，恰好 n 次</td>
+</tr>
+<tr>
+<td><code>X{n,}</code></td>
+<td>X，至少 n 次</td>
+</tr>
+<tr>
+<td><code>X{n,m}</code></td>
+<td>X，至少 n 次，但是不超过 m 次  </td>
+</tr>
+<tr>
+<td><code>X?</code></td>
+<td>X，一次或一次也没有，相当于<code>X{0,1}</code></td>
+</tr>
+<tr>
+<td><code>X*</code></td>
+<td>X，零次或多次，相当于<code>X{0,}</code></td>
+</tr>
+<tr>
+<td><code>X+</code></td>
+<td>X，一次或多次 ，相当于<code>X{1,}</code></td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p> <strong>注意</strong>：表格中出现的{，}，?，+，<em>等符号，放在[ ]中，就变为了字面值[{}+?]，{}+\?也都变为字面值了</em>。</p>
+</blockquote>
+<h4 id="惰性Non-greedy，勉强Reluctant"><a href="#惰性Non-greedy，勉强Reluctant" class="headerlink" title="惰性Non-greedy，勉强Reluctant"></a>惰性Non-greedy，勉强Reluctant</h4><p> 乘法器可通过<strong>追加问号?</strong>来实现惰性。这里对优先顺序进行了反转，优先匹配字符少的。示例：</p>
+<ul>
+<li><code>\d{4,5}?</code>表示“匹配<code>\d\d\d\d</code>或<code>\d\d\d\d\d</code>”。其实跟<code>\d{4}</code>行为一致。</li>
+<li><code>&quot;.*?&quot;</code>表示“匹配一个双引号，跟着一个<strong>尽可能少的字符</strong>，再跟着一个双引号”。</li>
+</ul>
+<p>常见用法</p>
+<table>
+<thead>
+<tr>
+<th>表达式</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td> <code>X{n}?</code></td>
+<td>X，恰好 n 次</td>
+</tr>
+<tr>
+<td> <code>X{n,}?</code></td>
+<td>X，至少 n 次</td>
+</tr>
+<tr>
+<td> <code>X{n,m}?</code></td>
+<td>X，至少 n 次，但是不超过 m 次  </td>
+</tr>
+<tr>
+<td> <code>X??</code></td>
+<td>X，一次或一次也没有，相当于<code>X{0,1}</code></td>
+</tr>
+<tr>
+<td> <code>X*?</code></td>
+<td>X，零次或多次，相当于<code>X{0,}</code></td>
+</tr>
+<tr>
+<td> <code>X+?</code></td>
+<td>X，一次或多次 ，相当于<code>X{1,}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="逻辑运算"><a href="#逻辑运算" class="headerlink" title="逻辑运算"></a>逻辑运算</h4><p>主要分类</p>
+<ul>
+<li><code>XY</code> 表示X 后跟 Y</li>
+<li><code>X|Y</code>表示 X 或 Y ，分支，你可以使用<strong>管道符号</strong>来实现匹配多种选择</li>
+<li><code>(X)</code> 表示X，作为捕获组。</li>
+</ul>
+<p>X|Y</p>
+<ul>
+<li><code>cat|dog</code>表示“匹配cat或dog”。</li>
+<li><code>red|blue|</code>和<code>red||blue</code>以及<code>|red|blue</code>都是同样的意思，“匹配<strong>red</strong>或<strong>blue</strong>或<strong>空字符串</strong>”</li>
+<li><code>a|b|c</code>跟<code>[abc]</code>一样</li>
+<li>cat|dog|\ |表示“匹配<code>cat</code>或<code>dog</code>或<code>|</code>符号”。其中 \ | 被转义了，<code>|</code>属于字面字符。</li>
+<li><code>[cat|dog]</code>表示“找到a或c或d或d或g或o或t或一个管道符号|”.</li>
+</ul>
+<p>(X)</p>
+<ul>
+<li>在一周中找到一天，使用<code>(Mon|Tues|Wednes|Thurs|Fri|Satur|Sun)day</code></li>
+<li><code>\(\)</code>表示“匹配一个左圆括号后，再匹配一个右圆括号”</li>
+<li><code>[()]</code>表示“匹配一个左圆括号或一个右圆括号”</li>
+<li><code>(red|blue)?</code>等同于<code>(red|blue|)</code></li>
+<li><code>\w+(\s+\w+)*</code>代表“找到一个或多个单词，它们以空格隔开”</li>
+<li>主要用途：括号是用来表示<strong>组</strong>的，也可以用来<strong>捕获子串</strong>。</li>
+<li><p>捕获组：可以拥有<strong>多个捕获组</strong>，它们甚至可以<strong>嵌套使用</strong>。捕获组从左到右进行编号。只要计算左圆括号。    </p>
+<p>示例1：<code>(\w+) had a ((\w+) \w+)</code>，从左往右的话，共3个组，分别为<code>(\w+)</code>、<code>((\w+) \w+)</code>和<code>(\w+)</code>。 代码：</p>
+  <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"> regex=<span class="string">"(\\w+) had a ((\\w+) \\w+)"</span>;</span><br><span class="line">str=<span class="string">"I had a nice day"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line">System.out.println(matcher.matches());</span><br><span class="line">System.out.println(matcher.groupCount());<span class="comment">//返回组的总数</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">0</span>));<span class="comment">//表示完整匹配</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">1</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">2</span>));<span class="comment">//匹配((\\w+) \\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">3</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line"><span class="comment">//System.out.println(matcher.group(4));</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//结果</span></span><br><span class="line"><span class="keyword">true</span></span><br><span class="line"><span class="comment">//从一个成功返回的匹配中捕获组数量总是等于原来正则表达式中捕获组的数量</span></span><br><span class="line"><span class="number">3</span></span><br><span class="line">I had a nice day</span><br><span class="line">I</span><br><span class="line">nice day</span><br><span class="line">nice</span><br></pre></td></tr></table></figure>
+<p>  示例2：正则表达式((cat)|dog)表示“匹配cat或dog”。这里总是存在两组捕获组。如果我们的输入文本是dog，那么捕获组1是dog，捕获组2是空字符串，因为另一个选择未被使用。代码：</p>
+ <figure class="highlight java"><table><tr><td class="code"><pre><span class="line">regex=<span class="string">"((cat)|dog)"</span>;</span><br><span class="line">str=<span class="string">"dog"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line">System.out.println(matcher.matches());</span><br><span class="line">System.out.println(matcher.groupCount());<span class="comment">//返回组的总数</span></span><br><span class="line"><span class="comment">//System.out.println(matcher.group(0));//表示完整匹配</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">1</span>));<span class="comment">//匹配(\\w+)</span></span><br><span class="line">System.out.println(matcher.group(<span class="number">2</span>));<span class="comment">//匹配((\\w+) \\w+)</span></span><br><span class="line"></span><br><span class="line"><span class="comment">//结果</span></span><br><span class="line"><span class="keyword">true</span></span><br><span class="line"><span class="number">2</span></span><br><span class="line">dog</span><br><span class="line"><span class="keyword">null</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>替换<br> 一旦你用了正则表达式来查找字符串，你可以指定另一个字符串来替换它。第二个字符串时替换表达式。你尝试去用ISO 8691格式的日期（YYYY-MM-DD）去替换美式日期（MM/DD/YY）</p>
+<ul>
+<li>通过正则表达式<code>(\d\d)/(\d\d)/(\d\d)</code>开始。注意这里有三个捕获组：月，日和两个数字表示的年。通过使用一<strong>一个反斜</strong>和一个<strong>捕获组号</strong>来引用一个捕获组。所以，你的替换表达式为<code>20\3-\1-\2</code>。<code>\3</code>表示引用<code>YY</code>,<code>\1</code>表示引用<code>MM</code>,<code>\2</code>表示引用<code>DD</code>。</li>
+<li>代码（调试中?）</li>
+</ul>
+</li>
+<li><p>向后引用<br> <code>([abc])\1</code>表示“匹配aa或bb或cc”。其中<code>\1</code>表示引用第一个捕获组号，如果捕获组中匹配的是a，那么<code>\1</code>就表示a。代码示例：</p>
+ <figure class="highlight java"><table><tr><td class="code"><pre><span class="line"> regex=<span class="string">"([abc])([cd])\\1\\2"</span>;</span><br><span class="line">str=<span class="string">"cdcd"</span>;</span><br><span class="line">Pattern pattern = Pattern.compile(regex);</span><br><span class="line">Matcher matcher = pattern.matcher(str);</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span>(matcher.matches()) &#123;</span><br><span class="line">   <span class="comment">//一定要先执行匹配成功了，才能统计下面的组</span></span><br><span class="line">	System.out.println(matcher.matches());</span><br><span class="line">	System.out.println(matcher.groupCount());</span><br><span class="line">	System.out.println(matcher.group(<span class="number">1</span>));</span><br><span class="line">	System.out.println(matcher.group(<span class="number">2</span>));</span><br><span class="line">	<span class="comment">//System.out.println(matcher.group(3));</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">//结果</span></span><br><span class="line">	<span class="keyword">true</span></span><br><span class="line">	<span class="number">2</span></span><br><span class="line">	c</span><br><span class="line">	d</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h4 id="边界匹配器"><a href="#边界匹配器" class="headerlink" title="边界匹配器"></a>边界匹配器</h4><p>分类  </p>
+<table>
+<thead>
+<tr>
+<th>符号</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>     <code>^</code></td>
+<td>行的开头，<strong>行头</strong></td>
+</tr>
+<tr>
+<td>     <code>$</code></td>
+<td>行的结尾，<strong>行尾</strong></td>
+</tr>
+<tr>
+<td>     <code>\b</code></td>
+<td>单词边界</td>
+</tr>
+<tr>
+<td>     <code>\B</code></td>
+<td>非单词边界</td>
+</tr>
+<tr>
+<td>     <code>\A</code></td>
+<td>输入的开头</td>
+</tr>
+<tr>
+<td>     <code>\G</code></td>
+<td>上一个匹配的结尾</td>
+</tr>
+<tr>
+<td>     <code>\Z</code></td>
+<td>输入的结尾，仅用于最后的结束符（如果有的话）</td>
+</tr>
+<tr>
+<td>     <code>\z</code></td>
+<td>输入的结尾</td>
+</tr>
+</tbody>
+</table>
+<p><strong>单词</strong> 边界</p>
+<ul>
+<li>单词边界是 <strong>一个单词字符</strong>和<strong>非单词字符</strong> 之间的位置。</li>
+<li>单词边界不是字符。它们宽度为零。</li>
+<li>输入的文本it’s a cat有八个单词边界。如果我们在cat后追加一个空格，这里就会有九个单词边界。</li>
+<li><code>\b\w\w\w\b</code>表示“匹配一个三个字母的单词”。</li>
+</ul>
+<p><strong>行</strong> 边界</p>
+<ul>
+<li>每一块文本会分解成一个或多个行，用换行符分隔。</li>
+<li>像单词边界一样，行边界也不是字符。它们宽度为零。</li>
+<li>文本不是以换行符结束，而是<strong>以行结束</strong>。然而，任何行，包括最后一行，可以包含零个字符。</li>
+<li><strong>行头位置</strong> 是在一个换行符和下一行的第一个字符之间。与单词边界一样，在文本的开头也算作一个起始的行。</li>
+<li><strong>行尾位置</strong> 是在行的最后一个字符和换行符之间。与单词边界一样，文本结束也算作行结束。</li>
+<li>用法：<ul>
+<li><code>^$</code>表示“匹配空行”。</li>
+<li><code>^.*$</code>将会匹配整个文本，因为换行符是一个字符，所以<code>.</code>会匹配它。为了匹配单行，要使用惰性乘法器，<code>^.*?$</code>。</li>
+<li><code>\^\$</code>表示“匹配尖符号后跟着一个美元符号”</li>
+<li><code>[$]</code>表示“匹配一个美元符”。然而，<code>[^]</code>是非法单正则表达式。要记住的是尖符号在方括号中时有不同的特殊含义。把尖符号放在字符类中，这么用<code>[\^]</code>。</li>
+</ul>
+</li>
+</ul>
+<p><strong>文本</strong> 边界</p>
+<ul>
+<li>从“行开始”和“行结束”变成“文本开始”和“文本结束”。</li>
+<li>元字符<code>\A</code>和<code>\z</code></li>
+</ul>
+]]></content>
+      <categories>
+        <category>Java</category>
+      </categories>
+      <tags>
+        <tag>Java</tag>
+        <tag>正则表达式</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>5种开源协议的用途和比较</title>
+    <url>/blog/cf64afc8.html</url>
+    <content><![CDATA[<p>本文，我们来看5种最常用的开源协议(BSD、Apache、GPL、LGPL、MIT)及它们的适用范围，供那些准备开源或者使用开源产品的开发人员/厂家参考。转自<a href="http://www.copu.org.cn/node/25" target="_blank" rel="noopener">中国开源软件推进联盟OPU</a>。</p>
+<a id="more"></a>
+<p>一、<a href="http://baike.baidu.com/view/209692.htm" target="_blank" rel="noopener">BSD (Berkeley Software Distribution，伯克利软件套件)</a></p>
+<p>BSD开源协议是一个给予使用者很大自由的协议。基本上使用者可以”为所欲为”，可以自由的使用，修改源代码，也可以将修改后的代码作为开源或者专有软件再发布。但”为所欲为”的前提当你发布使用了BSD协议的代码，或则以BSD协议代码为基础做二次开发自己的产品时，需要满足三个条件：</p>
+<blockquote>
+<ol>
+<li>如果再发布的产品中包含源代码，则在源代码中必须带有原来代码中的BSD协议；</li>
+<li>如果再发布的只是二进制类库/软件，则需要在类库/软件的文档和版权声明中包含原来代码中的BSD协议；</li>
+<li>不可以用开源代码的作者/机构名字和原来产品的名字做市场推广。</li>
+</ol>
+</blockquote>
+<p><span class="green-back">BSD 代码鼓励代码共享，但需要尊重代码作者的著作权。BSD由于允许使用者修改和重新发布代码，也允许使用或在BSD代码上开发商业软件发布和销售，因此是对 商业集成很友好的协议。而很多的公司企业在选用开源产品的时候都首选BSD协议，因为可以完全控制这些第三方的代码，在必要的时候可以修改或者二次开发。</span></p>
+<p>二、<a href="http://www.apache.org/licenses/LICENSE-2.0.html" target="_blank" rel="noopener">Apache Licence 2.0</a></p>
+<p>Apache Licence是著名的非盈利开源组织Apache采用的协议。该协议和BSD类似，同样鼓励代码共享和尊重原作者的著作权，同样允许代码修改，再发布（作为开源或商业软件）。需要满足的条件也和BSD类似：</p>
+<blockquote>
+<ol>
+<li>需要给代码的用户一份Apache Licence；</li>
+<li>如果你修改了代码，需要再被修改的文件中说明；</li>
+<li>在延伸的代码中（修改和有源代码衍生的代码中）需要带有原来代码中的协议，商标，专利声明和其他原来作者规定需要包含的说明；</li>
+<li>如果再发布的产品中包含一个Notice文件，则在Notice文件中需要带有Apache Licence。你可以在Notice中增加自己的许可，但不可以表现为对Apache Licence构成更改。</li>
+</ol>
+</blockquote>
+<p><span class="green-back">Apache Licence也是对商业应用友好的许可。使用者也可以在需要的时候修改代码来满足需要并作为开源或商业产品发布/销售。</span></p>
+<p>三、<a href="http://baike.baidu.com/view/130692.htm" target="_blank" rel="noopener">GPL(General Public License)</a></p>
+<ol>
+<li><p>我们很熟悉的Linux就是采用了GPL。<span class="red-back">GPL协议和BSD, Apache Licence等鼓励代码重用的许可很不一样。</span>GPL的出发点是代码的开源/免费使用和引用/修改/衍生代码的开源/免费使用，但不允许修改后和衍生的代 码做为闭源的商业软件发布和销售。这也就是为什么我们能用免费的各种linux，包括商业公司的linux和linux上各种各样的由个人，组织，以及商 业软件公司开发的免费软件了。</p>
+</li>
+<li><p><span class="green-back">GPL协议的主要内容是只要在一个软件中使用(”使用”指类库引用，修改后的代码或者衍生代码)GPL 协议的产品，则该软件产品必须也采用GPL协议，既必须也是开源和免费。这就是所谓的”传染性”。</span>GPL协议的产品作为一个单独的产品使用没有任何问题， 还可以享受免费的优势。</p>
+</li>
+<li><p>由于GPL严格要求使用了GPL类库的软件产品必须使用GPL协议，对于使用GPL协议的开源代码，商业软件或者对代码有保密要求的部门就不适合集成/采用作为类库和二次开发的基础。</p>
+</li>
+<li><p>其它细节如再发布的时候需要伴随GPL协议等和BSD/Apache等类似。</p>
+</li>
+</ol>
+<p>四、<a href="http://baike.baidu.com/view/606545.htm" target="_blank" rel="noopener">LGPL(Lesser General Public License，宽松通用公共许可证)</a></p>
+<ol>
+<li><p>LGPL是GPL的一个为主要为类库使用设计的开源协议。<span class="red-back">和GPL要求任何使用/修改/衍生之GPL类库的的软件必须采用GPL协议不同。</span>LGPL 允许商业软件通过类库引用(link)方式使用LGPL类库而不需要开源商业软件的代码。这使得采用LGPL协议的开源代码可以被商业软件作为类库引用并发布和销售。</p>
+</li>
+<li><p><span class="green-back">但是如果修改LGPL协议的代码或者衍生，则所有修改的代码，涉及修改部分的额外代码和衍生的代码都必须采用LGPL协议。</span>因此LGPL协议的开源 代码很适合作为第三方类库被商业软件引用，但不适合希望以LGPL协议代码为基础，通过修改和衍生的方式做二次开发的商业软件采用。</p>
+</li>
+<li><p>GPL/LGPL都保障原作者的知识产权，避免有人利用开源代码复制并开发类似的产品。</p>
+</li>
+</ol>
+<p>五、<a href="http://baike.baidu.com/link?url=zutM1OedqgcqvqxI75UAVcbdcH_E5p3HQAdcGfnTlDkb1l8I7Mr70MQBDsusxBfNS_8xLwCCForigD1gkQHr0K" target="_blank" rel="noopener">MIT</a><br><span class="green-back">MIT是和BSD一样宽范的许可协议，作者只想保留版权，而无任何其他了限制。</span>也就是说，你必须在你的发行版里包含原许可协议的声明，无论你是以二进制发布的还是以源代码发布的。</p>
+<style type="text/css">
+    .red-back {
+        background:#D9534F;
+        color:#FFF;
+    }
+    .green-back {
+        background:#228B22;
+        color:#FFF;
+    }
+</style>
+]]></content>
+      <categories>
+        <category>开源</category>
+      </categories>
+      <tags>
+        <tag>开源</tag>
+      </tags>
+  </entry>
+</search>
