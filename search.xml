@@ -1,6 +1,660 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>DRILL性能识别和调优</title>
+    <url>/blog/8c6d7818.html</url>
+    <content><![CDATA[<h4 id="查询计划和调整"><a href="#查询计划和调整" class="headerlink" title="查询计划和调整"></a>查询计划和调整</h4><h5 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h5><p>可以修改很多配置来影响drill如何计划一个查询。本章节将介绍一些配置的修改来提升性能。</p>
+<h5 id="Join计划"><a href="#Join计划" class="headerlink" title="Join计划"></a>Join计划</h5><p>drill使用分布式和广播join来关联表，可以修改如下配置项来控制drill来生成join计划。</p>
+<h6 id="分布式join"><a href="#分布式join" class="headerlink" title="分布式join"></a>分布式join</h6><p>针对分布式join，在join的两侧都是hash分布的，使用基于hash分布操作集的其中一个在join的key上。如果每个表中有多个join key，则drill将考虑以下两种类型的计划：</p>
+<ul>
+<li>在所有键上分布数据的计划；</li>
+<li>在每个单独的键上分发数据的计划。</li>
+</ul>
+<p>对于merge join，drill在执行hash分布之后对join的两侧进行排序。drill可以分布hash join和merge join的两侧，但是nested loop join不可以。</p>
+<h6 id="广播join"><a href="#广播join" class="headerlink" title="广播join"></a>广播join</h6><p>在广播join中，join之前所有选中的数据记录被广播到其他节点。join的内部被广播而外部保持不动没有分发。内部预估的基数必须小于<code>planner.broadcast_threshold</code>参数设定的值才有资格进行广播。drill针对hash join、merge join和nested loop join都可以使用broadcast join。</p>
+<p>当一个大表关联一个小表时广播join是比较有用的。如果大表在分布式文件系统中保存了很多文件，不用基于网络重新分布大表数据，直接广播小表数据也许廉价得多。然而，广播会发送同样的数据到集群所有其他节点。取决于集群的大小和数据大小，在某些场景下也许并不是最有效的策略。</p>
+<p>广播join的配置项</p>
+<p>你可以采用ALTER SYSTEM或者ALTER SESSION的方式修改drill使用广播join的参数大小和系数。一般，在会话级别设置配置项，除非你想在所有session中生效。以下配置项可以控制广播join的行为：</p>
+<ul>
+<li><code>planner.broadcast_factor</code>： 当执行join时控制广播的成本。这个值越小，广播join相比于其他分布式join（如hash分布）成本更低。默认值为1，范围为0-1.7976931348623157e+308。</li>
+<li><code>planner.enable_broadcast_join</code>：改变aggregation和join操作的状态。广播join可以用于hash join、merge join以及nested loop join。广播join用于大表关联小表。</li>
+<li><code>planner.broadcast_threshold</code>：一个阀值，数据行数，决定了一个查询是否要使用广播join。不管广播join是否开启，只有join右侧预估的数据行数小于阀值才会选择广播join。这个配置项的目的是为了避免广播太多的数据，因为广播涉及跨节点发送数据和网络密集型操作。join的右侧可能是一个join或者一个简单的table，取决于物理计划期间的基于成本的优化和启发式方法。默认值为10000000，范围为0-2147483647。</li>
+</ul>
+<h5 id="Aggregation优化"><a href="#Aggregation优化" class="headerlink" title="Aggregation优化"></a>Aggregation优化</h5><p>针对包含GROUP BY的查询，drill执行聚合在1阶段或者2阶段。在这两种计划中，drill可以使用hash join或streaming join的物理操作。drill中默认操作是执行2阶段聚合。</p>
+<p>在2阶段聚合方式中，每个minor fragment在1阶段执行本地或部分聚合，它将部分聚合的结果发送到其他fragments，通过基于hash的分布操作。hash分布式是按照GROUP BY的key完成的。在第2阶段所有fragments使用来自阶段1的数据进行总体聚合。</p>
+<p>当GROUP BY的keys数据有合理数量的重复值时，2阶段聚合的方式是比较有效的，因为分组可以减少发送到下游操作集的数据行数。然而，如果没有太多的减少，则最好使用1阶段聚合。</p>
+<p>例如，假设GROUP BY x,y的查询，在输入的数据中{x, y}的组合值时唯一的（或近似唯一），这种情况执行GROUP数据行没有减少，使用1阶段聚合可以提升性能。</p>
+<p>你可以使用ALTER SYSTEM或ALTER SESSION命令设置配置来控制drill的聚合：</p>
+<ul>
+<li><code>planner.enable_multiphase_agg</code>：默认值为true。</li>
+</ul>
+<h5 id="修改Query计划"><a href="#修改Query计划" class="headerlink" title="修改Query计划"></a>修改Query计划</h5><p>Planner配置项会影响drill如何计划一个查询。通过ALTER SYSTEM或ALTER SESSION命令设置，配置如下：</p>
+<ul>
+<li><p><code>planner.width.max_per_node</code></p>
+<p>配置此选项，获取并行度的细粒度绝对控制。在这个上下文中，width指扇出(fan out)或分布（distribution）潜力，即在节点的core上和集群的节点上并行运行查询的能力。一个物理计划由中间操作（称为查询片段）组成，这些操作能够并发运行，在计划每个exchange操作之上和之下产生并行的机会。一个exchange操作代表了执行流中的一个断点，这个断点是可以分发处理的。例如，文件单线程扫描流向exchange操作，然后是多线程聚合片段。</p>
+<p>每个节点的最大width定义了一个查询中任何片段的最大并行度，但是这个是作用在一个集群的单个节点上。默认每个节点的最大并行度计算方式如下：理论最大值自动缩回（和舍入），使得只有实际可用容量的70%被考虑：活跃drillbit数（一般一个节点一个）<em> 每个节点核数 </em> 0.7。</p>
+<p>例如，一个单节点2核测试系统并开启超线程：1 <em> 4 </em> 0.7 = 3。当你修改这个默认值时，可以提供任何有意义的数值，此时系统将不会自动缩小你的设置。</p>
+</li>
+<li><p><code>planner.width_max_per_query</code></p>
+<p>默认值是1000。一个查询跨所有节点并行运行的最大线程数。仅当drill在非常大的集群上并行时更改此设置。</p>
+</li>
+<li><p><code>planner.slice_target</code> </p>
+<p>默认值是100000。在使用额外并行化之前，在major fragment中工作的最小预估记录数。</p>
+</li>
+<li><p><code>planner.broadcast_threshold</code></p>
+<p>默认值是10000000。作为join的一部分，可以被广播的最大记录数。当达到这个阈值时，drill将采用reshuffles而不是广播。你可以增加这个值来提升性能（<strong>尤其在10GB以太网集群上</strong>）。</p>
+</li>
+</ul>
+<h5 id="基于排序和基于hash的内存限制操作集"><a href="#基于排序和基于hash的内存限制操作集" class="headerlink" title="基于排序和基于hash的内存限制操作集"></a>基于排序和基于hash的内存限制操作集</h5><p>Drill支持以下内存密集型操作集，如果这些操作集耗尽内存，会将数据临时溢写到磁盘：</p>
+<ul>
+<li>External Sort</li>
+<li>Hash Join (Semi Join，出现在IN或EXISTS中的子查询，用于outer_table过滤)</li>
+<li>Hash Aggregate</li>
+</ul>
+<p>Drill仅仅使用External Sort算子来排序数据，使用Hash Aggregate算子来聚合数据。<strong>可替代方法</strong>，Drill可以对数据排序，然后使用（轻量）的Streaming Aggregate算子来聚合数据。</p>
+<p>Drill使用Hash Join算子来关联数据，在1.15版本将Semi Join引入Hash Join算子来提升查询性能。Semi Join移除了Hash Join下的去重处理，并消除使用Hash Aggregate产生的开销。在1.15版本之前或者关闭Semi Join功能，Drill使用去重Hash Aggregate来实现Semi Join的功能。<strong>可替代方法</strong>，Drill使用Nested-Loop-Join或者对数据进行排序再使用（轻量）Merge-Join。Drill一般使用hash算子来进行关联和聚合，它们比排序算子有更好的性能（Hash和Sort的时间复杂度分别为O(N)和O(N * log(N))）。然而，如果你关闭Hash算子或者数据已经排好序，Drill将使用前面描述的替代方法。</p>
+<p>Drill中的内存配置可以为每个查询、每个节点的内存进行限制。分配的内存在可溢出算子的所有实例中平均分配（每个节点上的每个查询）。实例的数量 = 查询计划中的可溢出算子数量 * 最大并行度。最大并行度 = 为可溢出算子的每个实例执行工作的minor fragment的数量。当一个可溢出算子的实例必须处理更多的数据，超过它内存所能存放的，这个算子会临时溢写一些数据到磁盘目录来完成整个工作。 </p>
+<h6 id="溢写到磁盘"><a href="#溢写到磁盘" class="headerlink" title="溢写到磁盘"></a>溢写到磁盘</h6><p>溢写到磁盘可以避免内存密集型操作因为内存耗尽而失败。当算子的内存要求超过设置时，溢写磁盘的特性可以使可溢写算子自动将多余的数据写到磁盘的临时目录。当算子在后台执行溢写操作时，查询不会间断。</p>
+<p>当可溢写算子完成内存数据的处理后，会将磁盘中数据读回完成数据的处理，之后清除溢写位置的数据。</p>
+<p>理想情况下，可以分配足够的内存，为Drill在内存中执行所有的操作。当数据溢写到磁盘，并不会看到查询运行的差异，然而溢写到磁盘会影响性能，因为写到磁盘再从磁盘读取，会产生额外的IO。</p>
+<p>(1) 溢写位置</p>
+<p>溢写的默认位置是<code>/tmp/drill/spill</code> 。这个目录适合小的负载和示例来用。因此，需要重新设置溢写的位置，有足够的磁盘空间来支撑大的工作负载。</p>
+<p><strong>备注：溢出的数据可能需要更大的空间，相比查询中涉及的表引用的数据。例如，当底层表数据是压缩的（ORC、Parquet）或者算子接收的数据要join多张表。</strong></p>
+<p>当你配置溢写位置，可以设置单个目录或目录列表给可溢出算子使用。</p>
+<p>(2) 溢写磁盘配置</p>
+<p>在配置文件<code>drill-override.conf</code>中可以设置溢写位置，管理可以更改文件系统以及目录列表。配置项如下：</p>
+<ul>
+<li><code>drill.exec.spill.fs</code>：默认的文件系统是本地机器，<code>file:///</code>。也可以配置分布式文件系统，比如<code>hdfs:///</code> ；</li>
+<li><code>drill.exec.spill.directories</code>：默认是<code>[&quot;/tmp/drill/spill&quot;]</code> 。也可以配置为<code>[&quot;/fs1/drill/spill&quot;,&quot;/fs2/drill/spill&quot;]</code>。</li>
+</ul>
+<h6 id="内存分配"><a href="#内存分配" class="headerlink" title="内存分配"></a>内存分配</h6><p>Drill在可溢出算子的所有实例之间均匀地分割可用内存。当查询被并行化时，算子的数量将会成倍增加，这会减少查询期间为算子的所有实例提供的内存数量。要查看算子之间内存消耗差异，可以运行查询，在Drill Web UI中查看query profiles。或者，关闭hash算子，强制Drill使用Merge Join和Streaming Aggregate。</p>
+<p>(1) 内存分配配置</p>
+<ul>
+<li><p><code>planner.memory.max_query_memory_per_node</code> ：drill在一个节点上每个查询可使用的最小内存，默认是2GB，在JVM的Direct Memory默认值为8GB的情况下，可以到2-3个并发。当Drill的内存要求增加，默认的2GB被约束，必须要添加这个值大小才能完成查询。除非<code>planner.memory.percent_per_query</code>设置允许Drill使用更多的内存。</p>
+</li>
+<li><p><code>planner.memory.percent_per_query</code></p>
+<p>另外一种方式，这个配置设置为总Direct Memory的百分比，默认值是5%。当throttling关闭时这个值才会使用，设置为0时关闭该选项。可以增加或减少该值，但是要将百分比设置在远低于JVM Direct Memory的位置，因为要考虑Drill不管理内存的情况，例如内存密集度较低的算子。</p>
+<ul>
+<li>计算公式如下：(1 - non-managed allowance) / concurrency</li>
+<li>non-managed allowance是non-managed算子使用的假设系统内存。non-managed算子不会溢写到磁盘。non-managed allowance的保守假设是系统内存的50%。concurrency是并发查询的数量。默认假设是10个并发查询。</li>
+</ul>
+</li>
+</ul>
+<p>(2) 增加可获得的内存</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">SYSTEM</span> | <span class="keyword">SESSION</span> <span class="keyword">SET</span> <span class="string">`planner.memory.max_query_memory_per_node`</span>= new_value</span><br><span class="line">// the <span class="keyword">default</span> <span class="keyword">value</span> <span class="keyword">is</span> <span class="keyword">to</span> <span class="number">2</span>GB</span><br><span class="line">ALSTER <span class="keyword">SYSTEM</span> | <span class="keyword">SESSION</span> <span class="keyword">SET</span> <span class="string">`planner.memory.percent_per_query`</span> = new_value</span><br><span class="line">// the <span class="keyword">default</span> <span class="keyword">value</span> <span class="keyword">is</span> <span class="number">0.05</span></span><br></pre></td></tr></table></figure>
+<h6 id="关闭Hash算子"><a href="#关闭Hash算子" class="headerlink" title="关闭Hash算子"></a>关闭Hash算子</h6><p>可以关闭hash聚合和hash join的算子。当关闭这些算子之后，Drill会创建一个替代查询计划，采用Sort算子和Streaming聚合/Merge Join算子。配置项如下：</p>
+<ul>
+<li><p><code>planner.enable_hashagg</code> : 开启或关闭hash聚合，关闭后Drill采用基于Sort的聚合。默认是开启的，推荐开启。在Drill 1.11版本之前，hash聚合算子内存不受控制（达到10GB），然后就耗尽内存。从这个版本之后，支持溢写到磁盘；</p>
+</li>
+<li><p><code>planner.enable_hashjoin</code> : 开启或关闭hash关联，默认是开启的。Drill假设一个查询有足够的内存来完成，则会尝试使用最可能快的操作。Drill 1.14版本之前，Hash Join算子使用不受控制的内存（达到10G），然后就耗尽内存。从这个版本之后，这个算子支持溢写到磁盘；</p>
+</li>
+<li><p><code>planner.enable_semijoin</code> : 开启或关闭Hash Join的Semi Join功能，默认是开启的。开启后，Hash Join中的semi-join标记设置为true。Drill使用semi-join来去除Hash Join下的不同处理。关闭后，Drill还是可以执行semi-join，但是semi-join将会Hash Join的外部执行，如下示例所示：</p>
+<ul>
+<li><p>Semi Join关闭</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">explain</span> plan <span class="keyword">for</span> <span class="keyword">select</span> employee_id, full_name <span class="keyword">from</span> employee <span class="keyword">where</span> employee_id <span class="keyword">IN</span> (<span class="keyword">select</span> employee_id <span class="keyword">from</span> employee);</span><br><span class="line"></span><br><span class="line">screen</span><br><span class="line">project(employee_id=[$0], full_name=[$1])</span><br><span class="line">	project(employee_id=[$0], full_name=[$1])</span><br><span class="line">		HashJoin(condition=[=($0, $2)], joinType=[inner], semi-join: =[false]) <span class="comment">--哈希连接</span></span><br><span class="line">			scan(...)</span><br><span class="line">        	project(employee_id0=[$0])</span><br><span class="line">        		HashAgg(group=[$0]) <span class="comment">-- 去重使用</span></span><br><span class="line">        			scan(...)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Semi Join开启</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">explain</span> plan <span class="keyword">for</span> <span class="keyword">select</span> employee_id, full_name <span class="keyword">from</span> employee <span class="keyword">where</span> employee_id <span class="keyword">IN</span> (<span class="keyword">select</span> employee_id <span class="keyword">from</span> employee);</span><br><span class="line"></span><br><span class="line">screen</span><br><span class="line">project(employee_id=[$0], full_name=[$1])</span><br><span class="line">	project(employee_id=[$0], full_name=[$1])</span><br><span class="line">		HashJoin(condition=[=($0, $2)], joinType=[inner], semi-join: =[true]) <span class="comment">--半连接</span></span><br><span class="line">			scan(...)</span><br><span class="line">        	scan(...)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+</ul>
+<h5 id="开启查询队列"><a href="#开启查询队列" class="headerlink" title="开启查询队列"></a>开启查询队列</h5><p>Drill默认允许并发查询，但是当少量并发查询时，Drill性能会有所提高。开启查询队列来限制并发运行查询的最大数量。将大查询拆分为多个小查询并开启查询队列可以提高查询性能。</p>
+<p>当你开启查询队列，你可以配置大队列和小队列。Drill根据查询的大小，将查询路由到哪个队列。Drill能够快速完成查询，继续执行下一组查询。</p>
+<p>请看如下示例：</p>
+<p><img src="/blog/8c6d7818/drill_query_queue.png" alt></p>
+<p>A查询（蓝色部分）：10亿条记录，预估1000万行数据处理;</p>
+<p>B查询（红色部分）：20亿条记录，预估2000万行数据处理；</p>
+<p>C查询：10亿条记录；</p>
+<p>D查询：100条记录；</p>
+<p><code>exec.queue.threshold</code>是3000万作为查询预估处理行数。因此，A和B属于large query，在large queue中排队。当预估处理的行数达到3000万的阀值时，A和B的查询已经填满了队列。之后C查询到来，只能等待。D查询到来理解进入small queue中。</p>
+<p>相关配置如下：</p>
+<ul>
+<li><code>exec.queue.enable</code> : 默认关闭。开启后，控制同时运行的查询数量。</li>
+<li><code>exec.queue.large</code> : 默认为10，范围为0-1000。设置集群中大查询并发数量。</li>
+<li><code>exec.queue.small</code> : 默认为100，范围为0-10001。</li>
+<li><code>exec.queue.threshold</code> : 决定一个查询是否为large还是small的。复杂查询有更高的值。默认为30000000，范围为0-9223372036854775807。</li>
+<li><code>exec.queue.timeout_millis</code> : 表示一个查询在队列等待的时间在失败之前。默认为300000，范围为0-9223372036854775807。</li>
+<li><code>exec.queue.memory_ratio</code> : 默认情况下，大查询使用的内存是小查询的10倍。如果实际过程中，发现其他值效果更好，则可以调整这个比例来满足实际的查询。</li>
+<li><code>exec.queue.memory_reserve_ratio</code> : 还有Sort和Hash聚合算子要观察内存限制，溢写到磁盘。其他算子没有被管理，所需的内存量因您的特定查询而异。考虑到这些算子，需要预留一些内存。默认值是20%。但是重Join工作负载可能需要更大的值，比如50%甚至更多。</li>
+</ul>
+<h5 id="限流"><a href="#限流" class="headerlink" title="限流"></a>限流</h5><p>Drill 1.12版本引入限流。限流限制了并发查询的数量，防止内存耗尽导致查询失败。当开启限流后，可以控制并发查询的数量和每个查询的资源要求。Drill会为每个节点和每个查询计算要分配的内存量。</p>
+<p>如果限流关闭，可能需要增大<code>planner.memory.max_query_memory_per_node</code>的可分配内存。Drill必须决定为每个算子分配多大的内存，但不知道可能运行多少并发查询。如果Drill不能给Sort和Hash聚合算子足够的内存，查询将会失败。此时，就需要开启限流防止这种情况的发生。</p>
+<h6 id="限流配置"><a href="#限流配置" class="headerlink" title="限流配置"></a>限流配置</h6><p>小队列和大队列的计算方式：</p>
+<figure class="highlight plain"><table><tr><td class="code"><pre><span class="line">memory unit = small_queue + (large_queue * memory_ratio)</span><br><span class="line">total memory available = total_direct_mem * (1 - memory_reserve_ratio)</span><br><span class="line">small queue memory allocation = total_mem_available / memory_unit</span><br><span class="line">large queue memory allocation = small queue_memory_allocation * memory_ratio</span><br></pre></td></tr></table></figure>
+<h6 id="调校"><a href="#调校" class="headerlink" title="调校"></a>调校</h6><p>通过查看query profiles来决定正确的参数：</p>
+<ul>
+<li>设置队列大小保守一些确保查询成功；</li>
+<li>做实验，通过观察典型的查询的实际开销来调整队列阀值；</li>
+<li>如果由于Join等操作导致OOM发生，请调整内存设置。</li>
+</ul>
+<h5 id="控制并行度来平衡多租户的性能"><a href="#控制并行度来平衡多租户的性能" class="headerlink" title="控制并行度来平衡多租户的性能"></a>控制并行度来平衡多租户的性能</h5><h4 id="识别性能问题"><a href="#识别性能问题" class="headerlink" title="识别性能问题"></a>识别性能问题</h4><h5 id="查询计划"><a href="#查询计划" class="headerlink" title="查询计划"></a>查询计划</h5><p>如果在Drill中遇到性能问题，你通常能够在query plan或query profiles中识别问题来源。本小节介绍逻辑计划和物理计划。</p>
+<p><strong>Drill有一个优化器和并行器一起工作来计划一个查询。Drill基于相关文件或数据源的统计信息来创建逻辑计划、物理计划以及执行计划。Drill的运行节点数量以及运行时配置有助于Drill如何计划执行一个查询</strong>。</p>
+<p>我们可以通过执行<code>explain</code>命令来查看逻辑计划和物理计划，当时执行计划看不到，可以通过8047界面查看query profile。</p>
+<h6 id="逻辑计划"><a href="#逻辑计划" class="headerlink" title="逻辑计划"></a>逻辑计划</h6><p>一个逻辑计划是一系列逻辑算子的集合，描述了要生成的查询结果、定义的数据源和应用的算子。Drill的解析器将SQL算子转为逻辑算子语法，Drill理解后创建逻辑计划。你可以通过逻辑计划看到这些计划算子集。通过<code>submit_plan</code>命令，将修改后的逻辑计划重新提交给Drill，但这个作用并不是很大，因为计划阶段Drill还不能决定并行度。</p>
+<h6 id="物理计划"><a href="#物理计划" class="headerlink" title="物理计划"></a>物理计划</h6><p>一个物理计划描述了针对查询语句被选中的物理执行计划。优化器会应用多种规则重新安排算子和函数，形成一个优化的计划，然后将这个逻辑计划转为物理计划，告知Drill如何执行一个查询。</p>
+<p>你可以重新评审一个物理执行计划中的问题，修改这个计划，再次提交给Drill。比如，你遇到转换错误或者你想改变表的join的顺序看是否查询会更快。你可以修改物理计划来解决问题，提交给Drill来执行查询。</p>
+<p>Drill将物理计划转为minor fragments的执行树，在集群上并发运行来执行任务（参见query execution）。你可以在query profile中查看fragments执行查询的活动（参见query profiles）。</p>
+<h6 id="查看物理计划"><a href="#查看物理计划" class="headerlink" title="查看物理计划"></a>查看物理计划</h6><p>物理计划显示major fragments和与major fragment ids、operator ids相关的指定算子。Major fragments是一个抽象概念表示查询执行的一个阶段，不执行任何任务。</p>
+<p>物理计划中的展示的ID格式：<code>&lt;MajorFragmentID&gt; - &lt;OperatorID&gt;</code></p>
+<h5 id="Query-Profiles"><a href="#Query-Profiles" class="headerlink" title="Query Profiles"></a>Query Profiles</h5><p>一个profile是Drill每个查询收集的metrics信息的摘要。Query Profiles提供的信息，我们可以用来监控和分析查询性能。当Drill执行查询，会将每个查询的profile写入到磁盘，本地文件系统或分布式文件系统。<strong>在Drill 1.16版本中，如果有问题会影响性能，Web UI展示了告警信息</strong>。</p>
+<h6 id="query-profile"><a href="#query-profile" class="headerlink" title="query profile"></a>query profile</h6><ul>
+<li>STATE(查询状态)：running、completed、failed;</li>
+<li>FOREMAN(协调器): drillbit接收到来自客户端或应用的查询后，节点作为foreman来运行，驱动整个查询；</li>
+<li>Total Fragments: 要求在执行的minor fragment的总数量。</li>
+</ul>
+<h6 id="标示符构成"><a href="#标示符构成" class="headerlink" title="标示符构成"></a>标示符构成</h6><p>query profile文件中的metrics和标示符的坐标系相关联。Drill使用由query、fragment和operator标示符构成的坐标系来跟踪查询执行的活动和资源。Drill分配一个唯一标示符Query ID，给每个接收到的查询，然后给每个fragment和operator分配ID。示例如下：</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">MajorFragmentID-MinorFragmentID-OperatorID</span><br><span class="line">	01-00-02</span><br></pre></td></tr></table></figure>
+<h6 id="告警信息"><a href="#告警信息" class="headerlink" title="告警信息"></a>告警信息</h6><p>当Drill执行一个查询时，工作负载应该被统一分布到fragment和operator中来处理数据。当你评估query profile时，看到fragment的处理时间不成比例的分布或者内存的过度使用，一般表明性能存在问题，要求性能调优。比如：</p>
+<ul>
+<li>一定时间内查询没有进度；</li>
+<li>算子有数据溢写到磁盘（没有足够内存完成整个操作）；</li>
+<li>算子花在等待数据的时间远远大于处理数据的时间。</li>
+</ul>
+<p>下面列出，其他的一些告警信息：</p>
+<table>
+<thead>
+<tr>
+<th>告警信息</th>
+<th>图标</th>
+<th>相关配置项</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>!warning: No fragments have mad any progress in the last 300 seconds (See last progress below.)</td>
+<td>无</td>
+<td><code>drill.exec.http.profile.warning.progress.threshold</code></td>
+<td>在一定时间内没有fragment有执行进度，就会显示警告。默认300秒</td>
+</tr>
+<tr>
+<td>!warning: Some operator have data spilled to disk.</td>
+<td>在 Avg Peak Memory和 Max Peak Memory找溢写图标</td>
+<td>查看基于Sort和基于Hash的内存约束算子的相关配置项</td>
+<td>鼠标悬停在溢写图标上，显示平均溢写数量。值越高，退化越严重。</td>
+</tr>
+<tr>
+<td>!warning: Some of the operators spent more time waiting for data than processing it. (看AVG WAIT TIME和Average Process Time的比较）</td>
+<td>查看Max Process time或者Max Wait Time，定位算子是等待还是处理时间太长</td>
+<td><code>drill.exec.http.profile.warning.time.skew.min</code></td>
+<td>为了最长的处理或等待fragment的算子设置一个最小阀值。当最慢的fragment达到阈值和运行或等待至少是平均fragment的2倍（默认配置）时，显示告警。<code>drill.exec.http.profile.warning.time.skew.ratio.process</code>设置处理阈值比例。<code>drill.exec.http.profile.warning.time.skew.ratio.wait</code>设置等待阈值比例。</td>
+</tr>
+<tr>
+<td>!warning: Some of the SCAN operators spent more time waiting for data than processing it.(看AVG WAIT TIME和Average Process Time的比较）</td>
+<td>查看Avg Wait Time和Avg Process Time，定位scan算子等待太长时间</td>
+<td><code>drill.exec.http.profile.warning.scan.wait.min</code></td>
+<td>设置scan算子最小等待阈值比例。默认60s，当average wait time超过processing time会显示告警。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="告警阈值设置"><a href="#告警阈值设置" class="headerlink" title="告警阈值设置"></a>告警阈值设置</h6><p>通过<code>drill-override.conf</code>设置，如下所示：</p>
+<figure class="highlight"><table><tr><td class="code"><pre><span class="line">http: &#123;</span><br><span class="line">	profile.warning: &#123;</span><br><span class="line"> 		progress.threshold: 300,</span><br><span class="line">  		time.skew: &#123;</span><br><span class="line">			min: 2,</span><br><span class="line">  			ratio: &#123;</span><br><span class="line">				process: 2</span><br><span class="line">  				wait: 2</span><br><span class="line">			&#125;	</span><br><span class="line">		&#125;,</span><br><span class="line">		scan.wait.min: 60</span><br><span class="line">	&#125;,</span><br><span class="line">	...</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h5 id="Fragment-Profiles"><a href="#Fragment-Profiles" class="headerlink" title="Fragment Profiles"></a>Fragment Profiles</h5><h5 id="Operator-Profiles"><a href="#Operator-Profiles" class="headerlink" title="Operator Profiles"></a>Operator Profiles</h5><h5 id="物理计划视图"><a href="#物理计划视图" class="headerlink" title="物理计划视图"></a>物理计划视图</h5><p>物理计划视图提供了统计信息，一个查询操作的实际成本，包括memory、IO以及CPU。可以通过这个信息识别查询期间操作消耗的主要资源。</p>
+<h4 id="性能调优参考"><a href="#性能调优参考" class="headerlink" title="性能调优参考"></a>性能调优参考</h4><h5 id="Query-Profile描述"><a href="#Query-Profile描述" class="headerlink" title="Query Profile描述"></a>Query Profile描述</h5><h6 id="Fragment-概览表格"><a href="#Fragment-概览表格" class="headerlink" title="Fragment 概览表格"></a>Fragment 概览表格</h6><table>
+<thead>
+<tr>
+<th>列名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Major Fragment ID</td>
+<td>major片段坐标ID。例如，03-xx-xx。其中03是主片段ID，后面两位分别代表minor片段ID和算子ID。</td>
+</tr>
+<tr>
+<td>Minor Fragments Reporting</td>
+<td>为major片段并行化的minor片段数量</td>
+</tr>
+<tr>
+<td>First Start</td>
+<td>第一个minor片段开始任务前的总时间</td>
+</tr>
+<tr>
+<td>Last Start</td>
+<td>最后一个minor片段开始任务前的总时间</td>
+</tr>
+<tr>
+<td>First End</td>
+<td>第一个minor片段完成任务的总时间</td>
+</tr>
+<tr>
+<td>Last End</td>
+<td>最后一个minor片段完成任务的总时间</td>
+</tr>
+<tr>
+<td>Min Runtime</td>
+<td>minor片段完成任务花费总时间的最小值</td>
+</tr>
+<tr>
+<td>Avg Runtime</td>
+<td>minor片段完成任务花费总时间的平均值</td>
+</tr>
+<tr>
+<td>Max Runtime</td>
+<td>minor片段完成任务花费总时间的最大值</td>
+</tr>
+<tr>
+<td>Last Update</td>
+<td>minor片段发送更新状态给foreman最后一次时间。时间24小时制表示。</td>
+</tr>
+<tr>
+<td>Last Progress</td>
+<td>minor片段进度变化的最后一次时间，如fragment状态或从磁盘读数据。时间24小时制表示。</td>
+</tr>
+<tr>
+<td>Max Peak Memory</td>
+<td>所有minor片段中申请direct memory的最大峰值</td>
+</tr>
+</tbody>
+</table>
+<h6 id="Major-Fragment块"><a href="#Major-Fragment块" class="headerlink" title="Major Fragment块"></a>Major Fragment块</h6><p>展示每个major片段中minor片段被并行化的度量信息。</p>
+<table>
+<thead>
+<tr>
+<th>列名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Minor Fragment ID</td>
+<td>major片段中被并行化的minor片段坐标ID。例如，02-03-xx，02是major片段ID，03是minor片段ID，xx是算子ID。</td>
+</tr>
+<tr>
+<td>Host</td>
+<td>minor片段执行任务所在的节点</td>
+</tr>
+<tr>
+<td>Start</td>
+<td>minor片段开始任务之前经过的时间</td>
+</tr>
+<tr>
+<td>End</td>
+<td>minor片段完成任务之前经过的时间</td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td>fragment完成任务的持续时间。这个值是End-Start</td>
+</tr>
+<tr>
+<td>Max Records</td>
+<td>算子从单个输入流中消耗的最大记录数</td>
+</tr>
+<tr>
+<td>Max Batches</td>
+<td>跨输入流、算子以及minor片段的最大输入批次数</td>
+</tr>
+<tr>
+<td>Last Update</td>
+<td>fragment发送更新状态给foreman最后一次时间</td>
+</tr>
+<tr>
+<td>Last Progress</td>
+<td>fragment产生进度，比如状态变化、从磁盘读数据的最后一次时间</td>
+</tr>
+<tr>
+<td>Peak Memory</td>
+<td>minor fragment执行期间分配德尔direct memory的峰值</td>
+</tr>
+<tr>
+<td>State</td>
+<td>minor fragment的状态，完成、运行、取消或失败</td>
+</tr>
+</tbody>
+</table>
+<h6 id="Operator-概览表格"><a href="#Operator-概览表格" class="headerlink" title="Operator 概览表格"></a>Operator 概览表格</h6><p>显示的是在执行查询期间一个major片段执行关系操作中每个算子的聚合度量信息。</p>
+<table>
+<thead>
+<tr>
+<th>列名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Operator ID</td>
+<td>在查询的一个特定阶段，一个执行操作的算子坐标ID。比如02-xx-03，02是major片段，xx是对应minor片段，03是算子ID。</td>
+</tr>
+<tr>
+<td>Type</td>
+<td>算子类型，如project、filter、hash join、single sender或者unordered receiver。</td>
+</tr>
+<tr>
+<td>Min/Avg/Max Setup Time</td>
+<td>在执行操作之前，算子setup所花费的最小、平均和最大时间</td>
+</tr>
+<tr>
+<td>Min/Avg/Max Process Time</td>
+<td>算子执行操作所花费的最小、平均和最大时间</td>
+</tr>
+<tr>
+<td>Wait(Min/Avg/Max)</td>
+<td>算子等待外部数据源所花费最小、平均和最大时间</td>
+</tr>
+<tr>
+<td>Avg Peak Memory</td>
+<td>在minor fragment中分配direct memory的平均峰值。跟算子执行操作所需的内存有关，比如hash join或sort。</td>
+</tr>
+<tr>
+<td>Max Peak Memory</td>
+<td>在minor fragment中分配direct memory的最大峰值。跟算子执行操作所需的内存有关，比如hash join或sort。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="Operator-块"><a href="#Operator-块" class="headerlink" title="Operator 块"></a>Operator 块</h6><p>显示每个major片段中每个操作类型时间和内存度量。</p>
+<table>
+<thead>
+<tr>
+<th>列名</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>minor fragment</td>
+<td>算子所在的minor fragment坐标ID。例如，04-03-01，04是major fragment ID，03是minor fragment ID，01是算子ID。</td>
+</tr>
+<tr>
+<td>Setup Time</td>
+<td>算子执行操作之前的启动时间，包含runtime code的生成和打开文件</td>
+</tr>
+<tr>
+<td>Process Time</td>
+<td>算子执行操作的时间</td>
+</tr>
+<tr>
+<td>Wait Time</td>
+<td>算子等待外部数据源的时间，比如等待发送记录，等待接收记录，等待写入磁盘，等待从磁盘读取。</td>
+</tr>
+<tr>
+<td>Max Batches</td>
+<td>从单个输入流消费的最大记录批次</td>
+</tr>
+<tr>
+<td>Max Records</td>
+<td>从单个输入流消费的最大记录数量</td>
+</tr>
+<tr>
+<td>Peak Memory</td>
+<td>代表分配的direct memory峰值。跟算子执行操作所需要的内存有关，比如hash join或sort。</td>
+</tr>
+</tbody>
+</table>
+<h5 id="物理算子"><a href="#物理算子" class="headerlink" title="物理算子"></a>物理算子</h5><h6 id="分发算子"><a href="#分发算子" class="headerlink" title="分发算子"></a>分发算子</h6><p>以下算子在网络中执行数据分布：</p>
+<table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>HashToRandomExchange</code></td>
+<td>获取一个输入行，基于分布的key计算hash值，然后基于hash值决定终端接收器，在一个batch的操作中发送该行。分布的key可以是join key或者group by聚合的key。目标接收器是目标节点上的一个minor fragment。</td>
+</tr>
+<tr>
+<td><code>HashToMergeExchange</code></td>
+<td>和<code>HashToRandomExchange</code>类似，只是每个目标接收器合并来自发送者的排序后的数据。</td>
+</tr>
+<tr>
+<td><code>UnionExchange</code></td>
+<td>是一个序列化算子，每个发送器向同一个目标节点发送数据，接收器union各个发送者的数据。</td>
+</tr>
+<tr>
+<td><code>SingleMergeExchange</code></td>
+<td>是一个分发算子，每个发送者向一个单接收器发送排序数据，接收器合并所有数据。可用于order by操作，要求最终全局有序。</td>
+</tr>
+<tr>
+<td><code>BroadcastExchange</code></td>
+<td>是一个分发算子，每个发送器发送数据给N个接收器，通过广播的形式。</td>
+</tr>
+<tr>
+<td><code>UnorderedMuxExchange</code></td>
+<td>在一个节点上所有的minor fragment的数据进行复用，使得数据通过一个单一通道就可以发送到目标接收器。一个发送节点上只要为每个接收节点维护一个缓冲区，而不是每个接收节点的每个minor fragment。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="Join算子"><a href="#Join算子" class="headerlink" title="Join算子"></a>Join算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hash Join</td>
+<td>用于内连接、左连接、右连接以及全外连接。一个hash表构建于Hash Join的inner child产生的数据，outer child的数据用于探测这个hash表并寻找匹配的。这个算子持有整个join右侧的数据集在内存中，每个minor fragment能达到20亿。</td>
+</tr>
+<tr>
+<td>Merge Join</td>
+<td>用于内连接、左连接、右连接以及全外连接。要求输入的数据必须排好序的，从两侧读取排序记录，寻找匹配的行。这个算子持有来自join两侧一个输入记录批次的内存。</td>
+</tr>
+<tr>
+<td>Nested Loop Join</td>
+<td>内嵌循环连接用于特定类型的笛卡尔连接和不等式连接。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="聚合算子"><a href="#聚合算子" class="headerlink" title="聚合算子"></a>聚合算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Hash Aggregate</td>
+<td>基于group by的key构建的hash表，hash聚合对输入数据执行分组聚合。这个算子持有每个聚合分组的内存，每个minor fragment聚合的值达到20亿个值。</td>
+</tr>
+<tr>
+<td>Streaming Aggregate</td>
+<td>流聚合执行分组聚合和非分组聚合。对于分组聚合，数据必须是按照分组key进行排序的。聚合的值在每个组中被计算。对于非分组聚合，数据不一定必须被排序。这个算子维护一个单一聚合分组（keys和聚合中间值），以及接入的一个记录批次大小。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="排序和limit算子"><a href="#排序和limit算子" class="headerlink" title="排序和limit算子"></a>排序和limit算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Sort</code></td>
+<td>用来执行order by操作，以及要求数据有序的上行算子操作（例如，merge join、streaming aggregate）</td>
+</tr>
+<tr>
+<td><code>ExternalSort</code></td>
+<td>外排算子可能在内存中持有整个数据集。当内存有压力时，算子也会托管到磁盘，这种情况下，算子也会尽量使用更多的内存。在所有场景下，外部排序为每个记录溢出在内存中至少保留一个记录批次。溢出大小目前取决于外部排序算子的可用内存量。</td>
+</tr>
+<tr>
+<td><code>TopN</code></td>
+<td>用于执行order by + limit</td>
+</tr>
+<tr>
+<td><code>Limit</code></td>
+<td>限制返回行数</td>
+</tr>
+</tbody>
+</table>
+<h6 id="投影算子"><a href="#投影算子" class="headerlink" title="投影算子"></a>投影算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Project</code></td>
+<td>投影字段或包含列和常量表达式</td>
+</tr>
+</tbody>
+</table>
+<h6 id="过滤和关系算子"><a href="#过滤和关系算子" class="headerlink" title="过滤和关系算子"></a>过滤和关系算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Filter</code></td>
+<td>计算WHERE或者HAVING谓词</td>
+</tr>
+<tr>
+<td><code>SelectionVectorRemover</code></td>
+<td>和Sort、Filter算子一起使用，此算子维护的内存量大约是单个传入批次内存量的两倍</td>
+</tr>
+</tbody>
+</table>
+<h6 id="集合算子"><a href="#集合算子" class="headerlink" title="集合算子"></a>集合算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Union All</code></td>
+<td>接收两个输入流，和生成一个输出流。right输入行紧跟left输入行。列名继承自left输入，left和right的字段类型必须兼容。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="scan算子"><a href="#scan算子" class="headerlink" title="scan算子"></a>scan算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Scan</code></td>
+<td>执行底层表的扫描，格式有<code>parquet</code>、<code>text</code>、<code>json</code>等等。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="接收算子"><a href="#接收算子" class="headerlink" title="接收算子"></a>接收算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UnorderedReceiver</code></td>
+<td>可容纳5个输入记录批次</td>
+</tr>
+<tr>
+<td><code>MergingReceiver</code></td>
+<td>这个算子为每个输入流保存5个记录批次（一般，节点数量或发送fragment的数量，取决于muxxing的使用）</td>
+</tr>
+</tbody>
+</table>
+<h6 id="发送算子"><a href="#发送算子" class="headerlink" title="发送算子"></a>发送算子</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PartitionSender</code></td>
+<td>为每个outbound目标维护一个队列。outbound的minor fragment数量或者节点数量，取决于muxxing操作的使用。每个队列为每个目标最多可村3个记录批次。</td>
+</tr>
+</tbody>
+</table>
+<h6 id="文件写入"><a href="#文件写入" class="headerlink" title="文件写入"></a>文件写入</h6><table>
+<thead>
+<tr>
+<th>算子</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ParquetFileWriter</code></td>
+<td>写缓冲大小大约是默认Parquet在minor fragment内存中行组大小的两倍</td>
+</tr>
+</tbody>
+</table>
+]]></content>
+      <categories>
+        <category>计算引擎</category>
+      </categories>
+      <tags>
+        <tag>DRILL</tag>
+        <tag>查询计划</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>我的论文</title>
+    <url>/blog/1d1f5c7b.html</url>
+    <content><![CDATA[<h2 id="分布式系统"><a href="#分布式系统" class="headerlink" title="分布式系统"></a>分布式系统</h2><p><a href="https://ai.google/research/pubs/pub37200" target="_blank" rel="noopener">Tenzing A SQL Implementation On The MapReduce Framework</a></p>
+<p><a href="https://raft.github.io/raft.pdf" target="_blank" rel="noopener">Raft Consensus Algorithm</a></p>
+<p><a href="https://cs.stanford.edu/~matei/papers/2013/sosp_sparrow.pdf" target="_blank" rel="noopener">Sparrow: Distributed, Low Latency Scheduling</a></p>
+<p><a href="https://github.com/theanalyst/awesome-distributed-systems" target="_blank" rel="noopener">https://github.com/theanalyst/awesome-distributed-systems</a></p>
+<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><p><a href="http://csce.uark.edu/~xintaowu/5203/pinot.pdf" target="_blank" rel="noopener">Pinot: Realtime OLAP for 530 Million Users</a></p>
+<p><a href="http://www.vldb.org/pvldb/vol11/p1835-samwel.pdf" target="_blank" rel="noopener">F1 Query: Declarative Querying at Scale</a></p>
+<p><a href="http://db.csail.mit.edu/projects/cstore/abadi-sigmod08.pdf" target="_blank" rel="noopener">Column-Stores vs. Row-Stores: How Different Are They Really?</a></p>
+<p><a href="http://info.snowflake.net/rs/252-RFO-227/images/Snowflake_SIGMOD.pdf" target="_blank" rel="noopener">The Snowflake Elastic Data Warehouse</a></p>
+<p><a href="http://static.druid.io/docs/druid.pdf" target="_blank" rel="noopener">A Real-time Analytical Data Store - Druid</a></p>
+<p><a href="https://research.google.com/pubs/archive/41376.pdf" target="_blank" rel="noopener">Online, Asynchronous Schema Change in F1</a></p>
+<p><a href="https://15721.courses.cs.cmu.edu/spring2016/papers/p337-soliman.pdf" target="_blank" rel="noopener">Orca: A Modular Query Optimizer Architecture for Big Data</a></p>
+<p><a href="http://adrianmarriott.net/logosroot/papers/LifeBeyondTxns.pdf" target="_blank" rel="noopener">Life beyond Distributed Transactions: an Apostate’s Opinion</a></p>
+<p><a href="https://cs.stanford.edu/people/chrismre/cs345/rl/aries.pdf" target="_blank" rel="noopener">ARIES: A Transaction Recovery Method Supporting Fine-Granularity Locking and Partial Rollbacks Using Write-Ahead Logging</a></p>
+<p><a href="http://www.vldb.org/conf/1999/P1.pdf" target="_blank" rel="noopener">Repeating History Beyond ARIES</a></p>
+<p><a href="https://www.computer.org/csdl/proceedings/cloud/2018/7235/00/723501a508-abs.html" target="_blank" rel="noopener">Automatic Tuning of SQL-On-Hadoop Engines on Cloud Platforms</a></p>
+<p><a href="https://pdfs.semanticscholar.org/a817/a3e74d1663d9eb35b4baf3161ab16f57df85.pdf" target="_blank" rel="noopener">The Volcano Optimizer Generator: Extensibility and Efficient Search</a></p>
+<h2 id="大数据"><a href="#大数据" class="headerlink" title="大数据"></a>大数据</h2><p><a href="https://www.52cs.com/archives/story/大数据必读文献" target="_blank" rel="noopener">https://www.52cs.com/archives/story/大数据必读文献</a></p>
+]]></content>
+      <categories>
+        <category>读书笔记</category>
+      </categories>
+      <tags>
+        <tag>论文</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>数据库之行列存储简介</title>
+    <url>/blog/9ff3ee6b.html</url>
+    <content><![CDATA[<h4 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h4><p>数据库之所以有行存和列存之分，主要是为了满足不同的使用场景。我们常见的Oracle、MySQL等主流关系型数据库都是以行存为主，适合OLTP的应用，涉及事务处理、增删改查等操作。随着大数据的发展，新兴的Vertica、Greenplum、MonetDB、C-Store等数据库支持列式存储，适合OLAP的应用，涉及海量数据的分析操作。甚至业界一些数据库为了同时支持OLTP和OLAP的能力，采用行列混合存储的模式，来兼容这两种应用场景。因此，数据库采用不同的数据存储布局，决定了它本身对外支持的特性，用户据此并结合业务场景来选择合适的数据库产品。下面，本文将主要针对行列存储的概念、组织形式、优缺点进行简要介绍。</p>
+<h4 id="基本概念"><a href="#基本概念" class="headerlink" title="基本概念"></a>基本概念</h4><p>在基于行式存储的（row-based storage）数据库中，数据是按照行的逻辑存储单元进行存储的，一个整行的数据在存储介质中以连续形式存在。如下图所示：</p>
+<p><img src="/blog/9ff3ee6b/row-store.png" alt></p>
+<p>在基于列式存储的（column-based storage）数据库中，数据是按照列的逻辑存储单元进行存储的，一个整列的数据在存储介质中以连续形式存在。如下图所示：</p>
+<p><img src="/blog/9ff3ee6b/column-store.png" alt></p>
+<p>以上描述的是行列存储的逻辑结构，具体物理层面的数据布局，要看各数据库支持行或列物理存储的具体实现。</p>
+<h4 id="优缺点分析"><a href="#优缺点分析" class="headerlink" title="优缺点分析"></a>优缺点分析</h4><p>行式存储可以将一行数据一次性写入，保证数据的完整性。在读取过程中，根据条件进行精确查询时，可以一次性读取整行数据返回。但针对按列统计分析时，如果涉及的数据量大，读取整行时会存在大量冗余列，占用系统资源高，影响读取性能。</p>
+<p>列式存储由于是按照列来存储，每列都有各自的数据类型，同一个类型的数据放在一起存储，方便做对应的编码压缩（比如行程编码、字典编码），极大地节省存储空间和传输带宽，同时也降低了按列分析的IO操作。但是，按列拆开存储，数据的完整性和写入效率也会不如行式存储，同时针对精确查询并且返回大部分列时也会产生大量IO。</p>
+<h4 id="适用场景"><a href="#适用场景" class="headerlink" title="适用场景"></a>适用场景</h4><p>根据行存的特性，比较适用于OLTP的应用场景，比如小数据量的事务型增删改查操作。然而，为了应对海量数据的存储和计算，传统的OLTP数据库并不能满足。因此，列存的特性适用于海量日志型数据的分析查询，可以用一张成百上千个列的宽表来存储分析这些数据，各列独自存储，也提高了并发读取的性能。</p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>以上介绍了行式存储和列式存储的基本概念、组织方式、各自的优缺点以及应用场景。可以看出，列存相对于行存，在存储压缩、按列分析、降低IO等方面存在优势，但在精确查询返回大部分列时存在不足。因此，在一些分析型数据库存储引擎中引入了行列混合存储的概念，来兼顾OLAP式查询和精确查询的两种场景，这个后续再做介绍。</p>
+<h4 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h4><ul>
+<li>Abadi D J ,  Madden S R ,  Hachem N . <a href="http://db.csail.mit.edu/projects/cstore/abadi-sigmod08.pdf" target="_blank" rel="noopener">Column-stores vs. row-stores: How different are they really?</a>[C]// Proceedings of the ACM SIGMOD International Conference on Management of Data, SIGMOD 2008, Vancouver, BC, Canada, June 10-12, 2008. ACM, 2008.</li>
+<li><a href="https://www.the-paper-trail.org/post/2013-01-30-columnar-storage/" target="_blank" rel="noopener">https://www.the-paper-trail.org/post/2013-01-30-columnar-storage/</a></li>
+<li>C. Zhan, M. Su, C. Wei, X. Peng, L. Lin, S. Wang, Z. Chen, F. Li, Y. Pan, F. Zheng, C. Chai, AnalyticDB: Real-time OLAP Database System at Alibaba Cloud, VLDB 2019.</li>
+</ul>
+]]></content>
+      <categories>
+        <category>数据库</category>
+      </categories>
+      <tags>
+        <tag>大数据</tag>
+        <tag>数据库</tag>
+        <tag>行列存储</tag>
+      </tags>
+  </entry>
+  <entry>
     <title>Paper翻译 AnalyticDB Real-time OLAP Database System at Alibaba Cloud</title>
     <url>/blog/e3ee66c7.html</url>
     <content><![CDATA[<h4 id="摘要"><a href="#摘要" class="headerlink" title="摘要"></a>摘要</h4><p>随着数据在规模和多样性方面的爆炸式增长，OLAP数据库在提供低延时（比如几百毫秒）的实时分析服务方面发挥着越来越重要的作用，尤其是当接入的查询天生就是复杂的和即席的。而且，这些系统被期望能够提供高查询并发和写入吞吐量，以及支持结构化和复杂数据类型（比如，JSON、Vector和文本）上的查询。</p>
@@ -50,34 +704,56 @@
 </ul>
 <p>近期又出现许多云服务，比如Amazon Redshift和Google BigQuery。其中，Amazon Redshift是完全托管的云数据库服务，采用列式存储和MPP结构将查询分布到多个节点，具有两个或多个计算节点，通过leader节点来协调。ADB与此相比，ADB引入读写分离的架构，具有多个读写节点且是独立的，并且有一系列协调器节点与它们通信。<strong>Google BigQuery</strong>是Google核心技术（<strong>Dremel</strong> [31]）的外部实现，采用高存储率的列式存储、树形拓扑结构分发查询、秒级内跨数千个节点聚合结果。<strong>和它不同的是，ADB采用了索引引擎和DAG执行框架</strong>。</p>
 <h4 id="系统设计"><a href="#系统设计" class="headerlink" title="系统设计"></a>系统设计</h4><p>作为一个云数据库，ADB运行在Apsara（<strong>飞天</strong>）上，它是阿里云自2009年开始开发的大型通用高可靠性计算基础设施。Apsara管理数万物理机器的所有资源，维护多个阿里云服务，包括检索、计算和存储。ADB采用了Apsara两个核心组件，分别为Pangu(盘古，可靠的分布式存储系统)和Fuxi（伏羲，资源管理和作业调度），如下图一所示。本章节，我们将给出ADB的关键技术选型，包括数据模型和系统架构。</p>
-<p><img src="/blog/paper-read-ADB/adb_archi.png" alt></p>
+<p><img src="/blog/e3ee66c7/adb_archi.png" alt></p>
+<center> 图一 ADB架构</center>
+
 <h5 id="数据模型和查询语言"><a href="#数据模型和查询语言" class="headerlink" title="数据模型和查询语言"></a>数据模型和查询语言</h5><p>ADB遵循标准的关系数据模型，即数据记录有固定的模式。主流的复杂类型，像JSON、Vector和Text等，需要支持来满足实际应用日益增长的分析需求。ADB支持ANSI SQL 2003，以及增强了一些额外功能，比如分区规范、复杂类型的数据操作。</p>
 <h5 id="表分区"><a href="#表分区" class="headerlink" title="表分区"></a>表分区</h5><p>在ADB中，每张表都有两级分区，即一级分区和二级分区。如下一个DDL SQL样例所示，创建一个有两级分区的表。一级分区在字段<code>id</code>上有50个分区，二级分区在字段<code>dob</code>上有12个分区。</p>
 <figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">TABLE</span> db_name.table_name (</span><br><span class="line">	<span class="keyword">id</span> <span class="built_in">int</span>,</span><br><span class="line">	city <span class="built_in">varchar</span>,</span><br><span class="line">	dob <span class="built_in">date</span>,</span><br><span class="line">	primary <span class="keyword">key</span> (<span class="keyword">id</span>)</span><br><span class="line">)</span><br><span class="line"><span class="keyword">PARTITION</span> <span class="keyword">BY</span> <span class="keyword">HASH</span> <span class="keyword">KEY</span>(<span class="keyword">id</span>) <span class="comment">-- 散列到不同节点cluster by</span></span><br><span class="line"><span class="keyword">PARTITION</span> <span class="keyword">NUM</span> <span class="number">50</span></span><br><span class="line"><span class="keyword">SUBPARTITION</span> <span class="keyword">BY</span> <span class="keyword">LIST</span> (dob) <span class="comment">-- 节点内部的划分 partition by</span></span><br><span class="line"><span class="keyword">SUBPARTITION</span> OPTIONS (available_partition_num = <span class="number">12</span>);</span><br></pre></td></tr></table></figure>
 <p>一级分区基于用户指定的列进行hash，因此所有行被分布到所有一级分区中来最大化并发度。实际上，任何高基数的列（NDV大）都可以作为分区列，这样可以使每个分区均衡。同时，用户还可以设置二级分区（可选的），二级分区是一个列表分区，设置了最大分区数为12，用于自动数据保存和回收。通常，表示时间间隔的字段（如，天、周、月）作为二级分区字段，可以将同一个时间间隔的数据分到同一个分区。一旦分区的数量超过指定阈值，就会自动将最旧的分区剔除。</p>
-<h5 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h5><p>如上图所示的系统架构，ADB中节点共有三种类型，协调器、写节点和读节点。客户端通过JDBC/ODBC连接发送请求（读写），协调器负责接收并分发到相应的读写节点。写节点负责处理写请求（如INSERT、DELETE、UPDATE）和将SQL描述持久化到Pangu。读节点负责处理查询请求（如SELECT）。在这种方式下，读写节点是相互分离的。Fuxi将利用所有节点中可利用的资源为异步任务执行提供计算worker，此外ADB的pipeline执行引擎（如下图所示）就运行在计算worker上。数据以列block为单位（称为page）从存储流向客户端。所有数据的处理都在内存中，通过网络在不同阶段之间进行pipeline连接。这个pipeline工作流以高吞吐和低延时提供用户的复杂查询。</p>
-<p><img src="/blog/paper-read-ADB/pipeline_engine.png" alt></p>
+<h5 id="总体架构"><a href="#总体架构" class="headerlink" title="总体架构"></a>总体架构</h5><p>如上图所示的系统架构，ADB中节点共有三种类型，协调器、写节点和读节点。客户端通过JDBC/ODBC连接发送请求（读写），协调器负责接收并分发到相应的读写节点。写节点负责处理写请求（如INSERT、DELETE、UPDATE）和将SQL描述持久化到Pangu。读节点负责处理查询请求（如SELECT）。在这种方式下，读写节点是相互分离的。Fuxi将利用所有节点中可利用的资源为异步任务执行提供计算worker，此外ADB的pipeline执行引擎（如下图二所示）就运行在计算worker上。数据以列block为单位（称为page）从存储流向客户端。所有数据的处理都在内存中，通过网络在不同阶段之间进行pipeline连接。这个pipeline工作流以高吞吐和低延时提供用户的复杂查询。</p>
+<p><img src="/blog/e3ee66c7/pipeline_engine.png" alt></p>
+<center>图二 管理模式执行引擎</center>
+
 <h5 id="读写分离"><a href="#读写分离" class="headerlink" title="读写分离"></a>读写分离</h5><p>传统的OLAP将读写合在一起，即一个数据库实例在同一个执行流程中处理所有请求，不区分读还是写。因此，<strong>所有并发的请求共享一个资源池会相互影响。当读写并发都很高的情况下，由于资源竞争会导致较低的性能</strong>。为了解决这个问题，我们提出了一个读写分离的架构。写节点负责写，读节点负责读，读写节点相互隔离，使得读写完全在不同流程中执行。</p>
-<h6 id="高吞吐写"><a href="#高吞吐写" class="headerlink" title="高吞吐写"></a>高吞吐写</h6><h6 id="实时读"><a href="#实时读" class="headerlink" title="实时读"></a>实时读</h6><p>每个读取节点都由协调器分配若干个分区，其中具有相同哈希值的分区是放置在一个节点中。如下图所示：</p>
-<p><img src="/blog/paper-read-ADB/data_place_in_read_node.png" alt></p>
+<h6 id="高吞吐写"><a href="#高吞吐写" class="headerlink" title="高吞吐写"></a>高吞吐写</h6><h6 id="实时读"><a href="#实时读" class="headerlink" title="实时读"></a>实时读</h6><p>每个读取节点都由协调器分配若干个分区，其中具有相同哈希值的分区是放置在一个节点中。如下图三所示：</p>
+<p><img src="/blog/e3ee66c7/data_place_in_read_node.png" alt></p>
+<center>图三 读节点中的数据放置</center>
+
 <p>分区在读节点中的位置，利用存储感知优化器，这种布局有助于节省数据重新分布的成本超过80%，这是从我们生产服务中测量的。而且，为了并发和可靠性，读节点是可以被复制的。每个读节点从Pangu加载初始分区，然后周期性地从相应的写节点拉取后续的更新。然后，将更新应用在本地数据副本，这些副本不会写回Pangu中。我们选择持续从写节点拉取数据而不是Pangu，是为了减少同步的延迟。因此，写节点作为缓存提供不同读节点副本并发拉取更新数据。</p>
 <p>由于近期写入的数据读节点需要远程拉取，因此读节点给用户提供两种可见性级别：一是<strong>实时读</strong>，数据写入后可以立即读到；二是<strong>有界过时读</strong>，在一定的延时内数据是可见的。<strong>为了保证查询的低延时，默认采用第二种方式，在大部分OLAP场景下是可以接受的</strong>。对于实时性要求高的用户，可以开启实时读，不过可能引发读写节点数据同步的问题。</p>
-<p>为了解决这个问题，我们采用了<strong>版本验证机制</strong>。具体来说，在写节点中每个一级分区都有它自己的版本。在分区上多个写入请求被flush后，写节点将增加分区的版本并附加到响应消息中。如下图所示，拿读写请求流程作为例子。</p>
-<p><img src="/blog/paper-read-ADB/read_write_seq.png" alt></p>
+<p>为了解决这个问题，我们采用了<strong>版本验证机制</strong>。具体来说，在写节点中每个一级分区都有它自己的版本。在分区上多个写入请求被flush后，写节点将增加分区的版本并附加到响应消息中。如下图四所示，拿读写请求流程作为例子。</p>
+<p><img src="/blog/e3ee66c7/read_write_seq.png" alt></p>
+<center>图四 实时读流程</center>
+
 <p>一个用户写入一条记录到表里（步骤1和2），立刻下发查询检索数据。当协调器收到这个请求，将查询和上一次flush响应（有界延时读或从写节点实时拉取，步骤3）的版本（V1）缓存都发送到相应的读节点（步骤4）。针对每个分区，读节点将本地版本（标记为V2）与V1版本比较。如果版本V1没有V2大，则读取节点直接执行查询操作。否则，读节点必须从写节点拉取最新的数据（步骤5），优先更新本地副本。</p>
 <p>遵循上述的操作，针对实时查询，我们可以确保读写节点之间数据的可见性。然而，如果读节点向写节点发送拉取请求，需要等待所需的数据，这个延迟将会比较高。我们这里进行了优化，将读节点拉取改为了写节点推送。当写节点监测到有新写入的数据时，将主动附上版本号推送给相应的读节点。</p>
 <h6 id="可靠性和可扩展性"><a href="#可靠性和可扩展性" class="headerlink" title="可靠性和可扩展性"></a>可靠性和可扩展性</h6><p>ADB为读写节点提供了高可靠性。针对写节点，当worker失败时，master会平滑地将该worker上的分区分发给其他可用的写节点。当master失败时，会从活跃的workers中选举出一个新的master。</p>
 <p>针对读节点，用户可以指定副本因子（默认为2），同一个节点的不同副本可以部署在不同的物理机器上。当一个读节点在执行查询时失败，协调器会自动地重新发送查询给其他副本，这对用户来说是透明的。注意当读节点从写节点拉取数据时出现失败，读节点是不会被阻塞的。如果读节点不能访问写节点，它们将直接从Pangu（更高的延迟）中读取数据，继续执行查询（步骤6）。</p>
 <p>ADB也可以保证读写节点的高可扩展性。当加入一个新的写节点时，<strong>master</strong>将会调整表分区的位置来保证负载均衡。新的位置被更新到zookeeper，然后协调器会根据新的信息来发送后续的写请求。读节点的扩展是类似的，除了表分区位置是通过<strong>coordinators</strong>调整的。</p>
 <h5 id="集群管理"><a href="#集群管理" class="headerlink" title="集群管理"></a>集群管理</h5><p>ADB的集群管理支持多租户，也就是说在一个集群中有多个ADB实力。我们设计并实现了一个集群管理组件Gallardo，利用CGroup技术隔离不同ADB的实例的资源（CPU、内存、网络带宽），来保证它们的稳定性。当一个新的ADB被创建，Gallardo会分配它所需要的资源。在分配期间，Gallardo会谨慎地将不同的角色（协调器、写节点和读节点）和读节点副本放置到不同的物理机器上，来遵循可靠性的要求。<strong>注意这里Gallardo和Fuxi是不冲突的，Gallardo负责为不同ADB实例分配和隔离资源，而Fuxi是为计算任务使用所有ADB实例的可用资源</strong>。</p>
-<h4 id="存储"><a href="#存储" class="headerlink" title="存储"></a>存储</h4><p>ADB的存储模型支持结构化数据和其他复杂数据类型，比如JSON和向量。我们首先讨论混合行列存储结构，其次是它快速和强大的索引引擎。</p>
+<h4 id="4-存储"><a href="#4-存储" class="headerlink" title="4. 存储"></a>4. 存储</h4><p>ADB的存储模型支持结构化数据和其他复杂数据类型，比如JSON和向量。我们首先讨论混合行列存储结构，其次是它快速和强大的索引引擎。</p>
 <h5 id="4-1-物理数据结构"><a href="#4-1-物理数据结构" class="headerlink" title="4.1 物理数据结构"></a>4.1 物理数据结构</h5><p>本章节首先描述ADB数据结构和元数据结构，然后说明数据是如何管理的。</p>
 <h6 id="4-1-1-混合行列存储"><a href="#4-1-1-混合行列存储" class="headerlink" title="4.1.1 混合行列存储"></a>4.1.1 混合行列存储</h6><p>ADB设计的一个主要目标是支持OLAP和精确查询。OLAP的查询一般会涉及一个宽表中的部分列，列存比较适合这样的查询，由于它高效的数据压缩和IO减少。但对于精确查询是比较困难的，因为这类查询需要返回一个或多个整行。行存在精确查询中比较适合，但是针对OLAP查询访问成本增大了很多。</p>
-<p>为了解决这个问题，我们提出了行列混合存储布局，如下图所示：</p>
-<p><img src="/blog/paper-read-ADB/hybrid_row_column_storage_layout.png" alt></p>
+<p>为了解决这个问题，我们提出了行列混合存储布局，如下图五所示。</p>
+<p><img src="/blog/e3ee66c7/hybrid_row_column_storage_layout.png" alt></p>
+<p><center>图五 包含元数据和索引的混合行列存储数据格式</center></p>
 <p>在这个设计中，每个表分区的数据都维护在一个单一的文件中（称为detail file），内部分为多个行组，每个行组包含固定行数（生产环境默认为30000，是可配置的）。在一个行组中，同一列的所有值是连续的且分组在一个数据块（data block）中，所有的数据块按序存储。数据块是ADB中基本的操作单元（拉取和缓存），有助于获得较高的压缩比来节省存储空间。像这样的混合设计能够在可接受的工作负载下，平衡OLAP和精确查询[12, 20, 34]。和列存类似，混合存储也会根据列来划分数据，有助于ADB的OLAP查询。虽然一整个列属于不同行组的多个数据块中，仅仅有一小部分顺序检索要求获取所有数据。通过我们对真实ADB服务的观察，这个负载占比小于整个查询延时的5%。针对精确查询，为了保留好的性能，将一行的所有列存储在同一个行组当中。行集合只涉及短距离顺序查找[23]，而不是列存中的跨段查找。</p>
-<p><strong>复杂类型数据</strong>。混合行列存储适合较小的列，例如数值型和短字符类型，但不适合复杂类型数据（比如JSON和向量），因为这些数据大小可变和通常都比较大。如果把这些行分为固定数量的行组会导致不可预期的大数据块。为了解决这个问题，针对复杂类型数据设计了一个固定大小的存储模型。利用另外一个级别的块，名为FBlock，固定大小为32KB。特别地，一个含有30000行的数据块，会进一步拆分为多个FBlocks。</p>
-<h6 id="4-1-2-元数据"><a href="#4-1-2-元数据" class="headerlink" title="4.1.2 元数据"></a>4.1.2 元数据</h6><h4 id="优化器和执行引擎"><a href="#优化器和执行引擎" class="headerlink" title="优化器和执行引擎"></a>优化器和执行引擎</h4><h4 id="实验评估"><a href="#实验评估" class="headerlink" title="实验评估"></a>实验评估</h4><h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><h4 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h4>]]></content>
+<p><strong>复杂类型数据</strong>。混合行列存储适合较小的列，例如数值型和短字符类型，但不适合复杂类型数据（比如JSON和向量），因为这些数据大小可变和通常都比较大。如果把这些行分为固定数量的行组会导致不可预期的大数据块。为了解决这个问题，针对复杂类型数据设计了一个固定大小的存储模型。利用另外一个级别的块，名为FBlock，固定大小为32KB。特别地，一个含有30000行的数据块，会进一步拆分为多个FBlocks，并存储指向这些FBlocks的指针。在这个方式下，数据块还是固定行数，所有的FBlocks都存在一个单独的文件中，如下图六所示：</p>
+<p><img src="/blog/e3ee66c7/fblocks.png" alt></p>
+<p><center>图六 复杂类型数据格式</center></p>
+<p>然而，一个FBlock中包含的行数各有不同，少于一行（即部分行）到多行。为了支持快速检索，我们在datablock中为每个FBlock维护了一个block entry，每个entry包含两个标识符，即对应FBlock的起始行和结束行。一行被切分为多个连续的FBlocks。图中，FBlock1和FBlock2分别存储0-99行和99-200行，同时第99行被分为两个FBlock。为了访问到该行，需要首先从数据块中扫描block entrie定位到FBlock1和FBlock2，然后提取和合并其中的部分行。</p>
+<h6 id="4-1-2-元数据"><a href="#4-1-2-元数据" class="headerlink" title="4.1.2 元数据"></a>4.1.2 元数据</h6><p>在detail文件中每个列都有自己的元数据信息，用于加速在这个列上进行海量数据的检索。这些为每个列单独存储元数据的文件，称为detail meta文件（如图六所示），它的大小非常小，一般小于1MB，由于频繁访问一般缓存在内存中。每列的元数据由四个部分组成：</p>
+<ul>
+<li>header: 包含一个版本号和detail meta文件总大小；</li>
+<li>summary：包含查询优化需要的统计信息，如行数、NULL数量、NDV、sum、max和min；</li>
+<li>dictionary：对于ndv数较低的列，将会自动开启字典功能，来节省空间。还包含在文件中的偏移量和长度用于快速访问；</li>
+<li>block map：持有每个data block的entry，包含在文件中的偏移量和长度用于快速访问。</li>
+</ul>
+<h6 id="4-1-3-数据操作"><a href="#4-1-3-数据操作" class="headerlink" title="4.1.3 数据操作"></a>4.1.3 数据操作</h6><p>ADB底层存储采用Lamda架构，如图七所示，包含基线数据和增量数据。基线数据存储历史数据，包括索引和行列数据。增量数据保持新写入的数据，不包含全部索引只是一个简单的排序索引。增量数据仅仅在读节点上出现，当它们从写节点拉取并重放日志的时候。基线和增量数据遵循相同的数据格式和和元数据格式。</p>
+<p><img src="/blog/e3ee66c7/query_exec.png" alt></p>
+<p><center>图七 在存储之上的操作和查询执行</center></p>
+<h4 id="优化器和执行引擎"><a href="#优化器和执行引擎" class="headerlink" title="优化器和执行引擎"></a>优化器和执行引擎</h4><h4 id="实验评估"><a href="#实验评估" class="headerlink" title="实验评估"></a>实验评估</h4><h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><h4 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h4>]]></content>
       <categories>
         <category>读书笔记</category>
       </categories>
@@ -580,8 +1256,8 @@
         <category>读书笔记</category>
       </categories>
       <tags>
-        <tag>架构</tag>
         <tag>大数据</tag>
+        <tag>架构</tag>
       </tags>
   </entry>
   <entry>
@@ -1319,6 +1995,7 @@
 <li><a href="http://bluedavy.me" target="_blank" rel="noopener">bluedavy的blog</a> | <a href="http://hellojava.info/" target="_blank" rel="noopener">hellojava</a> 毕玄 （java、分布式）</li>
 <li><a href="http://jm.taobao.org/" target="_blank" rel="noopener">阿里中间件团队博客</a></li>
 <li><a href="https://tech.meituan.com/" target="_blank" rel="noopener">美团技术团队博客</a></li>
+<li><a href="https://tech.youzan.com/" target="_blank" rel="noopener">有赞技术团队博客</a></li>
 <li><a href="http://www.rowkey.me" target="_blank" rel="noopener">后端技术杂谈</a> （微鲤技术团队 | 著有《Java工程师修炼之道》一书）</li>
 <li><a href="http://www.ityouknow.com/" target="_blank" rel="noopener">纯洁的微笑</a> （spring boot/cloud 深度使用和分享者）</li>
 <li><a href="https://coolshell.cn" target="_blank" rel="noopener">左耳朵耗子 </a>（陈皓 | 专注高可用、高性能、分布式等底层技术 | 创业中）</li>
