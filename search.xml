@@ -32,8 +32,8 @@
       </categories>
       <tags>
         <tag>DRILL</tag>
-        <tag>大数据</tag>
         <tag>SQL引擎</tag>
+        <tag>大数据</tag>
       </tags>
   </entry>
   <entry>
@@ -44,9 +44,9 @@
         <category>数据库</category>
       </categories>
       <tags>
+        <tag>大数据</tag>
         <tag>数据库</tag>
         <tag>行列存储</tag>
-        <tag>大数据</tag>
       </tags>
   </entry>
   <entry>
@@ -108,9 +108,9 @@
         <category>算法</category>
       </categories>
       <tags>
+        <tag>TopK</tag>
         <tag>数据结构</tag>
         <tag>算法</tag>
-        <tag>TopK</tag>
       </tags>
   </entry>
   <entry>
