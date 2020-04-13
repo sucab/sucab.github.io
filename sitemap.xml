@@ -2,16 +2,23 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   
   <url>
-    <loc>http://changbo.tech/blog/ec4cdf4c.html</loc>
+    <loc>http://changbo.tech/about/index.html</loc>
     
-    <lastmod>2020-03-28T04:49:45.008Z</lastmod>
+    <lastmod>2020-04-13T02:51:17.015Z</lastmod>
     
   </url>
   
   <url>
     <loc>http://changbo.tech/blog/paper-read-ADB.html</loc>
     
-    <lastmod>2020-03-26T11:48:10.651Z</lastmod>
+    <lastmod>2020-04-11T04:54:37.132Z</lastmod>
+    
+  </url>
+  
+  <url>
+    <loc>http://changbo.tech/blog/ec4cdf4c.html</loc>
+    
+    <lastmod>2020-03-28T04:49:45.008Z</lastmod>
     
   </url>
   
@@ -33,13 +40,6 @@
     <loc>http://changbo.tech/blog/fa1b3b3e.html</loc>
     
     <lastmod>2020-03-21T04:36:50.927Z</lastmod>
-    
-  </url>
-  
-  <url>
-    <loc>http://changbo.tech/about/index.html</loc>
-    
-    <lastmod>2020-03-20T03:52:40.922Z</lastmod>
     
   </url>
   
