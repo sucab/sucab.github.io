@@ -120,9 +120,9 @@
         <category>算法</category>
       </categories>
       <tags>
-        <tag>TopK</tag>
         <tag>数据结构</tag>
         <tag>算法</tag>
+        <tag>TopK</tag>
       </tags>
   </entry>
   <entry>
@@ -274,7 +274,7 @@
   <entry>
     <title><![CDATA[业界大牛博客收藏]]></title>
     <url>%2Fblog%2Fec4cdf4c.html</url>
-    <content type="text"><![CDATA[收藏中间件、算法、大数据、人工智能等领域业界大牛、团队博客、论坛、站点等链接，研究、探索和跟踪前沿技术。持续更新中… 个人博客 张茄子 | 算法、 分布式技术和函数式编程爱好者 Lixiao | Spark Committer In Databricks |专注SparkSQL等 连城 |Spark PMC/Committer In Databricks | 专注SparkSQL Jark’s Blog 伍翀（花名：云邪） | 阿里巴巴高级开发工程师 Apache Flink Committer Matt’s Blog 王蒙 蚂蚁金服 | Kafka，Java, 分布式存储，分布式计算，AI Aylei’s Blog | 吴叶磊 | PingCAP Cloud方向工程师 Eric Fu | 专注于数据库及大数据系统 July | 深入数据结构与算法 七月在线创始人，专注AI教育 geekxh | 公众号-小浩算法 | 漫画图解算法 过往记忆 吴阳平（花名：明慧 ） | 阿里云HBASE业务架构 热衷于大数据技术（Hadoop、HBase、Spark）等 董的博客 董西成 | 前Hulu基础架构部负责人，现就职快手 | 大数据架构hadoop/spark/flink hbasefly 范欣欣 | 网易杭州研究院数据科学中心，负责HBase以及分布式时序数据库的内核开发运维工作 Openinx Blog 胡争 | 小米公司HBase工程师，Apache HBase PMC成员，负责Apache HBase项目研发及小米HBase集群维护，对HBase及相关分布式存储系统有很多独到的见解 李鼎的github 李鼎(花名：哲良) | 淘宝高级技术专家 （paas、dubbo、rpc） bluedavy的blog | hellojava 毕玄 （java、分布式） 后端技术杂谈 （微鲤技术团队 | 著有《Java工程师修炼之道》一书） 纯洁的微笑 （spring boot/cloud 深度使用和分享者） 左耳朵耗子 （陈皓 | 专注高可用、高性能、分布式等底层技术 | 创业中） Java技术栈 （多年Java开发和架构实践经验） MoeLove (张晋涛 TaoBeier) 网易有道资深运维 | Docker/K8s深度使用者 Phodal ThoughtWorks咨询师 | InfoQ编辑 | Serverless深度使用者 Ryan Yang Cloud Native工程 | 目前就职上海DaoCloud | K8s深度使用者 huaxiaozhuan (AI算法工程师手册) 资深算法工程师 | 智易科技首席算法研究员 朱小厮的博客 深入中间件、消息队列 公司&amp;团队博客 阿里中间件团队博客 美团技术团队博客 有赞技术团队博客 PingCAP博客 开源的新型分布式数据库公司 | 代表作品TiDB、 阿里达摩院-数据库与存储实验室 mysql.taobao | Aliyun ApsaraDB team 知乎专栏 ETIN | JVM进阶之路 | Java 虚拟机（JVM）、HotSpot VM、Java Ed Huang等人 | TiDB 的后花园 | 分布式系统、数据库、SQL 温正湖 | 数据库内核 | 网易数据库内核技术专家 社区 浙江大学课程攻略共享计划 | 大学课程资料经验总结 Databricks Github | Spark商业公司 ApacheCN 可能是东半球最大的 AI 社区 | iBooker 布客]]></content>
+    <content type="text"><![CDATA[收藏中间件、算法、大数据、人工智能等领域业界大牛、团队博客、论坛、站点等链接，研究、探索和跟踪前沿技术。持续更新中… 个人博客 张茄子 | 算法、 分布式技术和函数式编程爱好者 Lixiao | Spark Committer In Databricks |专注SparkSQL等 连城 |Spark PMC/Committer In Databricks | 专注SparkSQL Jark’s Blog 伍翀（花名：云邪） | 阿里巴巴高级开发工程师 Apache Flink Committer Matt’s Blog 王蒙 蚂蚁金服 | Kafka，Java, 分布式存储，分布式计算，AI Aylei’s Blog | 吴叶磊 | PingCAP Cloud方向工程师 Eric Fu | 专注于数据库及大数据系统 July | 深入数据结构与算法 七月在线创始人，专注AI教育 geekxh | 公众号-小浩算法 | 漫画图解算法 过往记忆 吴阳平（花名：明慧 ） | 阿里云HBASE业务架构 热衷于大数据技术（Hadoop、HBase、Spark）等 董的博客 董西成 | 前Hulu基础架构部负责人，现就职快手 | 大数据架构hadoop/spark/flink hbasefly 范欣欣 | 网易杭州研究院数据科学中心，负责HBase以及分布式时序数据库的内核开发运维工作 Openinx Blog 胡争 | 小米公司HBase工程师，Apache HBase PMC成员，负责Apache HBase项目研发及小米HBase集群维护，对HBase及相关分布式存储系统有很多独到的见解 李鼎的github 李鼎(花名：哲良) | 淘宝高级技术专家 （paas、dubbo、rpc） bluedavy的blog | hellojava 毕玄 （java、分布式） 后端技术杂谈 （微鲤技术团队 | 著有《Java工程师修炼之道》一书） 纯洁的微笑 （spring boot/cloud 深度使用和分享者） 左耳朵耗子 （陈皓 | 专注高可用、高性能、分布式等底层技术 | 创业中） Java技术栈 （多年Java开发和架构实践经验） MoeLove (张晋涛 TaoBeier) 网易有道资深运维 | Docker/K8s深度使用者 Phodal ThoughtWorks咨询师 | InfoQ编辑 | Serverless深度使用者 Ryan Yang Cloud Native工程 | 目前就职上海DaoCloud | K8s深度使用者 huaxiaozhuan (AI算法工程师手册) 资深算法工程师 | 智易科技首席算法研究员 朱小厮的博客 深入中间件、消息队列 公司&amp;团队博客 阿里中间件团队博客 美团技术团队博客 有赞技术团队博客 PingCAP博客 开源的新型分布式数据库公司 | 代表作品TiDB、 阿里达摩院-数据库与存储实验室 mysql.taobao | Aliyun ApsaraDB team 知乎专栏 ETIN | JVM进阶之路 | Java 虚拟机（JVM）、HotSpot VM、Java Ed Huang等人 | TiDB 的后花园 | 分布式系统、数据库、SQL 温正湖 | 数据库内核 | 网易数据库内核技术专家 社区 浙江大学课程攻略共享计划 | 大学课程资料经验总结 厦门大学数据库实验室 Databricks Github | Spark商业公司 ApacheCN 可能是东半球最大的 AI 社区 | iBooker 布客]]></content>
       <categories>
         <category>个人日志</category>
       </categories>
