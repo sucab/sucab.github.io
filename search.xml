@@ -62,8 +62,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>Calcite</tag>
         <tag>SQL</tag>
+        <tag>Calcite</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
@@ -276,8 +276,8 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>Calcite</tag>
         <tag>SQL</tag>
+        <tag>Calcite</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
