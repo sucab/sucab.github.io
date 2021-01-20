@@ -62,8 +62,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>Calcite</tag>
         <tag>SQL</tag>
+        <tag>Calcite</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
@@ -276,8 +276,8 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>Calcite</tag>
         <tag>SQL</tag>
+        <tag>Calcite</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
@@ -335,8 +335,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>redis</tag>
         <tag>NoSQL</tag>
+        <tag>redis</tag>
       </tags>
   </entry>
   <entry>
@@ -359,8 +359,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>NoSQL</tag>
         <tag>HBase</tag>
+        <tag>NoSQL</tag>
       </tags>
   </entry>
   <entry>
