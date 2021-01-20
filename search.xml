@@ -49,8 +49,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>Spark</tag>
         <tag>SparkSQL</tag>
+        <tag>Spark</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
@@ -62,8 +62,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>SQL</tag>
         <tag>Calcite</tag>
+        <tag>SQL</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
@@ -109,9 +109,9 @@
         <category>计算引擎</category>
       </categories>
       <tags>
+        <tag>Drill</tag>
         <tag>SQL引擎</tag>
         <tag>大数据</tag>
-        <tag>Drill</tag>
         <tag>MPP</tag>
       </tags>
   </entry>
@@ -211,9 +211,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
-        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
+        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
@@ -258,7 +258,7 @@
   <entry>
     <title><![CDATA[JVM-GC机制详解]]></title>
     <url>%2Fblog%2F625f1969.html</url>
-    <content type="text"><![CDATA[需要管理和回收的内存堆内存python等语言采用“引用计数法”来确定堆内存中的对像是否被使用，计数为0则回收。该方法实现简单效率高，但不能解决java中对象间相互“循环引用”的问题，故引入“可达性分析算法”，任何对象和GC Roots之间必须存在一个“引用链”，否则该对象不可用。 无论哪种方式，关键还是在“引用”。JDK1.2+，引用分为强引用（不会回收）、软引用（SoftReference类，第二次gc时内存紧张会回收）、弱引用（WeakReference类，无论内存是否紧张下一次gc前都会回收）、虚引用（PhantomReference类，用于回收时接收系统通知）。 对象确定死亡前，需要经过“两次标记过程”。可达性分析确定对象和GC Roots之间没有引用链则进行第一次标记，并将需要执行finalize()方法的对象放入F-queue中，等待jvm的finalizer线程去执行，对F-queue中的对象进行第二次标记，仍然没有引用链则被真正回收。 方法区这部分主要回收废弃常量和无用的类。 典型垃圾回收算法Mark-Sweep（标记清除算法）首先标记出所有需要回收的对象，然后统一回收所有被标记的对象。不足之处，标记和清除效率低下，其次产生大量内存碎片导致分配大对象时没有足够的连续空间而再次触发GC操作。 Copy（复制算法）为了解决“Mark-Sweep”的缺陷，将可用内存分为两半，其中一块内存用完将存活的对象复制到另外一块内存依次存放，不产生碎片。不足之处，内存牺牲掉一半，其次存活对象较多导致复制的数据量大，效率低下。 Mark-Compact（标记整理算法）为了解决“Copy”的缺陷，标记过程和Mark-Sweep的标记过程类似，回收阶段主要是将存活的对象都向一端移动，然后端边界以外的（一端最后一个存活的对象内存之后的部分）内存直接清除。 Generation-Collection（分代收集）将java堆内存分为新生代和老年代，根据各个年代的特点采用适当的算法。如新生代对象“朝生夕灭”，故采用copy算法；老年代对象存活率高、没有格外空间对其分配担保，故采用Mark-Compact算法。 hotspot将新生代分为两个较小的survivor空间和一个较大的eden空间，每次只使用其中一个survivor和eden空间，默认比例为8:1。当上一次回收后存活的对象，在另一个survivor空间放不下的话，老年代可以进行分配担保（Handle promotion），使得这些存活对象进入老年代。 hotspot垃圾收集器jdk7u14+的hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。（备注：并发：垃圾收集和用户线程同时工作；并行：多个垃圾收集，用户线程等待） Serial/Serial old收集器Serial负责新生代（复制算法），Serialold负责老年代（标记整理算法）。两者都是单线程方式进行垃圾回收，需要暂停所有用户线程（Stop the world）。Serial是client模式下的默认新生代收集器，简单高效，单cpu下没有线程交互开销，收集效率高。Serial Old收集器可与ParallelScavenge搭配使用，同时可作为CMS在并发收集发生Concurrent Mode Failure时使用的后备方案。 ParNew/CMS收集器ParNew收集器是Serial的多线程版本，其他控制参数和Serial一样。ParNew是Server模式下的首选新生代收集器，可与CMS（并发收集，垃圾收集和用户线程基本同时工作）搭配使用。ParNew在单cpu下，效果没有Serial好。Cpu数量添加，默认开启收集线程数和cpu数量相同。 CMS是一种获取最短回收提顿时间为目标的收集器，侧重服务的响应速度，也被称为并发低停顿收集器。但是存在三个方面的不足： CMS默认启动回收线程数为(cpu数量+3)/4，cpu越多效果越好，但cpu不足4个时，一半运算能力分到执行收集器线程，导致用户线程执行速度降低； CMS处理浮动垃圾。CMS在并发清理时用户线程同时产生垃圾，这些垃圾（浮动垃圾）需等到下次GC再清理。因此，CMS触发时机（-XX:CMSInitiatingOccupancyFraction，触发百分比）不能等到老年代空间用得太满，否则CMS运行需要内存，再加上同时产生的浮动垃圾，会出现”Concurrent Mode Failure”，之后会临时启用Serial Old，stop theworld时间就很长了。 CMS毕竟是标记清除算法实现，会产生空间碎片。通过-XX:UseCMSCompactAtFullCollection开启内存碎片整理（默认开启），无法并发但停顿时间变长，通过-XX:CMSFullGCsBeforeCompaction=0（默认为0），开启每次进入FullGC时都进行碎片整理。 Parallel Scavenge/Parallel Old收集器Parallel Scavenge负责新生代收集，收集器也经常被称为“吞吐量优先”收集器，适合后台运算而不需要太多交互的任务，-XX:MaxGCPauseMillis设置停顿时间和-XX:GCTimeRatio设置吞吐量大小。而CMS是尽可能缩短stop the world的时候，适合与用户交互的任务。 Parallel Scavenge从复制算法和并行方面和ParNew类似，主要区别是ParallelScavenge具有自适应调节策略，使用-XX:+UseAdaptiveSizePolicy，无需手工指定-Xmn、-XX:SurvivorRatio、-XX:PretenureSizeThreshold等细节参数。 Parallel Old是ParallelScavenge的老年代版本，使用多线程和标记整理算法。 该搭配组合适合注重吞吐量和CPU资源敏感的场合。 G1收集器 G1是一款面向服务端应用的垃圾收集器。具有并行并发、分代收集、空间整合以及可预测停顿的特点。将整个Java堆分为多个大小相等的Region（底层还保留新生代和老年代的概念，不再物理隔离），统一进行管理。优先回收价值最大的Region，使得在有限时间内尽可能提高收集效率（Garbage First）。 参考资料 深入理解Java虚拟机：JVM高级特性与最佳实践 JVM内存管理]]></content>
+    <content type="text"><![CDATA[需要管理和回收的内存堆内存python等语言采用“引用计数法”来确定堆内存中的对像是否被使用，计数为0则回收。该方法实现简单效率高，但不能解决java中对象间相互“循环引用”的问题，故引入“可达性分析算法”，任何对象和GC Roots之间必须存在一个“引用链”，否则该对象不可用。 无论哪种方式，关键还是在“引用”。JDK1.2+，引用分为如下四类： 强引用（不会回收） 软引用（SoftReference类，第二次gc时内存紧张会回收） 弱引用（WeakReference类，无论内存是否紧张下一次gc前都会回收） 虚引用（PhantomReference类，用于回收时接收系统通知） 对象确定死亡前，需要经过“两次标记过程”。两次过程如下： 可达性分析确定对象和GC Roots之间没有引用链则进行第一次标记，并将需要执行finalize()方法的对象放入F-queue中，等待jvm的finalizer线程去执行； 对F-queue中的对象进行第二次标记，仍然没有引用链则被真正回收。 方法区这部分主要回收废弃常量和无用的类。 典型GC算法 标记清除算法（Mark-Sweep） 首先标记出所有需要回收的对象，然后统一回收所有被标记的对象。 优点：支持用户线程和GC线程一起工作； 缺点：标记和清除效率低下，其次产生大量内存碎片导致分配大对象时没有足够的连续空间而再次触发GC操作。 复制算法（Copy） 为了解决“Mark-Sweep”的缺陷，将可用内存分为两半，其中一块内存用完将存活的对象复制到另外一块内存依次存放。 优点：不产生碎片，适用于生命周期短的对象（98%以上）； 缺点：内存牺牲掉一半，空间利用率不高。其次存活对象较多导致复制的数据量大，效率低下。 标记整理算法（Mark-Compact） 为了解决“Copy”的缺陷，标记过程和Mark-Sweep的标记过程类似，回收阶段主要是将存活的对象都向一端移动，然后端边界以外的（一端最后一个存活的对象内存之后的部分）内存直接清除。 优点：内存空间连续； 缺点：效率不高，存在STW； 分代收集（Generation-Collection） 将Java堆内存分为新生代（Young）和老年代（Old），根据各个年代的特点采用适当的算法。如： 新生代对象“朝生夕灭”，故采用copy算法； 老年代对象存活率高、没有格外空间对其分配担保，故采用Mark-Compact算法。 Hotspot将新生代分为两个较小的survivor空间（S0、S1）和一个较大的Eden空间，每次只使用其中一个survivor和eden空间，默认比例为8:1。也就是，S0和S1各占用10%，Eden占用80%。主要步骤： 在eden区申请对象（对象头、实例数据）； 一次YGC，少量对象从eden区和S1区（from）进入到S0区（to），age+1； 再经过多次YGC后，S0区满了，会将S1切换为to，S0区切换为from； 再次YGC，少量对象从eden区和S0区（from）进入到S1区（to）； 当上一次回收后存活的对象，在另一个survivor空间放不下的话，老年代可以进行分配担保（Handle promotion），使得这些存活对象进入老年代。 Hotspot垃圾收集器JDk7u14+的Hotspot虚拟机中的收集器，下图表示了不同分代的收集器可以搭配使用的关系。 并发：垃圾收集和用户线程同时工作； 并行：多个垃圾收集，用户线程等待。 Serial/Serial oldSerial： Young区Minor GC（复制算法） Serial是client模式下的默认新生代收集器，简单高效，单cpu下没有线程交互开销，收集效率高。 Serial Old： 负责老年代（标记整理算法） Serial Old收集器可与Parallel Scavenge搭配使用，同时可作为CMS在并发收集发生Concurrent Mode Failure时使用的后备方案。 两者都是单线程方式进行垃圾回收，需要暂停所有用户线程（Stop the world）。 ParNew/CMSParNew收集器： 是Serial的多线程版本，其他控制参数和Serial一样； ParNew是Server模式下的首选新生代收集器，可与CMS（并发收集，垃圾收集和用户线程基本同时工作）搭配使用 ParNew在单cpu下，效果没有Serial好。CPU数量添加，默认开启收集线程数和cpu数量相同。 CMS收集器： 是一种获取最短回收提顿时间为目标的收集器，侧重服务的响应速度，也被称为并发低停顿收集器。 初始标记：找到GCRoot第一层扫描，STW很短，一个GC线程； 并发标记：GC和用户线程同时，一个GC线程； 重新标记：有STW，多个GC线程； 并发清理：GC和用户线程同时，一个GC线程。 CMS默认启动回收线程数为(cpu nums + 3) / 4，cpu越多效果越好，但cpu不足4个时，一半运算能力分到执行收集器线程，导致用户线程执行速度降低； CMS处理浮动垃圾。CMS在并发清理时用户线程同时产生垃圾，这些垃圾（浮动垃圾）需等到下次GC再清理。因此，CMS触发时机（-XX:CMSInitiatingOccupancyFraction，触发百分比）不能等到老年代空间用得太满，否则CMS运行需要内存，再加上同时产生的浮动垃圾，会出现”Concurrent Mode Failure”，之后会临时启用Serial Old，stop the world时间就很长了。 CMS毕竟是标记清除算法实现，会产生空间碎片。通过-XX:UseCMSCompactAtFullCollection开启内存碎片整理（默认开启），无法并发但停顿时间变长，通过-XX:CMSFullGCsBeforeCompaction=0（默认为0），开启每次进入FullGC时都进行碎片整理。 Parallel Scavenge/Parallel OldParallel Scavenge： 负责新生代收集，收集器也经常被称为“吞吐量优先”收集器，适合后台运算而不需要太多交互的任务，-XX:MaxGCPauseMillis设置停顿时间和-XX:GCTimeRatio设置吞吐量大小。而CMS是尽可能缩短stop the world的时候，适合与用户交互的任务。 Parallel Scavenge在复制算法、并行方面和ParNew类似，主要区别是Parallel Scavenge具有自适应调节策略，使用-XX:+UseAdaptiveSizePolicy，无需手工指定-Xmn、-XX:SurvivorRatio、-XX:PretenureSizeThreshold等细节参数。 Parallel Old： 是Parallel Scavenge的老年代版本，使用多线程和标记整理算法； 该搭配组合适合注重吞吐量和CPU资源敏感的场合。 G1G1垃圾收集器在JDK7u4及之后的版本开始提供，通过参数-XX:+UseG1GC开启。 它的设计目标是为了适应现在不断扩大的内存和不断增加的处理器数量，进一步降低暂停时间（pause time），同时兼顾良好的吞吐量。 其特点有： 一款面向服务端应用的垃圾收集器； 具有并行并发、分代收集、空间整合以及可预测停顿的特点； 将整个Java堆分为多个大小相等的Region（1-32M，2的次幂，通过参数-XX:G1HeapRegionSize设置），统一进行管理。Region可以是S、Eden、Old等角色，底层保留新生代和老年代的概念，不再物理隔离，在运行中动态调整，不用预期按比例划分； 优先回收价值最大的Region，使得在有限时间内尽可能提高收集效率（Garbage First）。 参考资料 深入理解Java虚拟机：JVM高级特性与最佳实践 JVM内存管理 G1垃圾回收器详解]]></content>
       <categories>
         <category>编程语言</category>
       </categories>
@@ -276,8 +276,8 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>SQL</tag>
         <tag>Calcite</tag>
+        <tag>SQL</tag>
         <tag>优化器</tag>
       </tags>
   </entry>
@@ -335,8 +335,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>NoSQL</tag>
         <tag>redis</tag>
+        <tag>NoSQL</tag>
       </tags>
   </entry>
   <entry>
@@ -359,8 +359,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>HBase</tag>
         <tag>NoSQL</tag>
+        <tag>HBase</tag>
       </tags>
   </entry>
   <entry>
