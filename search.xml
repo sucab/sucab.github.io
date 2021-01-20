@@ -49,8 +49,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>SparkSQL</tag>
         <tag>Spark</tag>
+        <tag>SparkSQL</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
@@ -109,9 +109,9 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>Drill</tag>
         <tag>SQL引擎</tag>
         <tag>大数据</tag>
+        <tag>Drill</tag>
         <tag>MPP</tag>
       </tags>
   </entry>
@@ -211,9 +211,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
+        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
-        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
@@ -264,8 +264,7 @@
       </categories>
       <tags>
         <tag>JVM</tag>
-        <tag>Java</tag>
-        <tag>垃圾回收</tag>
+        <tag>GC</tag>
       </tags>
   </entry>
   <entry>
