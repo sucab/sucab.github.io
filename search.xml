@@ -67,9 +67,9 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
+        <tag>OLAP</tag>
         <tag>大数据</tag>
         <tag>数据库</tag>
-        <tag>OLAP</tag>
       </tags>
   </entry>
   <entry>
@@ -80,8 +80,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>SparkSQL</tag>
         <tag>Spark</tag>
+        <tag>SparkSQL</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
@@ -167,8 +167,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>AnalyticDB</tag>
         <tag>OLAP</tag>
+        <tag>AnalyticDB</tag>
       </tags>
   </entry>
   <entry>
@@ -242,9 +242,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
+        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
-        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
