@@ -1,8 +1,10 @@
 <!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.9.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="bigdata, ai, 中间件、算法、大数据、人工智能"><title>Ubuntu-linux学习笔记 | Tony's Notes</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">Ubuntu-linux学习笔记</h1><a id="logo" href="/.">Tony's Notes</a><p class="description">Stay Hungry, Stay Foolish</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">Ubuntu-linux学习笔记</h1><div class="post-meta">May 17, 2014<span> | </span><span class="category"><a href="/categories/读书笔记/">读书笔记</a></span><script src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 13.9k</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-hourglass-half"></i><span class="post-count"> 51</span><span class="post-meta-item-text"> 分钟</span></span></span></div><div class="post-content"><h1 id="一、ubuntu的安装"><a href="#一、ubuntu的安装" class="headerlink" title="一、ubuntu的安装"></a>一、ubuntu的安装</h1><ol>
 <li><strong>所需资源</strong>：（1）Ubuntu的iso文件，可从<a href="http://www.ubuntu.com/" target="_blank" rel="noopener">ubuntu官网</a>下载；(2)u盘刻录软件<a href="http://dl.pconline.com.cn/download/58150.html" target="_blank" rel="noopener">unetbootin</a>。</li>
-<li><strong>安装步骤</strong>：<ol>
+<li><p><strong>安装步骤</strong>：</p>
+<ol>
 <li>进入bois界面，设置usb优先启动，进入ubuntu的安装界面；</li>
-<li>一些简单的前期设置这里直接忽略，主要说明一下磁盘分区。<blockquote>
+<li><p>一些简单的前期设置这里直接忽略，主要说明一下磁盘分区。</p>
+<blockquote>
 <p>1）至少需要两个磁盘分区，分别用于创建”/“文件系统与交换分区。其中，linux系统使用交换分区提供虚拟内存，在一个32位的pc中，不超过2GB。2）若磁盘存储空间较大，可划分多个磁盘分区，在每一个磁盘分区中创建一个单独的文件系统，如/usr,/var,/home等文件系统，但不能把/bin,/dev/,/etc/,/lib,/root和/sbin目录作为单独的文件系统分区，这些目录应位于”/“文件系统分区中。3）若要创建多个磁盘分区，查阅分区要求与建议。</p>
 </blockquote>
 </li>
@@ -19,7 +21,8 @@
 </ol>
 </li>
 <li>Linux系统默认的命令解释程序是bash，GNU Bourne-Again Shell, 是GNU组织开发和推广的一个项目。</li>
-<li>一个命令由以下3部分内容组成，中间以空格或制表符等空白字符隔开，形如：<strong>&lt;命令名&gt; &lt;命令选项&gt; &lt;命令参数&gt;</strong><ol>
+<li><p>一个命令由以下3部分内容组成，中间以空格或制表符等空白字符隔开，形如：<strong>&lt;命令名&gt; &lt;命令选项&gt; &lt;命令参数&gt;</strong></p>
+<ol>
 <li>其中的命令选项以”-“开头，以”–”为起始标志的命令选项，称为<strong>GUN</strong>选项。除个别命令选项外，大部分”–”开头的是”-“的同义词，可替换使用。</li>
 </ol>
 </li>
@@ -33,10 +36,12 @@
 <li>后台形式，在命令执行同时，shell会立即输出命令提示符，等待用户输入新的命令。<strong>只要在命令的后面加上”&amp;”即可</strong>。</li>
 </ol>
 </li>
-<li>输入输出<ol>
+<li><p>输入输出</p>
+<ol>
 <li>从终端输入，这个数据输入源是标准输入<strong>stdin（0）</strong>；</li>
 <li>运行结果返回到终端屏幕上，这个输入目的是标准输出<strong>stdout（1）</strong>；</li>
-<li>运行期间的错误也显示在屏幕上<strong>stderr(2)</strong>。<blockquote>
+<li><p>运行期间的错误也显示在屏幕上<strong>stderr(2)</strong>。</p>
+<blockquote>
 <p><strong>注意</strong>：其中（n），n指文件描述符。Linux系统启动一个进程（该进程可能用于执行Shell命令）时，将自动为该进程打开三个文件：标准输入、标准输出和标准错误输出，分别由文件标识符0、1、2标识。</p>
 </blockquote>
 </li>
@@ -44,15 +49,18 @@
 </li>
 <li><p><strong>输入输出重定向</strong></p>
 <ol>
-<li><code>&lt;fname</code>，使用指定的文件作为标准输入（其文件描述符为0），以便从指定的文件中接收输入数据；<blockquote>
+<li><p><code>&lt;fname</code>，使用指定的文件作为标准输入（其文件描述符为0），以便从指定的文件中接收输入数据；</p>
+<blockquote>
 <p><code>wc -l &lt; io.txt</code>,表示将io.txt中的记录行数显示到屏幕终端。</p>
 </blockquote>
 </li>
-<li><code>&gt;fname</code>，使用指定的文件作为标准输出（其文件描述符为1），若文件不存在则新建，存在且noclobber标志已经设置，将产生错误，否则覆盖原文件中所有内容。若需要追加在原文件内容后面，需要用<code>&gt;&gt;fname</code>。<blockquote>
+<li><p><code>&gt;fname</code>，使用指定的文件作为标准输出（其文件描述符为1），若文件不存在则新建，存在且noclobber标志已经设置，将产生错误，否则覆盖原文件中所有内容。若需要追加在原文件内容后面，需要用<code>&gt;&gt;fname</code>。</p>
+<blockquote>
 <p>例如：<code>ls -l &gt; io.txt</code>,表示将当前目录下的所有文件信息写入io.txt文件中，若io.txt没有，则自动创建，存在则直接覆盖其中的内容。</p>
 </blockquote>
 </li>
-<li><code>&gt;|fname</code>,除了忽略noclobber标致之外，其功能与<code>&gt;fname</code>相同。<blockquote>
+<li><p><code>&gt;|fname</code>,除了忽略noclobber标致之外，其功能与<code>&gt;fname</code>相同。</p>
+<blockquote>
 <p>注意：&gt;|符号是强制覆盖文件的符号，它与Shell的noclobber选项有关系，如果noclobber选项开启，表示不允许覆盖任何文件，而&gt;|符号则可以不管noclobber选项的作用，强制将文件覆盖。<code>set -C noclobber</code>开启noclobber，<code>set +C noclobber</code>关闭noclobber。</p>
 </blockquote>
 </li>
@@ -64,7 +72,8 @@
 <li><code>&gt;&amp;-</code>，关闭标准输出，而”n&gt;&amp;-“则表示关闭输出文件描述符n。</li>
 <li><code>&lt;&amp;j</code>，把标准输入重定向到文件描述符j表示的输入文件中。</li>
 <li><code>&gt;&amp;j</code>，把标准输出重定向到文件描述符j表示的输出文件中。</li>
-<li><code>&amp;&gt;fname</code>，把标准输出和标准错误输出均重定向到指定的文件中。<blockquote>
+<li><p><code>&amp;&gt;fname</code>，把标准输出和标准错误输出均重定向到指定的文件中。</p>
+<blockquote>
 <p>以下I/O重定向符号”&lt;”或”&gt;”前面有一个数字，则表示相应的文件描述符对应的文件。</p>
 </blockquote>
 </li>
@@ -74,20 +83,24 @@
 <p><code>$ errfile=script.errors</code>(errfile就是文件描述符);<br><br><code>$ sss 2&gt;$errfile</code>，sss是错误指令，则输出错误信息，2被重定向到了errfile对应的文件中，故错误信息写在script.errors;<br><br><code>$ aaa 2&gt;&gt;$errfile</code>，继续追加错误信息；<br>cat script.errors，显示错误信息。</p>
 </blockquote>
 </li>
+</ol>
+</li>
 <li><p><code>i&gt;&amp;j</code>，把文件描述符i表示的输出文件重定向到文件描述符j表示的文件中。例如：</p>
-<blockquote>
-<p><code>command &gt;command.log 2&gt;&amp;1</code>，标准输出和标准错误输出都重定向到同一个文件中<br><br><code>$ echo &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code><br><br><code>$ sss &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code></p>
+<pre><code>&gt; `command &gt;command.log 2&gt;&amp;1`，标准输出和标准错误输出都重定向到同一个文件中&lt;br&gt;
+</code></pre><blockquote>
+<p><code>$ echo &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code><br><br><code>$ sss &quot;hello&quot; &gt;&gt; command.log 2&gt;&amp;1</code></p>
 </blockquote>
-</li>
-<li><p><code>[j]&lt;&gt;fname</code>，以读写方式打开指定的文件，并把文件描述符j分配到指定的文件。如果文件不存在，则创建该文件。如果未指定文件描述符j，则表示默认的文件描述符0，即标准输入。</p>
-</li>
+<ol start="17">
+<li><code>[j]&lt;&gt;fname</code>，以读写方式打开指定的文件，并把文件描述符j分配到指定的文件。如果文件不存在，则创建该文件。如果未指定文件描述符j，则表示默认的文件描述符0，即标准输入。</li>
 </ol>
 </li>
 <li><p><strong>管道</strong></p>
 <ol>
 <li>基本概念：在linux系统中，<strong>管道</strong>是一种先进先出的单向数据通路。是一种特殊的管道重定向。</li>
-<li>用途：<ol>
-<li><span class="red-back">利用管道符号”|”,可以把一个命令的标准输出连接到另一个命令的标准输入。</span>例如：<blockquote>
+<li><p>用途：</p>
+<ol>
+<li><p><span class="red-back">利用管道符号”|”,可以把一个命令的标准输出连接到另一个命令的标准输入。</span>例如：</p>
+<blockquote>
 <p><code>ls /usr | wc -w</code>，统计/usr目录下文件的数量（利用管道把ls和wc两个命令连接在一起）<br> 传统的方法，是利用一个中间临时文件，如<code>ls /usr &gt; file.tmp ; wc -w &lt; file.tmp</code>。</p>
 </blockquote>
 </li>
@@ -98,13 +111,16 @@
 </li>
 </ol>
 </li>
-<li>元字符与文件名生成<ol>
+<li><p>元字符与文件名生成</p>
+<ol>
 <li>linux中，很多命令采用文件名作为命令参数，例如：<blockquote>
 <p><code>$ ls -l io.txt</code><br><br><code>-rw-rw-r-- 1 sucab sucab 12 5月 14 10：42 io.txt</code></p>
 </blockquote>
 </li>
-<li>Shell支持的与文件名生成有关的元字符极其说明。注意，元字符可以组合使用。<ol>
-<li><code>*</code>，可以匹配任何数量的字符或字符串，包括空字符串。例如：<blockquote>
+<li><p>Shell支持的与文件名生成有关的元字符极其说明。注意，元字符可以组合使用。</p>
+<ol>
+<li><p><code>*</code>，可以匹配任何数量的字符或字符串，包括空字符串。例如：</p>
+<blockquote>
 <p><code>ls -l *.txt</code>，列出所有<code>.txt</code>为文件后缀名的txt文件。<code>su*</code>，表示任何一个以”su”为起始的字符串。</p>
 </blockquote>
 </li>
@@ -183,7 +199,8 @@
 <li>在任何目录位置，在路径名中使用”..”，可以往上攀升系统的目录层次。</li>
 </ol>
 </li>
-<li>树形层次结构<ol>
+<li><p>树形层次结构</p>
+<ol>
 <li><code>-/</code><br></li>
 <li><code>--/bin</code>，<span class="red-back">其中包含系统、系统管理员和普通用户可以共享的各种通用程序，如cat、cp、mv、mkdir、rm、ls及ps等常用的基本命令，以及如bash等的各种shell。</span><br></li>
 <li><code>--/boot</code>，其中包含系统引导程序、linux内核程序文件vmlinuz、磁盘内存印象文件initrd以及GRUB初始引导程序和配置文件等。<br></li>
@@ -201,7 +218,8 @@
 <li><code>--/media</code>，移动存储介质的安装点，当利用GNOME界面安装移动存储介质时，系统将会自动地把移动介质安装到此目录下的某个子目录中。<br></li>
 <li><code>--/mnt</code>，文件系统的临时安装点。<br></li>
 <li><code>--/opt</code>，应用程序等附加软件的安装目录。<br></li>
-<li><code>--/proc</code>，进程文件系统proc的根目录，其中的部分文件分别对应当前正在运行的进程，可用于访问当前进程的地址空间。<br><blockquote>
+<li><p><code>--/proc</code>，进程文件系统proc的根目录，其中的部分文件分别对应当前正在运行的进程，可用于访问当前进程的地址空间。<br></p>
+<blockquote>
 <p><code>----/net</code>，其中的文件分别表示各种网络协议（如tcp，udp及arp等）的状态与统计信息。<br></p>
 </blockquote>
 </li>
@@ -232,7 +250,8 @@
 <li>管道文件</li>
 </ol>
 </li>
-<li><span class="red-back">文件保护机制</span><ol>
+<li><p><span class="red-back">文件保护机制</span></p>
+<ol>
 <li>linux系统把用户分为三类：<ol>
 <li>文件属主</li>
 <li>同组用户</li>
@@ -249,7 +268,8 @@
 <p><code>$ ls -l /bin</code>，查看对bin目录的访问权限<br><br><code>drwxr-xr-x 2 root root 4096 5月 9 05：47 /bin</code><br><br>d表示文件类型为目录，rwx r-x r-x表示文件属主的访问权限为rwx、同组用户的访问权限为r-x、其他用户的访问权限为r-x。</p>
 </blockquote>
 </li>
-<li><span class="red-back">修改文件的访问权限</span><ol>
+<li><p><span class="red-back">修改文件的访问权限</span></p>
+<ol>
 <li>前提条件<ol>
 <li>用户必须是文件或目录的属主</li>
 <li>或超级用户</li>
@@ -266,8 +286,10 @@
 </li>
 </ol>
 </li>
-<li>其他访问权限设置<ol>
-<li>默认权限：无论何时创建一个文件，linux系统通常会为用户设置一个默认的访问权限。用<span class="red-back">umask</span>命令。<blockquote>
+<li><p>其他访问权限设置</p>
+<ol>
+<li><p>默认权限：无论何时创建一个文件，linux系统通常会为用户设置一个默认的访问权限。用<span class="red-back">umask</span>命令。</p>
+<blockquote>
 <p>格式，<code>umask [-S] [nnn]</code>，这个[nnn]与chmod命令中的numcode相反，在对应位上设置1，即为撤销该权限。如000 000 000，设置为000 010 010，即为022，表示u有rwx权限，g有r-x权限，o有r-x权限。</p>
 </blockquote>
 </li>
@@ -308,19 +330,16 @@
 </ol>
 </li>
 <li><p><strong>复制文件</strong></p>
-<ol>
-<li><code>cp [-ir] source_file target_file</code>，其中，<code>-i</code>表示交互复制方式。例如，要将src文件拷贝到target文件时，如果target文件存在，则给出提示信息，是否要覆盖已有的文件。<code>-r</code>表示递归操作，就是如果src是目录文件，则将目录中的子目录递归复制，拷贝到目标文件中。</li>
-</ol>
+</li>
+<li><p><code>cp [-ir] source_file target_file</code>，其中，<code>-i</code>表示交互复制方式。例如，要将src文件拷贝到target文件时，如果target文件存在，则给出提示信息，是否要覆盖已有的文件。<code>-r</code>表示递归操作，就是如果src是目录文件，则将目录中的子目录递归复制，拷贝到目标文件中。</p>
 </li>
 <li><p><strong>移动文件</strong></p>
-<ol>
-<li><code>mv [-fi] source_file target_file</code>，把文件从一个目录移动到另外一个目录中，或者重新命名一个文件。<code>-f</code>表示强制移动或改名（force），<code>-i</code>用于交互，给出目标文件存在时的提示信息。</li>
-</ol>
+</li>
+<li><p><code>mv [-fi] source_file target_file</code>，把文件从一个目录移动到另外一个目录中，或者重新命名一个文件。<code>-f</code>表示强制移动或改名（force），<code>-i</code>用于交互，给出目标文件存在时的提示信息。</p>
 </li>
 <li><p><strong>删除文件</strong></p>
-<ol>
-<li><code>rm [-rfi] [file]</code>，<code>-r</code>表示递归地删除目录中的文件及目录本身；<code>-i</code>表示交互操作，询问是否真的要删除；<code>-f</code>表示强制删除，即使不存在该文件，也不会输出任何信息。</li>
-</ol>
+</li>
+<li><p><code>rm [-rfi] [file]</code>，<code>-r</code>表示递归地删除目录中的文件及目录本身；<code>-i</code>表示交互操作，询问是否真的要删除；<code>-f</code>表示强制删除，即使不存在该文件，也不会输出任何信息。</p>
 </li>
 <li><p><strong>改换目录</strong></p>
 <ol>
@@ -364,15 +383,16 @@
 </li>
 <li><p><strong>检索文件内容</strong></p>
 <ol>
-<li>利用grep检索文件内容<ol>
+<li><p>利用grep检索文件内容</p>
+<ol>
 <li>检索文件中的特定字符串，<code>grep [-inv] string file</code>，其中，<code>-i</code>表示忽略字母大小写，<code>-n</code>表示在输出结果之前给出文本行所在文件中的行号，<code>-v</code>表示检索不包含个i定字符串或模式的所有文本行。<code>string</code>是一个检索模式。检索模式可以是一个准备检索的字符串、一个单词或词语。</li>
 </ol>
 </li>
 <li>在grep中使用正则表达式<ol>
 <li>在grep中可使用简单的正则表示，复杂的模式匹配需要使用egrep；</li>
-<li><hr>
-</li>
 </ol>
+</li>
+<li><hr>
 </li>
 </ol>
 </li>
@@ -737,22 +757,28 @@
 </ol>
 </li>
 <li>相关概念：当用户注册到系统之后，用户的工作环境是由选定的命令解释程序和相应的用户初始化文件确定的。因此，<strong>用户管理的另一个任务是选择作为用户界面的命令解释程序和用户初始化文件。</strong></li>
-<li>选择命令解释程序<ol>
+<li><p>选择命令解释程序</p>
+<ol>
 <li>linux系统配备的标准命令解释程序是bash，但同时也支持korn shell(ksh)，基于C shell的TC shell（tcsh）以及Z shell（zsh）等，可以自由选用。</li>
-<li>/etc/shells中列出了ubuntu linux系统支持的所有命令解释程序，下面介绍4个常见的：<ol>
-<li><strong>Bourne Again Shell</strong><blockquote>
+<li><p>/etc/shells中列出了ubuntu linux系统支持的所有命令解释程序，下面介绍4个常见的：</p>
+<ol>
+<li><p><strong>Bourne Again Shell</strong></p>
+<blockquote>
 <p>bash是基于POSIX 1003.2标准开发的一个免费版的shell，与Bourne shell和korn shell一脉相承，在功能上有较大的提高。bash，支持emacs与vi两种命令行编辑功能，支持历史命令、命令别名和作业控制等机制。因此，Bash是linux系统首选的shell。</p>
 </blockquote>
 </li>
-<li><strong>Korn shell</strong><blockquote>
+<li><p><strong>Korn shell</strong></p>
+<blockquote>
 <p>(/bin/ksh)是Unix系统中继Bourne shell与C shell之后推出的第3个著名的shell。Korn shell以Borne shell为基础，同时充分吸纳了C shell的优点，极大增强和丰富了Bourne Shell的基础功能。</p>
 </blockquote>
 </li>
-<li><strong>TC shell</strong><blockquote>
+<li><p><strong>TC shell</strong></p>
+<blockquote>
 <p>C shell原为BSD版unix系统的命令解释程序，由加州大学伯克利分校计算机系的Bill Joy开发。TC shell（/bin/tcsh）是在C shell的基础上开发的，继承并发展了C shell的全部功能特性。但与bash 和korn shell等Bourne系列的shell不兼容。</p>
 </blockquote>
 </li>
-<li><strong>Z shell</strong><blockquote>
+<li><p><strong>Z shell</strong></p>
+<blockquote>
 <p>同上述的shell一样，zsh既是一个交互式的命令解释程序，也是一个强有力的编程语言。zsh吸收并集成了bash、ksh以及tcsh等shell的许多功能特性，能够提高用户与linux系统交互的效率，非常适合用作交互式shell。zsh是上述shell的超集。</p>
 </blockquote>
 </li>
@@ -775,7 +801,7 @@
     }
 </style>
 
-</div><iframe src="/donate/?AliPayQR=/uploads/alipay.png&amp;WeChatQR=null&amp;GitHub=null&amp;BTCQR=null&amp;BTCKEY=null&amp;PayPal=null" style="overflow-x:hidden; overflow-y:hidden; border:0xp none #fff; min-height:240px; width:100%;" frameborder="0" scrolling="no"></iframe><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a class="article-share-link" data-url="http://changbo.tech/blog/d563d963.html" data-id="ck6xdt7050030roujiiub8y9r" data-qrcode="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAK4AAACuCAAAAACKZ2kyAAABwUlEQVR42u3aS27DMAwFwNz/0i7QVReN8kh9bASjlSE41igLQiT1esXj+h1/n/OZZH7xwMXFneZew1F9590Gqtt4uyVcXNyD3CR4vVs4+VUS+MYGXFzcZ3Lzo8n4HVxc3O/jjg8lM0ccXFzcp3GriU0SmG7O1XBxcSe4vYLp2uft9V1cXNxFXYk8tFWDUXNdXFzcI9xq+aNXFhknNuVCKi4u7mZuNV2ptlLG83lqhIuLexe310rpbbi5eVxc3IPcapukR8lDWyFXw8XF3cBNXt3Rjq1yC8VTXFzcae7MMtVW60yihYuLe5KbJx69KxG9Sxsf6Li4uJu5eWLT69IUkplkXVxc3IPcVVGiVzQptHZwcXFv5c4kMHkyk5ddcHFxT3ILVx+KX6j+NeVECxcXdxs3b6PmG8tnkg1EPWFcXNyl3Gq5My+tFlojrWIrLi7uPu5VHDPhqdee+XDEwcXF3cCdj4LNpkgc/nBxce/iJsFr5nCTXMMqXNLCxcU9yJ1Jfo6WX3FxcR/JnW+y5l/GxcV9PrfaWO0lOVE3GBcX9wi3mvzkSct42wsuYeDi4m7griqYJsGuGvI21ndxcXH/5/4AenD8M20bht8AAAAASUVORK5CYII=">分享</a><div class="tags"><a href="/tags/linux/">linux</a></div><div class="post-nav"><a class="pre" href="/blog/fa1b3b3e.html">我的书单</a><a class="next" href="/blog/d0befed5.html">Hadoop Ecosystem介绍</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Calcite/">Calcite</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/HBase/">HBase</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Hadoop/">Hadoop</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Java/">Java</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Nginx/">Nginx</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Redis/">Redis</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/kubernetes/">kubernetes</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/个人日志/">个人日志</a><span class="category-list-count">5</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/存储引擎/">存储引擎</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/并发编程/">并发编程</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/开源/">开源</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/技术管理/">技术管理</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据库/">数据库</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据结构/">数据结构</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/服务器硬件/">服务器硬件</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/算法/">算法</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/计算引擎/">计算引擎</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/读书笔记/">读书笔记</a><span class="category-list-count">6</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/DRILL/" style="font-size: 15px;">DRILL</a> <a href="/tags/大数据/" style="font-size: 15px;">大数据</a> <a href="/tags/B-树/" style="font-size: 15px;">B+树</a> <a href="/tags/职场感悟/" style="font-size: 15px;">职场感悟</a> <a href="/tags/技术管理/" style="font-size: 15px;">技术管理</a> <a href="/tags/查询计划/" style="font-size: 15px;">查询计划</a> <a href="/tags/开源/" style="font-size: 15px;">开源</a> <a href="/tags/Hadoop/" style="font-size: 15px;">Hadoop</a> <a href="/tags/jvm/" style="font-size: 15px;">jvm</a> <a href="/tags/垃圾回收/" style="font-size: 15px;">垃圾回收</a> <a href="/tags/HBase/" style="font-size: 15px;">HBase</a> <a href="/tags/InnoDB/" style="font-size: 15px;">InnoDB</a> <a href="/tags/RocksDB/" style="font-size: 15px;">RocksDB</a> <a href="/tags/LSM树/" style="font-size: 15px;">LSM树</a> <a href="/tags/存储引擎/" style="font-size: 15px;">存储引擎</a> <a href="/tags/Nginx/" style="font-size: 15px;">Nginx</a> <a href="/tags/正向代理/" style="font-size: 15px;">正向代理</a> <a href="/tags/反向代理/" style="font-size: 15px;">反向代理</a> <a href="/tags/SQL/" style="font-size: 15px;">SQL</a> <a href="/tags/redis/" style="font-size: 15px;">redis</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/Calcite/" style="font-size: 15px;">Calcite</a> <a href="/tags/大数据计算引擎/" style="font-size: 15px;">大数据计算引擎</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a> <a href="/tags/算法/" style="font-size: 15px;">算法</a> <a href="/tags/helm/" style="font-size: 15px;">helm</a> <a href="/tags/kubernetes/" style="font-size: 15px;">kubernetes</a> <a href="/tags/Intel/" style="font-size: 15px;">Intel</a> <a href="/tags/ARM/" style="font-size: 15px;">ARM</a> <a href="/tags/X86/" style="font-size: 15px;">X86</a> <a href="/tags/硬件/" style="font-size: 15px;">硬件</a> <a href="/tags/RAID/" style="font-size: 15px;">RAID</a> <a href="/tags/服务器/" style="font-size: 15px;">服务器</a> <a href="/tags/数据库/" style="font-size: 15px;">数据库</a> <a href="/tags/行列存储/" style="font-size: 15px;">行列存储</a> <a href="/tags/java/" style="font-size: 15px;">java</a> <a href="/tags/并发/" style="font-size: 15px;">并发</a> <a href="/tags/AnalyticDB/" style="font-size: 15px;">AnalyticDB</a> <a href="/tags/OLAP/" style="font-size: 15px;">OLAP</a> <a href="/tags/博客/" style="font-size: 15px;">博客</a> <a href="/tags/IT资讯/" style="font-size: 15px;">IT资讯</a> <a href="/tags/Java/" style="font-size: 15px;">Java</a> <a href="/tags/故障诊断/" style="font-size: 15px;">故障诊断</a> <a href="/tags/架构/" style="font-size: 15px;">架构</a> <a href="/tags/大数据meetup/" style="font-size: 15px;">大数据meetup</a> <a href="/tags/论文/" style="font-size: 15px;">论文</a> <a href="/tags/书籍/" style="font-size: 15px;">书籍</a> <a href="/tags/正则表达式/" style="font-size: 15px;">正则表达式</a> <a href="/tags/TopK/" style="font-size: 15px;">TopK</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/blog/8c6d7818.html">DRILL性能识别和调优</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/1d1f5c7b.html">我的论文</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/9ff3ee6b.html">数据库之行列存储简介</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/e3ee66c7.html">Paper翻译 AnalyticDB Real-time OLAP Database System at Alibaba Cloud</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/5e4c4347.html">读《阿里工程师自我修养》笔记</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/77a95856.html">数据结构与算法概览</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/d8653a22.html">服务器硬件基础知识介绍</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/6c12eb0c.html">每周算法之TopK问题</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/8600073b.html">大数据平台体系介绍</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/2b3a4d7d.html">InnoDB和RocksDB存储引擎解析</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://changbo.tech/blog/ec4cdf4c.html" title="行业博客" target="_blank">行业博客</a><ul></ul><a href="https://leetcode-cn.com/" title="leetcode" target="_blank">leetcode</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2020 <a href="/." rel="nofollow">Tony's Notes.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
+</div><iframe src="/donate/?AliPayQR=/uploads/alipay.png&amp;WeChatQR=null&amp;GitHub=null&amp;BTCQR=null&amp;BTCKEY=null&amp;PayPal=null" style="overflow-x:hidden; overflow-y:hidden; border:0xp none #fff; min-height:240px; width:100%;" frameborder="0" scrolling="no"></iframe><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a class="article-share-link" data-url="http://changbo.tech/blog/d563d963.html" data-id="cksddoxu7004jiwvxuu56c48i" data-qrcode="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAK4AAACuCAAAAACKZ2kyAAABwUlEQVR42u3aS27DMAwFwNz/0i7QVReN8kh9bASjlSE41igLQiT1esXj+h1/n/OZZH7xwMXFneZew1F9590Gqtt4uyVcXNyD3CR4vVs4+VUS+MYGXFzcZ3Lzo8n4HVxc3O/jjg8lM0ccXFzcp3GriU0SmG7O1XBxcSe4vYLp2uft9V1cXNxFXYk8tFWDUXNdXFzcI9xq+aNXFhknNuVCKi4u7mZuNV2ptlLG83lqhIuLexe310rpbbi5eVxc3IPcapukR8lDWyFXw8XF3cBNXt3Rjq1yC8VTXFzcae7MMtVW60yihYuLe5KbJx69KxG9Sxsf6Li4uJu5eWLT69IUkplkXVxc3IPcVVGiVzQptHZwcXFv5c4kMHkyk5ddcHFxT3ILVx+KX6j+NeVECxcXdxs3b6PmG8tnkg1EPWFcXNyl3Gq5My+tFlojrWIrLi7uPu5VHDPhqdee+XDEwcXF3cCdj4LNpkgc/nBxce/iJsFr5nCTXMMqXNLCxcU9yJ1Jfo6WX3FxcR/JnW+y5l/GxcV9PrfaWO0lOVE3GBcX9wi3mvzkSct42wsuYeDi4m7griqYJsGuGvI21ndxcXH/5/4AenD8M20bht8AAAAASUVORK5CYII=">分享</a><div class="tags"><a href="/tags/linux/">linux</a></div><div class="post-nav"><a class="pre" href="/blog/fa1b3b3e.html">我的书单</a><a class="next" href="/blog/d0befed5.html">Hadoop Ecosystem介绍</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/个人日志/">个人日志</a><span class="category-list-count">9</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/云原生/">云原生</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/分布式/">分布式</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/存储引擎/">存储引擎</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据库与大数据/">数据库与大数据</a><span class="category-list-count">8</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据结构与算法/">数据结构与算法</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/服务器/">服务器</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/编程语言/">编程语言</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/计算引擎/">计算引擎</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/论文阅读/">论文阅读</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/读书笔记/">读书笔记</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/运维工具/">运维工具</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/项目管理/">项目管理</a><span class="category-list-count">1</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/OLAP/" style="font-size: 15px;">OLAP</a> <a href="/tags/B-树/" style="font-size: 15px;">B+树</a> <a href="/tags/职场感悟/" style="font-size: 15px;">职场感悟</a> <a href="/tags/技术管理/" style="font-size: 15px;">技术管理</a> <a href="/tags/开源协议/" style="font-size: 15px;">开源协议</a> <a href="/tags/Drill/" style="font-size: 15px;">Drill</a> <a href="/tags/查询计划/" style="font-size: 15px;">查询计划</a> <a href="/tags/SQL引擎/" style="font-size: 15px;">SQL引擎</a> <a href="/tags/大数据/" style="font-size: 15px;">大数据</a> <a href="/tags/MPP/" style="font-size: 15px;">MPP</a> <a href="/tags/HBase/" style="font-size: 15px;">HBase</a> <a href="/tags/NoSQL/" style="font-size: 15px;">NoSQL</a> <a href="/tags/Hive/" style="font-size: 15px;">Hive</a> <a href="/tags/Hadoop/" style="font-size: 15px;">Hadoop</a> <a href="/tags/Java/" style="font-size: 15px;">Java</a> <a href="/tags/类加载器/" style="font-size: 15px;">类加载器</a> <a href="/tags/Nginx/" style="font-size: 15px;">Nginx</a> <a href="/tags/正向代理/" style="font-size: 15px;">正向代理</a> <a href="/tags/反向代理/" style="font-size: 15px;">反向代理</a> <a href="/tags/InnoDB/" style="font-size: 15px;">InnoDB</a> <a href="/tags/RocksDB/" style="font-size: 15px;">RocksDB</a> <a href="/tags/LSM树/" style="font-size: 15px;">LSM树</a> <a href="/tags/存储引擎/" style="font-size: 15px;">存储引擎</a> <a href="/tags/JVM/" style="font-size: 15px;">JVM</a> <a href="/tags/GC/" style="font-size: 15px;">GC</a> <a href="/tags/Kylin/" style="font-size: 15px;">Kylin</a> <a href="/tags/业务/" style="font-size: 15px;">业务</a> <a href="/tags/SparkSQL/" style="font-size: 15px;">SparkSQL</a> <a href="/tags/redis/" style="font-size: 15px;">redis</a> <a href="/tags/Spark/" style="font-size: 15px;">Spark</a> <a href="/tags/SQL/" style="font-size: 15px;">SQL</a> <a href="/tags/helm/" style="font-size: 15px;">helm</a> <a href="/tags/kubernetes/" style="font-size: 15px;">kubernetes</a> <a href="/tags/Calcite/" style="font-size: 15px;">Calcite</a> <a href="/tags/优化器/" style="font-size: 15px;">优化器</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/CBO/" style="font-size: 15px;">CBO</a> <a href="/tags/算法复杂度/" style="font-size: 15px;">算法复杂度</a> <a href="/tags/数据库/" style="font-size: 15px;">数据库</a> <a href="/tags/分布式事务/" style="font-size: 15px;">分布式事务</a> <a href="/tags/ACID/" style="font-size: 15px;">ACID</a> <a href="/tags/CAP/" style="font-size: 15px;">CAP</a> <a href="/tags/Raft/" style="font-size: 15px;">Raft</a> <a href="/tags/分布式一致性/" style="font-size: 15px;">分布式一致性</a> <a href="/tags/AnalyticDB/" style="font-size: 15px;">AnalyticDB</a> <a href="/tags/行列存储/" style="font-size: 15px;">行列存储</a> <a href="/tags/Catalyst/" style="font-size: 15px;">Catalyst</a> <a href="/tags/Intel/" style="font-size: 15px;">Intel</a> <a href="/tags/ARM/" style="font-size: 15px;">ARM</a> <a href="/tags/X86/" style="font-size: 15px;">X86</a> <a href="/tags/硬件/" style="font-size: 15px;">硬件</a> <a href="/tags/RAID/" style="font-size: 15px;">RAID</a> <a href="/tags/服务器/" style="font-size: 15px;">服务器</a> <a href="/tags/java/" style="font-size: 15px;">java</a> <a href="/tags/并发编程/" style="font-size: 15px;">并发编程</a> <a href="/tags/窗口函数/" style="font-size: 15px;">窗口函数</a> <a href="/tags/大数据meetup/" style="font-size: 15px;">大数据meetup</a> <a href="/tags/博客/" style="font-size: 15px;">博客</a> <a href="/tags/IT资讯/" style="font-size: 15px;">IT资讯</a> <a href="/tags/故障诊断/" style="font-size: 15px;">故障诊断</a> <a href="/tags/架构/" style="font-size: 15px;">架构</a> <a href="/tags/正则表达式/" style="font-size: 15px;">正则表达式</a> <a href="/tags/书籍/" style="font-size: 15px;">书籍</a> <a href="/tags/论文/" style="font-size: 15px;">论文</a> <a href="/tags/TopK/" style="font-size: 15px;">TopK</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a> <a href="/tags/算法/" style="font-size: 15px;">算法</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/blog/6d27f500.html">Java类加载机制</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/b9b847a8.html">SparkSQL业务分析集锦</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/bfe7107d.html">OLAP引擎-Kylin基本介绍</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/ce4ffa9b.html">Hive性能调优实践</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/19c2ab93.html">Spark性能调优实战</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/c50a937d.html">PMP实践之路</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/7dec2e4.html">Calcite处理和扩展流程解析</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/4c70dee6.html">分布式事务与一致性</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/75c48487.html">2020-DTCC-参会分享</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/8fd5028b.html">SparkSQL窗口函数实操</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://changbo.tech/blog/ec4cdf4c.html" title="行业博客" target="_blank">行业博客</a><ul></ul><a href="https://leetcode-cn.com/" title="leetcode" target="_blank">leetcode</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2021 <a href="/." rel="nofollow">Tony's Notes.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
 if (search_path.length == 0) {
    search_path = 'search.xml';
 }
