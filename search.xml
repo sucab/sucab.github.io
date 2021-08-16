@@ -963,8 +963,8 @@
 <td style="text-align:left">领在前面才容易导，这就是领导。于说服别人不光用嘴巴，还要让你的行动走在前面来证明，这样才能发挥你的领导力。</td>
 </tr>
 <tr>
-<td style="text-align:center"></td>
-<td style="text-align:left"></td>
+<td style="text-align:center">20</td>
+<td style="text-align:left">员工价值=能力×价值观×心智模式。<br>这个公式告诉我们，提升自己有三个大的努力方向：<br>第一个是提升个人能力<br>第二个是树立与公司一致的价值观<br>第三个是改善自己的心智模式。</td>
 </tr>
 <tr>
 <td style="text-align:center"></td>
@@ -2753,8 +2753,8 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>Drill</tag>
         <tag>SQL引擎</tag>
+        <tag>Drill</tag>
         <tag>大数据</tag>
         <tag>MPP</tag>
       </tags>
@@ -3976,9 +3976,9 @@
 <ul>
 <li><p>是一种获取<strong>最短回收提顿时间</strong>为目标的收集器<strong>，侧重服务的响应速度</strong>，也被称为<strong>并发低停顿收集器</strong>。</p>
 <ul>
-<li>初始标记：找到GCRoot第一层扫描，STW很短，一个GC线程；</li>
+<li><strong>初始标记</strong>：找到GCRoot第一层扫描，<strong>STW很短</strong>，一个GC线程；</li>
 <li>并发标记：GC和用户线程同时，一个GC线程；</li>
-<li>重新标记：有STW，<strong>多个GC线程</strong>；</li>
+<li><strong>重新标记</strong>：<strong>有STW</strong>，<strong>多个GC线程</strong>；</li>
 <li>并发清理：GC和用户线程同时，一个GC线程。</li>
 </ul>
 </li>
@@ -3999,13 +3999,16 @@
 <li>是Parallel Scavenge的老年代版本，使用<strong>多线程和标记整理算法</strong>；</li>
 <li>该搭配组合<strong>适合注重吞吐量和CPU资源敏感</strong>的场合。</li>
 </ul>
-<h4 id="G1"><a href="#G1" class="headerlink" title="G1"></a>G1</h4><p>G1垃圾收集器在JDK7u4及之后的版本开始提供，通过参数<code>-XX:+UseG1GC</code>开启。 </p>
-<p>它的设计目标是为了<strong>适应现在不断扩大的内存和不断增加的处理器数量</strong>，进一步降低暂停时间（pause time），同时兼顾良好的吞吐量。</p>
+<h4 id="G1"><a href="#G1" class="headerlink" title="G1"></a>G1</h4><p>G1垃圾收集器在JDK7u4及之后的版本开始提供，通过参数<code>-XX:+UseG1GC</code>开启。 它的设计目标是为了<strong>适应现在不断扩大的内存和不断增加的处理器数量</strong>，进一步降低暂停时间（pause time），同时兼顾良好的吞吐量。</p>
 <p>其特点有：</p>
 <ul>
-<li><p>一款面向服务端应用的垃圾收集器；</p>
-</li>
-<li><p>具有并行并发、分代收集、空间整合以及可预测停顿的特点；</p>
+<li>一款面向服务端应用的垃圾收集器，基于Region的GC，适用于大内存机器。即使内存很大，Region扫描，性能还是很高的；</li>
+<li>具有并行并发、分代收集、空间整合以及可预测停顿的特点：<ul>
+<li><strong>初始标记</strong>：标记一下GC Roots能直接关联到的对象，伴随着一次普通的Young GC发生，并修改NTAMS（Next Top at Mark Start）的值，让下一阶段用户程序并发运行时，能在正确可用的Region中创建新对象，<strong>存在STW操作</strong>；</li>
+<li>并发标记：是从GC Roots开始堆中对象进行可达性分析，找出存活的对象，这阶段耗时较长，但可与用户程序并发执行，该阶段可以被Young GC中断;</li>
+<li><strong>最终标记</strong>：是<strong>为了修正并发标记期间因用户程序继续运作而导致标记产生变动的那一部分标记记录</strong>，虚拟机将这段时间对象变化记录在线程Remembered Set Logs里面，最终标记阶段需要把Remembered Set Logs的数据合并到Remembered Set中，<strong>此阶段是stop-the-world操作</strong>，使用snapshot-at-the-beginning (SATB) 算法;</li>
+<li>筛选回收：<strong>首先对各个Region的回收价值和成本进行排序，根据用户所期望的GC停顿时间来制定回收计划，回收没有存活对象的Region并加入可用Region队列</strong>。这个阶段也可以做到与用户程序一起并发执行，但是因为只回收一部分Region，时间是用户可控制的，而且停顿用户线程将大幅提高收集效率。</li>
+</ul>
 </li>
 <li>将整个Java堆分为多个大小相等的<strong>Region</strong>（1-32M，2的次幂，通过参数<code>-XX:G1HeapRegionSize</code>设置），统一进行管理。<strong>Region可以是S、Eden、Old等角色</strong>，底层保留新生代和老年代的概念，不再物理隔离，在运行中动态调整，不用预期按比例划分；</li>
 <li>优先回收价值最大的Region，使得在有限时间内尽可能提高收集效率（Garbage First）。</li>
@@ -4014,6 +4017,9 @@
 <li><a href="http://book.douban.com/subject/6522893/" target="_blank" rel="noopener">深入理解Java虚拟机：JVM高级特性与最佳实践</a></li>
 <li><a href="http://www.cnblogs.com/zuoxiaolong/p/jvm9.html" target="_blank" rel="noopener">JVM内存管理</a></li>
 <li><a href="https://www.jianshu.com/p/aef0f4765098" target="_blank" rel="noopener">G1垃圾回收器详解</a></li>
+<li><a href="https://snailclimb.gitee.io/javaguide/#/docs/java/jvm/JVM%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6?id=_47-g1-%e6%94%b6%e9%9b%86%e5%99%a8" target="_blank" rel="noopener">JVM垃圾回收</a>，JavaGuide</li>
+<li><a href="https://mp.weixin.qq.com/s/fhC5X7eNLmZxeCH9b9cS6A" target="_blank" rel="noopener">一篇文章彻底搞懂CMS与G1</a></li>
+<li><a href="https://www.jianshu.com/p/ab54489f5d71?utm_campaign=haruki&amp;utm_content=note&amp;utm_medium=reader_share&amp;utm_source=weixin" target="_blank" rel="noopener">CMS与G1的区别</a></li>
 </ul>
 ]]></content>
       <categories>
@@ -4055,6 +4061,9 @@
 <li>对于大SQL中的组合条件嵌套不可以太深，否则会导致SQL解析器报栈溢出；</li>
 <li>Calcite作为计算框架的SQL引擎，除了下推到底层存储的算子操作，其他都是在内存中计算的，因此对资源的要求比较高；</li>
 <li>同样的SQL或者预编译SQL生成的物理执行计划，目前发现JVM装载完成后并没有复用，持续的查询反而造成了方法区Class暴增，导致permgen overflow。然后，修改源码将每次创建的Statement强制关闭，使得FullGC时Class可以被unload，避免permgen overflow。（该问题17年csdn上提问，18年<a href="https://ask.csdn.net/questions/361852?spm=1001.2014.3001.5501" target="_blank" rel="noopener">有网友回复</a>）</li>
+</ul>
+<h3 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h3><ul>
+<li><a href="https://biz.51cto.com/art/201906/598280.htm" target="_blank" rel="noopener">一次性搞清楚线上CPU100%，频繁FullGC排查套路</a></li>
 </ul>
 ]]></content>
       <categories>
