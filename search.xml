@@ -45,6 +45,8 @@
 <li><a href="https://cloud.tencent.com/developer/article/1356060" target="_blank" rel="noopener">理解ClassNotFoundException与NoClassDefFoundError的区别</a></li>
 <li><a href="https://www.sofastack.tech/projects/sofa-boot/sofa-ark-readme/" target="_blank" rel="noopener">SOAFArk</a>，Java轻量级隔离容器，蚂蚁金服开源</li>
 <li><a href="https://blog.csdn.net/yangcheng33/article/details/52631940" target="_blank" rel="noopener">真正理解线程上下文类加载器（多案例分析）</a></li>
+<li><a href="https://mp.weixin.qq.com/s/JXHsdLwujT0pRKIImA1-3g" target="_blank" rel="noopener">Java 多线程上下文传递在复杂场景下的实践</a>，vivo</li>
+<li><a href="https://mp.weixin.qq.com/s/mNfrgq9IC_4iPGBdt-1Qdg" target="_blank" rel="noopener">详解Apache Dubbo的SPI实现机制</a>， vivo</li>
 </ul>
 ]]></content>
       <categories>
@@ -168,6 +170,7 @@
 <li><a href="https://zhuanlan.zhihu.com/p/352369781" target="_blank" rel="noopener">Kylin在各厂商的应用介绍</a></li>
 <li><a href="https://kylin.apache.org/cn/blog/" target="_blank" rel="noopener">Apache Kylin™ 技术博客</a></li>
 <li><a href="https://cn.kyligence.io/blog-zh/" target="_blank" rel="noopener">Kylin的创业公司技术博客</a></li>
+<li><a href="http://www.jackywoo.cn/kylin-druid-clickhouse-comparing/" target="_blank" rel="noopener">KYLIN、DRUID、CLICKHOUSE核心技术对比</a></li>
 </ul>
 ]]></content>
       <categories>
@@ -456,6 +459,9 @@
 </ul>
 </li>
 </ul>
+<h3 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h3><ul>
+<li><a href="https://mp.weixin.qq.com/s/ORYKS1gS0S8PHgKROhmXmw" target="_blank" rel="noopener">Hive知识体系保姆级教程-超全概括</a></li>
+</ul>
 ]]></content>
       <categories>
         <category>计算引擎</category>
@@ -491,7 +497,10 @@
 </li>
 <li><p>建模分析时，少量重点人员账号与原始数据进行碰撞，性能不理想。在大小表基于非分区字段join时，大表读取的数据过多，执行性能较差？</p>
 <p>可以采用<code>Runtime Filter</code>的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，<code>Runtime Filter</code>可以把一些非分区字段条件形成一个filter放到大表上，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
+<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">IndexJoinRule</span>(<span class="params">sparkSession: <span class="type">SparkSession</span></span>) </span></span><br><span class="line"><span class="class">							<span class="keyword">extends</span> <span class="title">Rule</span>[<span class="type">LogicalPlan</span>] </span></span><br><span class="line"><span class="class">							<span class="keyword">with</span> <span class="title">Logging</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>(plan: <span class="type">LogicalPlan</span>):<span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        <span class="keyword">val</span> convertedPlan = applyIndexJoinRule(<span class="type">Plan</span>)</span><br><span class="line">        convertedPlan    </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">applyIndexJoinRule</span></span>(plan: <span class="type">LogicalPlan</span>) = plan transform &#123;</span><br><span class="line">        <span class="comment">// select a.col1, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Project</span>(_,lFilter<span class="meta">@Filter</span>(lConditon,_))),</span><br><span class="line">        	right<span class="meta">@Proejct</span>(_, rFilter<span class="meta">@Filter</span>(rCondition, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond),_) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line">        <span class="comment">// select a.*, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Filter</span>(lCondition, _), </span><br><span class="line">            right<span class="meta">@Project</span>(_, rFilter<span class="meta">@Filter</span>(rCondtion, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond), _) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line"> 		<span class="comment">//其他计划规则</span></span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">convertInnerJoin</span></span>(j: <span class="type">Join</span>,</span><br><span class="line">                                left: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                lFilter: <span class="type">Filter</span>,</span><br><span class="line">                                lConditon： <span class="type">EXpression</span>，</span><br><span class="line">                                right: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                rFilter: <span class="type">Filter</span>,</span><br><span class="line">                                rCondition: <span class="type">Expression</span>,</span><br><span class="line">                                joinCond: <span class="type">Expression</span>) : <span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">//基于统计信息和配置来确定是否转换logicalplan</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment">//将小表的索引列值查询出来追加到大表的过滤条件</span></span><br><span class="line">        <span class="comment">//小表结果</span></span><br><span class="line">        <span class="keyword">val</span> result = &#123;</span><br><span class="line">            <span class="keyword">val</span> qe = sparkSession.sessionState.executePlan(planToQuery)</span><br><span class="line">            qe.assertAnalyzed()</span><br><span class="line">            <span class="keyword">new</span> <span class="type">DataSet</span>[<span class="type">Row</span>](qe, <span class="type">RowEncoder</span>(qe.analyzed.schema))</span><br><span class="line">        &#125;.collect().map&#123;row=&gt;<span class="type">Literal</span>.create(row.get(<span class="number">0</span>), joinCol.dataType)&#125;.distinct</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">val</span> newJoin = &#123;</span><br><span class="line">            <span class="comment">//转为in条件</span></span><br><span class="line">            <span class="keyword">val</span> inCond = <span class="type">In</span>(getJoinAttr(joinCond， right).get, result)</span><br><span class="line">            <span class="keyword">val</span> newCond = <span class="type">And</span>(rCondition, inCond)</span><br><span class="line">            <span class="keyword">val</span> newRight = right.transform&#123;</span><br><span class="line">                <span class="keyword">case</span> f<span class="meta">@Filter</span>(_,_) =&gt; f.copy(condition = newCond)</span><br><span class="line">            &#125;</span><br><span class="line">            j.copy(right = newRight)</span><br><span class="line">        &#125;</span><br><span class="line">        newJoin.copy(left, right)</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
+</ol>
+<ol start="4">
 <li><p><code>java.lang.OutOfMemoryError: GC overhead limit exceeded</code></p>
 <ul>
 <li>原因：数据量太大，内存不够。</li>
@@ -967,6 +976,18 @@
 <td style="text-align:left">员工价值=能力×价值观×心智模式。<br>这个公式告诉我们，提升自己有三个大的努力方向：<br>第一个是提升个人能力<br>第二个是树立与公司一致的价值观<br>第三个是改善自己的心智模式。</td>
 </tr>
 <tr>
+<td style="text-align:center">21</td>
+<td style="text-align:left">学习的核心过程与关键要素<br>从本质上讲，学习是个人主动地进行知识构建、提升有效行动能力以及绩效表现的过程，它离不开自身的能力、努力与坚持，也不可避免地会受到环境的影响。<br>因此，学习是一个高度个性化的过程。<br>学习能力强的人善于从外部各种途径获取对自己有价值的信息，并消化、吸收，内化为自身的能力。</td>
+</tr>
+<tr>
+<td style="text-align:center">22</td>
+<td style="text-align:left">学习既离不开主动地检视、反省自身，也要广泛地向他人学习，就像荀子所讲：“君子博学而日参省乎己，则知明而行无过矣”（《荀子·劝学》）。<br>也就是说，君子要广泛地学习，又能每天检查、反省自己，那就会智慧澄明，行为也就不会犯错了。&lt;b综上所述，在我看来，学习一点儿也不简单，它是一个复杂而微妙的系统工程。<br>为了主动、有意识地提升学习效果，个人不仅要具备系统思考的智慧，对学习这一系统工程做到心中有数，并且觉察或识别出制约自己高效学习的关键要素，使得各项要素相互协调配合、产生良好的效果，而且要善于利用自身经历和外部资源。</td>
+</tr>
+<tr>
+<td style="text-align:center">23</td>
+<td style="text-align:left">公司请你来是发现问题和解决问题的，不是制造问题的；你能解决多大问题，你就做多高的位置。<br>你解决需求的问题，可以做程序员。你能搞定架构的问题，才能做架构师。能解决技术体系建设以及技术战略的问题，才能做技术VP。<br>问题就是我们的机会：客户的问题是我们提供更好服务的机会；竞争对手的问题是我们变强的机会；同事的问题就是支持和建立合作的机会；领导的问题就是我们积极解决获取信任的机会；自己的问题就是我们成长的机会。解决问题的人高升，制造问题的人让位，抱怨问题的人下课。</td>
+</tr>
+<tr>
 <td style="text-align:center"></td>
 </tr>
 </tbody>
@@ -1280,6 +1301,7 @@
 <li><a href="https://raft.github.io/" target="_blank" rel="noopener">raft网站</a></li>
 <li><a href="https://github.com/sofastack/sofa-jraft" target="_blank" rel="noopener">java版raft协议实现sofa-jraft</a></li>
 <li><a href="https://github.com/baidu/braft" target="_blank" rel="noopener">c++版raft协议实现braft</a></li>
+<li><a href="https://mp.weixin.qq.com/s/GhI7RYBdsrqlkU9o9CLEAg" target="_blank" rel="noopener">深入剖析共识性算法 Raft</a>， vivo互联网技术</li>
 </ul>
 ]]></content>
       <categories>
