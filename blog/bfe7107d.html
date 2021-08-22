@@ -1,0 +1,93 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta name="generator" content="Hexo 3.9.0"><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content="bigdata, ai, 中间件、算法、大数据、人工智能"><title>OLAP引擎-Kylin基本介绍 | Tony's Notes</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">OLAP引擎-Kylin基本介绍</h1><a id="logo" href="/.">Tony's Notes</a><p class="description">Stay Hungry, Stay Foolish</p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">OLAP引擎-Kylin基本介绍</h1><div class="post-meta">Aug 9, 2021<span> | </span><span class="category"><a href="/categories/数据库与大数据/">数据库与大数据</a></span><script src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js" async></script><span id="busuanzi_container_page_pv"> | <span id="busuanzi_value_page_pv"></span><span> 阅读</span></span><span class="post-time"><span class="post-meta-item-text"> | </span><span class="post-meta-item-icon"><i class="fa fa-keyboard-o"></i><span class="post-count"> 1.6k</span><span class="post-meta-item-text"> 字</span></span></span><span class="post-time"> | <span class="post-meta-item-icon"><i class="fa fa-hourglass-half"></i><span class="post-count"> 5</span><span class="post-meta-item-text"> 分钟</span></span></span></div><div class="post-content"><h3 id="基本介绍"><a href="#基本介绍" class="headerlink" title="基本介绍"></a>基本介绍</h3><p><a href="https://kylin.apache.org/cn/" target="_blank" rel="noopener">Apache Kylin</a>是Hadoop大数据平台上的一个开源MOLAP引擎。它采用多维立方体预计算技术，可以将大数据的SQL查询速度提升到亚秒级别。在2015年成为Apache的顶级项目，在2016年核心团队创立了Kyligence公司。</p>
+<p>自Hadoop诞生以来，大数据的存储和批处理问题均得到了妥善解决，而如何高速地分析数据也就成为了下一个挑战。于是各式各样的“SQL on Hadoop”技术应运而生，其中以Hive为代表，Impala、Presto、Phoenix、Drill、Spark SQL等紧随其后。它们的主要技术是<strong>大规模并行处理</strong>（Massive Parallel Processing，MPP）和<strong>列式存储</strong>（Columnar Storage）。而<strong>预计算</strong>就是Kylin在<strong>大规模并行处理</strong>和<strong>列式存储</strong>之外，提供给大数据分析的第三个关键技术。</p>
+<p>工作原理就是对数据模型做Cube预计算，并利用计算的结果加速查询，具体工作过程如下。 </p>
+<ul>
+<li>指定数据模型，定义维度和度量。 </li>
+<li>预计算Cube，计算所有Cuboid并保存为物化视图。 </li>
+<li>执行查询时，读取Cuboid，运算，产生查询结果。 </li>
+</ul>
+<h3 id="架构演进"><a href="#架构演进" class="headerlink" title="架构演进"></a>架构演进</h3><p><img src="/blog/bfe7107d/kylin_archi.png" alt></p>
+<p>Kylin的三大依赖模块分别是数据源、构建引擎和存储引擎。比如，早期版本采用Hive接入数据源、MR离线构建cube，HBase存储cube，对外提供rest、jdbc接口来接收sql查询。Kylin为了更好地与时俱进，将这三部分进行了抽象，默认实现是Hive/MR/HBase。</p>
+<p>当前，kylin经历了2.x、3.x到现在的4.0版本。支持了Kafka、第三方数据源接入，采用Spark进行Cube的构建，采用Parquet列式存储Cube，采用Spark SQL进行分布式查询。</p>
+<p>kylin4的架构更适合上云，同时数据量越大性越好。但是针对那种简单的查询，是有一定的衰减，需要进行优化或者直接路由至查询服务，走本地spark的方式，避开spark on yarn的调度耗时。</p>
+<h3 id="主要概念"><a href="#主要概念" class="headerlink" title="主要概念"></a>主要概念</h3><table>
+<thead>
+<tr>
+<th>名词</th>
+<th>解释</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>维度</td>
+<td>观察数据的角度，比如时间、地区等</td>
+</tr>
+<tr>
+<td>度量</td>
+<td>统计值</td>
+</tr>
+<tr>
+<td>事实表</td>
+<td>事实表（Fact Table）指存储有事实记录（明细数据）的表，如系统日志、销售记录等；事实表的记录在不断地动态增长，数据量大。维度表（维表）：保存了维度值，可以跟事实表做关联。常见的维度表如：日期表，地点表，分类表</td>
+</tr>
+<tr>
+<td>维表</td>
+<td>维度表（Dimension Table）或维表，有时也称查找表（Lookup Table）， 是与事实表相对应的一种表；它保存了维度的属性值，可以跟事实表做关联；相当于将事实表上经常重复出现的属性抽取、规范出来用一张表进行管理。<br>常见的维度表有：日期表（存储与日期对应的周、月、季度等的属 性）、地点表（包含国家、省／州、城市等属性）等<br>优点：缩小了事实表的大小。便于维度的管理和维护，增加、删除和修改维度的属性，不必对事实表的大量记录进行改动。维度表可以为多个事实表重用，以减少重复工作。</td>
+</tr>
+<tr>
+<td>OLAP</td>
+<td>OLAP（Online Analytical Process），联机分析处理，以多维度的方式分析数据，而且能够弹性地提供上卷（Roll-up）、下钻（Drill-down）、切片（Slicing、Dicing）和旋转（Pivot/Rotate）。</td>
+</tr>
+<tr>
+<td>BI</td>
+<td>（Business Intelligence）即商务智能，指用现代数据仓库技术、在线分析技术、数据挖掘和数据展现技术进行数据分析以实现商业价值。</td>
+</tr>
+<tr>
+<td>cubeid</td>
+<td>对于N个维度来说，组合的所有可能性共有2^N 种。对于每一种维度的组合，将度量做聚合运算，然后将运算的结果保存为一个物化视图，称为Cuboid.</td>
+</tr>
+<tr>
+<td>cube</td>
+<td>即数据立方体，是一种常用于数据分析与索引的技术；它可以对原始数据建立多维度索引。通过Cube对数据进行分析， 可以大大加快数据的查询效率。<br>所有维度组合的Cuboid作为一个整体，被称为Cube。所以简单来说，一个Cube就是许多按维度聚合的物化视图的集合。</td>
+</tr>
+<tr>
+<td>Cube Segment</td>
+<td>是指针对源数据中的某一个片段，计算出来的Cube数据。通常数据仓库中的数据数量会随着时间的增长而增长，而Cube Segment也是按时间顺序来构建的。</td>
+</tr>
+<tr>
+<td>星形模型</td>
+<td>星形模型（Star Schema）中有一张事实表，以及零个或多个维度表；事实表与维度表通过主键外键相关联，维度表之间没有关联，就像很多星星围绕在一个 恒星周围，故取名为星形模型。</td>
+</tr>
+<tr>
+<td>雪花模型</td>
+<td>如果将星形模型中某些维度的表再做规范，抽取成更细的维度表， 然后让维度表之间也进行关联，那么这种模型称为雪花模型（Snowflake Schema）。</td>
+</tr>
+<tr>
+<td>事实星座模型</td>
+<td>星座模型是更复杂的模型，其中包含了多个事实表，而维度表是公用的，可以共享。</td>
+</tr>
+<tr>
+<td>cubeid剪枝优化</td>
+<td>Cube的剪枝优化则是一种试图减少 额外空间占用的方法，这种方法的前提是不会明显影响查询时间的缩减。在做剪枝优化的时候，需要选择跳过那些“多余”的Cuboid：有的 Cuboid因为查询样式的原因永远不会被查询到，因此显得多余；有的Cuboid的能力和其他Cuboid接近，因此显得多余。但是Cube管理员无法提前甄别每一个Cuboid是否多余，因此Kylin提供了一系列简单的工具来帮助他们完成Cube的剪枝优化。<br>以减少Cuboid数量为目的的Cuboid优化统称为Cuboid剪枝。主要方式衍生维度和聚合组。</td>
+</tr>
+</tbody>
+</table>
+<h3 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a>参考文献</h3><ul>
+<li>Apache Kylin权威指南</li>
+<li><a href="https://mp.weixin.qq.com/s/0OgbvVggi8qgVtU53hg_Aw" target="_blank" rel="noopener">什么是OLAP？主流八大开源OLAP技术架构对比</a></li>
+<li><a href="https://kylin.apache.org/docs40/" target="_blank" rel="noopener">https://kylin.apache.org/docs40/</a></li>
+<li><a href="https://www.zhihu.com/org/kyligence" target="_blank" rel="noopener">Kylin知乎专栏</a></li>
+<li><a href="https://kylin.apache.org/blog/2021/06/17/Why-did-Youzan-choose-Kylin4/" target="_blank" rel="noopener">Kylin4在有赞的应用</a></li>
+<li><a href="https://cn.kyligence.io/blog/count-distinct-hyperloglog/" target="_blank" rel="noopener">大数据分析常用去重算法分析『HyperLogLog 篇』</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/352369781" target="_blank" rel="noopener">Kylin在各厂商的应用介绍</a></li>
+<li><a href="https://kylin.apache.org/cn/blog/" target="_blank" rel="noopener">Apache Kylin™ 技术博客</a></li>
+<li><a href="https://cn.kyligence.io/blog-zh/" target="_blank" rel="noopener">Kylin的创业公司技术博客</a></li>
+<li><a href="http://www.jackywoo.cn/kylin-druid-clickhouse-comparing/" target="_blank" rel="noopener">KYLIN、DRUID、CLICKHOUSE核心技术对比</a></li>
+</ul>
+</div><iframe src="/donate/?AliPayQR=/uploads/alipay.png&amp;WeChatQR=null&amp;GitHub=null&amp;BTCQR=null&amp;BTCKEY=null&amp;PayPal=null" style="overflow-x:hidden; overflow-y:hidden; border:0xp none #fff; min-height:240px; width:100%;" frameborder="0" scrolling="no"></iframe><script type="text/javascript" src="/js/share.js?v=0.0.0" async></script><a class="article-share-link" data-url="http://changbo.tech/blog/bfe7107d.html" data-id="cksn9fx4o001nfpvxco08ce6w" data-qrcode="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAK4AAACuCAAAAACKZ2kyAAABzUlEQVR42u3aQW7DMAwFUd//0i7QVYvEynxSZo1itApsRHrygqBIHQce5/e4ev7z7euTdM4NQ65cuW3uuRyvU5+lcTUPN8iVK3eeuw40ZPn1JyDzo2AnV67ch3HX2+AJTbptuXLlPplLFpArV+5/4pJDCzqcgM205pcrV+4ItxaG9v6+sb4rV67ckFsrel4tlh6K4tXlypU7wiULkwV2HaVQmJMrV+44l7dI+9cveICTK1fuJDdthHQKKLWrHr+eyJUrd5y7DlI8ueGJS/pWrly581zeCElbIzyR+vAJ5MqVO84lCQcPYaRxwhOjo5YfyZUrt8QlS9ZarZxeLKPIlSv3Zu6u9mraRCHHrTcrypUrd4Sbtl3TcEZatuQoJVeu3BkuSWjSQiq/rsEbtHLlyp3k1joUcQmjFk13NVTkypUb/qsTjGrc9BAlV67cv+J2FuiUX+N55MqVO8itharaf9PSydFfUq5cuSE3DSikQdJv2ZK3cuXKvZvbD0Cd1st6qx+qOHLlyr2Zy69NdJKVtIAiV67c53N567SGQzPIlSv3kdxOi4UHRLly5T6Byy9Rke3xkJcen+TKlTvDrRVMaykRacTWrnDJlSt3E/cLiX8lC748uIgAAAAASUVORK5CYII=">分享</a><div class="tags"><a href="/tags/OLAP/">OLAP</a><a href="/tags/Kylin/">Kylin</a></div><div class="post-nav"><a class="pre" href="/blog/b9b847a8.html">SparkSQL业务分析集锦</a><a class="next" href="/blog/ce4ffa9b.html">Hive性能调优实践</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><div class="search-form"><input id="local-search-input" placeholder="Search" type="text" name="q" results="0"><div id="local-search-result"></div></div></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/个人日志/">个人日志</a><span class="category-list-count">9</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/云原生/">云原生</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/分布式/">分布式</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/存储引擎/">存储引擎</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据库与大数据/">数据库与大数据</a><span class="category-list-count">8</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据结构与算法/">数据结构与算法</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/服务器/">服务器</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/编程语言/">编程语言</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/计算引擎/">计算引擎</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/论文阅读/">论文阅读</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/读书笔记/">读书笔记</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/运维工具/">运维工具</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/项目管理/">项目管理</a><span class="category-list-count">1</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> 标签</i></div><div class="tagcloud"><a href="/tags/OLAP/" style="font-size: 15px;">OLAP</a> <a href="/tags/SQL引擎/" style="font-size: 15px;">SQL引擎</a> <a href="/tags/B-树/" style="font-size: 15px;">B+树</a> <a href="/tags/职场感悟/" style="font-size: 15px;">职场感悟</a> <a href="/tags/技术管理/" style="font-size: 15px;">技术管理</a> <a href="/tags/Drill/" style="font-size: 15px;">Drill</a> <a href="/tags/查询计划/" style="font-size: 15px;">查询计划</a> <a href="/tags/HBase/" style="font-size: 15px;">HBase</a> <a href="/tags/NoSQL/" style="font-size: 15px;">NoSQL</a> <a href="/tags/Hadoop/" style="font-size: 15px;">Hadoop</a> <a href="/tags/大数据/" style="font-size: 15px;">大数据</a> <a href="/tags/MPP/" style="font-size: 15px;">MPP</a> <a href="/tags/Hive/" style="font-size: 15px;">Hive</a> <a href="/tags/JVM/" style="font-size: 15px;">JVM</a> <a href="/tags/GC/" style="font-size: 15px;">GC</a> <a href="/tags/Kylin/" style="font-size: 15px;">Kylin</a> <a href="/tags/Java/" style="font-size: 15px;">Java</a> <a href="/tags/类加载器/" style="font-size: 15px;">类加载器</a> <a href="/tags/业务/" style="font-size: 15px;">业务</a> <a href="/tags/SparkSQL/" style="font-size: 15px;">SparkSQL</a> <a href="/tags/SQL/" style="font-size: 15px;">SQL</a> <a href="/tags/redis/" style="font-size: 15px;">redis</a> <a href="/tags/Spark/" style="font-size: 15px;">Spark</a> <a href="/tags/helm/" style="font-size: 15px;">helm</a> <a href="/tags/kubernetes/" style="font-size: 15px;">kubernetes</a> <a href="/tags/Calcite/" style="font-size: 15px;">Calcite</a> <a href="/tags/优化器/" style="font-size: 15px;">优化器</a> <a href="/tags/CBO/" style="font-size: 15px;">CBO</a> <a href="/tags/linux/" style="font-size: 15px;">linux</a> <a href="/tags/算法复杂度/" style="font-size: 15px;">算法复杂度</a> <a href="/tags/分布式事务/" style="font-size: 15px;">分布式事务</a> <a href="/tags/ACID/" style="font-size: 15px;">ACID</a> <a href="/tags/CAP/" style="font-size: 15px;">CAP</a> <a href="/tags/Raft/" style="font-size: 15px;">Raft</a> <a href="/tags/分布式一致性/" style="font-size: 15px;">分布式一致性</a> <a href="/tags/数据库/" style="font-size: 15px;">数据库</a> <a href="/tags/AnalyticDB/" style="font-size: 15px;">AnalyticDB</a> <a href="/tags/窗口函数/" style="font-size: 15px;">窗口函数</a> <a href="/tags/Intel/" style="font-size: 15px;">Intel</a> <a href="/tags/ARM/" style="font-size: 15px;">ARM</a> <a href="/tags/X86/" style="font-size: 15px;">X86</a> <a href="/tags/硬件/" style="font-size: 15px;">硬件</a> <a href="/tags/RAID/" style="font-size: 15px;">RAID</a> <a href="/tags/服务器/" style="font-size: 15px;">服务器</a> <a href="/tags/行列存储/" style="font-size: 15px;">行列存储</a> <a href="/tags/Catalyst/" style="font-size: 15px;">Catalyst</a> <a href="/tags/大数据meetup/" style="font-size: 15px;">大数据meetup</a> <a href="/tags/java/" style="font-size: 15px;">java</a> <a href="/tags/并发编程/" style="font-size: 15px;">并发编程</a> <a href="/tags/博客/" style="font-size: 15px;">博客</a> <a href="/tags/IT资讯/" style="font-size: 15px;">IT资讯</a> <a href="/tags/故障诊断/" style="font-size: 15px;">故障诊断</a> <a href="/tags/架构/" style="font-size: 15px;">架构</a> <a href="/tags/书籍/" style="font-size: 15px;">书籍</a> <a href="/tags/论文/" style="font-size: 15px;">论文</a> <a href="/tags/TopK/" style="font-size: 15px;">TopK</a> <a href="/tags/数据结构/" style="font-size: 15px;">数据结构</a> <a href="/tags/算法/" style="font-size: 15px;">算法</a> <a href="/tags/正则表达式/" style="font-size: 15px;">正则表达式</a> <a href="/tags/Nginx/" style="font-size: 15px;">Nginx</a> <a href="/tags/正向代理/" style="font-size: 15px;">正向代理</a> <a href="/tags/反向代理/" style="font-size: 15px;">反向代理</a> <a href="/tags/开源协议/" style="font-size: 15px;">开源协议</a> <a href="/tags/InnoDB/" style="font-size: 15px;">InnoDB</a> <a href="/tags/RocksDB/" style="font-size: 15px;">RocksDB</a> <a href="/tags/LSM树/" style="font-size: 15px;">LSM树</a> <a href="/tags/存储引擎/" style="font-size: 15px;">存储引擎</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> 最近文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/blog/6d27f500.html">Java类加载机制</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/b9b847a8.html">SparkSQL业务分析集锦</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/bfe7107d.html">OLAP引擎-Kylin基本介绍</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/ce4ffa9b.html">Hive性能调优实践</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/19c2ab93.html">Spark性能调优实战</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/c50a937d.html">PMP实践之路</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/7dec2e4.html">Calcite处理和扩展流程解析</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/4c70dee6.html">分布式事务与一致性</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/75c48487.html">2020-DTCC-参会分享</a></li><li class="post-list-item"><a class="post-list-link" href="/blog/8fd5028b.html">SparkSQL窗口函数实操</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> 友情链接</i></div><ul></ul><a href="https://changbo.tech/blog/ec4cdf4c.html" title="行业博客" target="_blank">行业博客</a><ul></ul><a href="https://leetcode-cn.com/" title="leetcode" target="_blank">leetcode</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2021 <a href="/." rel="nofollow">Tony's Notes.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/search.js?v=0.0.0"></script><script>var search_path = 'search.xml';
+if (search_path.length == 0) {
+   search_path = 'search.xml';
+}
+var path = '/' + search_path;
+searchFunc(path, 'local-search-input', 'local-search-result');
+</script><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
