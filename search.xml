@@ -1,6 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <search>
   <entry>
+    <title>极客邦连麦百位牛人观后实录</title>
+    <url>/blog/2e4fb37a.html</url>
+    <content><![CDATA[<p><strong>从书上学·在事中练·与高人聊！</strong></p>
+<p>极客邦访谈100位牛人，通过直播方式为程序员提供知识服务，从技术、架构、业务、管理、思想等多方面来给正在路上的技术人提供一些参考，解答一些疑惑。现将听取的部分大牛的讲话内容记录下来，以此来总结反思自己。</p>
+<h3 id="吴其敏"><a href="#吴其敏" class="headerlink" title="吴其敏"></a>吴其敏</h3><p>现任平安银行首席架构师·20年互联网老兵，主要经历eBay、大众点评、携程、平安银行四家公司的从业经历。他认为每换一个家公司，都要通过做事情来证明自己，构架自己的技术影响力，而不是作为领导来命令大家。作为开源的分布式监控系统<a href="http://github.com/dianping/cat" target="_blank" rel="noopener">CAT</a>主要推动者，一直致力于监控领域的能力建设、架构设计和团队管理工作。</p>
+<p>本次访谈，主持人基于听友的提问和吴架讨论了以下几个问题？</p>
+<ul>
+<li><p>平安银行的基础架构技术栈？</p>
+<p>中间件部分涉及RPC能力Dubbo、消息队列RocketMQ和Kafka、高速缓存Redis、数据库访问ShardingSphere、数据库MySQL、配置中心Apollo、监控中心CAT、调度和网关等。</p>
+<p>同时，还谈到了对分布式事务的理解？事务强调一种统一性、一致性，分布式事务有一定的应用场景，但并不会在大范围内使用，性能会受到局限。</p>
+</li>
+<li><p>大数据的前景？</p>
+<p>认为批处理在当下仍然具有一定的应用场景，但更加看好“实时处理”的未来。他认为，对于业务来说有些信息的时效性分钟级相对于秒级，它的价值就会大打折扣。同时，他也比较关注CAT在采集端输出海量数据的能力，从而给各方去做分析处理、可视化展示。</p>
+</li>
+<li><p>对于当下各种语言如何看待的？</p>
+<p>分为两大类，强类型和弱类型。强类型，比如Java，适合大型系统，但维护成本高。弱类型，比如Python、JavaScript，适合快速迭代小系统。针对Java语言，动态编译、反射、字节码技术，都是非常好的特性，都在CAT中得到了体现。同时，后期也会比较关注Rust语言。</p>
+</li>
+<li><p>架构师应该具备什么样的能力？对架构的理解？是如何学习的？</p>
+<p>解决问题的能力，在多种解决方案中寻找合适的可以解决问题的方案。这里面涉及到的不仅仅是技术层面的，还有管理层面的。要具备在关键节点的攻坚能力，同时要业务协调、团队沟通（一组人的思想碰撞而非单个人的）、分工协作等等。总结两方面：技术+管理。</p>
+<p>没有最好的架构，只有合适的架构。在做架构时，要根据业务、团队、技术、成本等多方面来考量，对于当下来说比较适合的带有时间属性的架构，来解决当下的最本质的痛点问题。当然，有了坚实的架构，后续的实施、维护各个环节都要得到保证。最后，他的架构名言就是“高内聚，低耦合”。</p>
+<p>谈到学习，首先要打好基础（计算网络、数据结构、分布式系统、数据库等等），看书多看经典的书籍，提升思维，练内功，不要太拘泥于招式本身；其次要学会分享让别人能听懂，这样才能转化为自己的知识；最后是要多动手实践，整理总结。他选人的标准是基础好、有悟性、肯努力。总的来说，要保持对技术好奇心，根据自己的兴趣，选择某些领域，扎根到社区。</p>
+</li>
+<li><p>推荐哪些书籍？</p>
+<p>吴架认为要远离哪些凑页数的书，看再多都没有提升。对于他而言，要抓住基础。比如，<a href="https://docs.oracle.com/javase/specs/" target="_blank" rel="noopener">Java Language and Virtual Machine Specifications</a>、<a href="https://book.douban.com/subject/10945606/" target="_blank" rel="noopener">精益创业</a>。</p>
+</li>
+</ul>
+<p>从吴架的访谈中，我个人体会到技术和管理的认知提升的重要性，是需要一点一滴逐步沉淀的。不管是做基础架构还是业务，在大的方向和整体目标没有偏差的前提下，还是要关注怎么做，而不是纠结于做什么。</p>
+]]></content>
+      <categories>
+        <category>个人日志</category>
+      </categories>
+  </entry>
+  <entry>
     <title>Java类加载机制</title>
     <url>/blog/6d27f500.html</url>
     <content><![CDATA[<h3 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h3><p>从事Java开发的小伙伴，在工作中一定遇到过如<code>ClassNotFoundException</code>、<code>NoClassDefFoundError</code>、<code>NoSuchMethodError</code>等等之类的异常或错误，大家肯定会想到类缺失了、Jar包有冲突了等原因。知其然更要知其所以然，本文将从Java类加载机制的原理层面来分析出现这些问题的原因，同时以一些基础框架为例来说明它们是如何规避的。以此来加深我们对Java类加载机制的了解，达到快速解决问题和开发基础工具时如何善用Java类加载器。</p>
@@ -493,7 +526,7 @@
 </ul>
 </li>
 <li><p>建模分析时，判断一批IP地址是否在原始海量的IP段范围中，性能不理想。抽象为非等值JOIN的优化？</p>
-<p>分析物理算子<code>org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec</code>，扩展出一个<code>BroadcastRangeJoinExec</code>算子，通过给那个小表做索引并排序，Join时候就不需要每一条都扫描，只扫描一部分就可以了。</p>
+<p>分析物理算子<code>org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec</code>，扩展出一个<code>BroadcastRangeJoinExec</code>算子，通过给那个小表做索引并排序，Join时候就不需要每一条都扫描，只扫描一部分就可以了。<a href="https://github.com/apache/spark/pull/21109" target="_blank" rel="noopener">SPARK-24020</a></p>
 </li>
 <li><p>建模分析时，少量重点人员账号与原始数据进行碰撞，性能不理想。在大小表基于非分区字段join时，大表读取的数据过多，执行性能较差？</p>
 <p>可以采用<code>Runtime Filter</code>的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，<code>Runtime Filter</code>可以把一些非分区字段条件形成一个filter放到大表上，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
@@ -778,6 +811,7 @@
 </table>
 <h3 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h3><ul>
 <li><a href="https://mp.weixin.qq.com/s/_KWwb80dlkEtu1SeRK4jqw" target="_blank" rel="noopener">Apache Spark 完全替代传统数仓的技术挑战及实践</a>，马刚@eBay，大数据团队成员</li>
+<li><a href="https://www.yuque.com/docs/share/e9b1c574-d0c3-44dd-8bbe-b8b2d235aec1?#" target="_blank" rel="noopener">Spark Task执行过程解析</a></li>
 </ul>
 ]]></content>
       <categories>
@@ -996,12 +1030,12 @@
 <td style="text-align:left">技术专家：一线员工，做什么以及怎么做；<br>新晋管理者：为什么要做，目标是什么，交付时间是什么，好的交付标准是什么。给员工授权以及挑战，充分发挥员工的主观能动性，并在他们遇到风险和困境时，给予指导和支持他们。<br>思路的转变，而不是做一个事必躬亲的管理者。</td>
 </tr>
 <tr>
-<td style="text-align:center"></td>
-<td style="text-align:left"></td>
+<td style="text-align:center">26</td>
+<td style="text-align:left">如果有一个项目，首先要考虑有没有人来做。如果没有人做，就要放弃，这是一个必要条件。——柳传志。感悟：人的因素是一个项目能否成功的关键。企业选项目时，要依靠人的能力来进行选择，如果没有合适的人选，再诱人的项目也不能贸然进入。</td>
 </tr>
 <tr>
-<td style="text-align:center"></td>
-<td style="text-align:left"></td>
+<td style="text-align:center">27</td>
+<td style="text-align:left">当你有选择的时候，选择更重要；而当你没有选择的时候，努力才重要。努力是为了让你有更好的选择。</td>
 </tr>
 <tr>
 <td style="text-align:center"></td>
