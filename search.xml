@@ -5,7 +5,7 @@
     <url>/blog/2e4fb37a.html</url>
     <content><![CDATA[<p><strong>从书上学·在事中练·与高人聊！</strong></p>
 <p>极客邦访谈100位牛人，通过直播方式为程序员提供知识服务，从技术、架构、业务、管理、思想等多方面来给正在路上的技术人提供一些参考，解答一些疑惑。现将听取的部分大牛的讲话内容记录下来，以此来总结反思自己。</p>
-<h3 id="吴其敏"><a href="#吴其敏" class="headerlink" title="吴其敏"></a>吴其敏</h3><p>现任平安银行首席架构师·20年互联网老兵，主要经历eBay、大众点评、携程、平安银行四家公司的从业经历。他认为每换一个家公司，都要通过做事情来证明自己，构架自己的技术影响力，而不是作为领导来命令大家。作为开源的分布式监控系统<a href="http://github.com/dianping/cat" target="_blank" rel="noopener">CAT</a>主要推动者，一直致力于监控领域的能力建设、架构设计和团队管理工作。</p>
+<h3 id="吴其敏"><a href="#吴其敏" class="headerlink" title="吴其敏"></a>吴其敏</h3><p>现任平安银行首席架构师·20年互联网老兵，具有eBay、大众点评、携程、平安银行四家公司的从业经历。他认为每换一个家公司，都要通过做事情来证明自己，构架自己的技术影响力，而不是作为领导来命令大家。作为开源的分布式监控系统<a href="http://github.com/dianping/cat" target="_blank" rel="noopener">CAT</a>主要推动者，一直致力于监控领域的能力建设、架构设计和团队管理工作。</p>
 <p>本次访谈，主持人基于听友的提问和吴架讨论了以下几个问题？</p>
 <ul>
 <li><p>平安银行的基础架构技术栈？</p>
@@ -1846,8 +1846,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>SparkSQL</tag>
         <tag>Spark</tag>
+        <tag>SparkSQL</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
