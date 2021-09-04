@@ -3,8 +3,47 @@
   <entry>
     <title>极客邦连麦百位牛人观后实录</title>
     <url>/blog/2e4fb37a.html</url>
-    <content><![CDATA[<p><strong>从书上学·在事中练·与高人聊！</strong></p>
+    <content><![CDATA[<p><strong>从书上学·在事中练·与高人聊！心力!</strong></p>
 <p>极客邦访谈100位牛人，通过直播方式为程序员提供知识服务，从技术、架构、业务、管理、思想等多方面来给正在路上的技术人提供一些参考，解答一些疑惑。现将听取的部分大牛的讲话内容记录下来，以此来总结反思自己。</p>
+<h3 id="王保平"><a href="#王保平" class="headerlink" title="王保平"></a>王保平</h3><p>阿里前端大牛P10，花名玉伯。之前在软件所写.net, c#写cs端软件。08年加入淘宝, 13年时间。08-12: 写代码, 交易项目(至暗时刻, 创新项目失败)。13-18: 做技术产品, 到蚂蚁做可视化, 技术平台, 语雀。19-至今: 管理, 帮助别人成事, 做产品的心态带团队.  早期以事情驱动团队, 越来越大,重新思考. 产品架构\组织结构\团队规划与职责。关键词: 成事能力(包括帮助团队), 要保持谦卑心态。守正出奇:  守住当下,服务好业务，同时投资未来。(比如华为海思)。</p>
+<p>本次访谈，主持人基于自己的感悟、听友的提问和玉伯讨论了以下几个问题？</p>
+<ul>
+<li><p>数据可视化? 相关趋势?</p>
+<p>可视化: 数据分析\BI 智能可视化 AIoT   canavs(性能)  svg(兼容)  webAssembly(硬件)  webGL</p>
+<p>智能化: 在端侧跑tensorflow, 智能UI(千人千面)</p>
+<p>低代码: 后续成千上万的saas系统的开发问题, 人员开发和平台自动化, 降低开发门槛.</p>
+<p>云原生</p>
+</li>
+<li><p>低代码和无代码?</p>
+<p>低代码降低saas开发门槛,  一种针对垂直领域(逐渐增多, 小型创业公司在做), 一种是通用的,比如蚂蚁云蝶凤舞等, 对接后端接口生成应用(较少). 更多是给后端开发的人或生态用工使用的,  而针对专业的前端人员, 依旧要采用代码解决专业的问题. </p>
+</li>
+<li><p>作为前端团队leader需要考虑什么? </p>
+<p>支撑好公司业务, 技术的先进性(5-10年), 团队效能(快乐工作)</p>
+<p>定义OKR, 关注目标. 中期问卷,关注团队人员的满意度.  以事聚人, 因人成事. </p>
+</li>
+<li><p>在公司太安逸,如何改变?</p>
+<p>需要寻求突破, 优先内部寻找机会.</p>
+</li>
+<li><p>如何学习?评判人员能力?</p>
+<p>找经典书籍去看, 比如AI, 用python写demo. 或者线上一些课程.</p>
+<p>技术能力, 潜力(学习能力, 成事欲望), 开放度(保持好奇心, 与人沟通) </p>
+</li>
+<li><p>如何看待新技术?</p>
+<p>主要跟当前工程化工作有关, 能否解决问题.</p>
+</li>
+<li><p>P系列各阶段要求?</p>
+<p>p5-6: 关注技术的深度和广度;</p>
+<p>p7-8: 技术+业务.  将业务问题转化为专业问题去解决, 以及基于技术做好业务架构;</p>
+<p>p9-10: 全局视野, 让别的人1 + 自己的 1 &gt; 2, 形成更大的价值, 关注那个+号整合的能力.</p>
+</li>
+<li><p>推荐书籍?</p>
+<p>被讨厌的勇气、象与骑象人、思考快与慢</p>
+</li>
+<li><p>个人签名：因上努力, 果上随缘，自己的做事观?</p>
+<p>努力做好当下的事情。但行好事, 莫问前程。</p>
+</li>
+</ul>
+<p>从玉伯的谈话中，感悟到个人要从自身的因去出发，向内求索，每个阶段做好每个阶段的事情，锻炼自己的心力，寻求自己的突破。</p>
 <h3 id="吴其敏"><a href="#吴其敏" class="headerlink" title="吴其敏"></a>吴其敏</h3><p>现任平安银行首席架构师·20年互联网老兵，具有eBay、大众点评、携程、平安银行四家公司的从业经历。他认为每换一个家公司，都要通过做事情来证明自己，构架自己的技术影响力，而不是作为领导来命令大家。作为开源的分布式监控系统<a href="http://github.com/dianping/cat" target="_blank" rel="noopener">CAT</a>主要推动者，一直致力于监控领域的能力建设、架构设计和团队管理工作。</p>
 <p>本次访谈，主持人基于听友的提问和吴架讨论了以下几个问题？</p>
 <ul>
@@ -608,7 +647,7 @@
 <li>原因：executor失败重试次数达到阈值</li>
 <li>解决方案：<ul>
 <li>调整运行参数，减少executor失败次数；</li>
-<li>调整<code>spark.yarn.max.executor.failures</code>的值，可在spark-defaults.conf中调整。确定方式，在日志中搜索”Final app status:”，确定原因，在日志统计”Container marked as failed:”出现次数。</li>
+<li>调整<code>spark.yarn.max.executor.failures</code>的值，可在<code>spark-defaults.conf</code>中调整。确定方式，在日志中搜索”Final app status:”，确定原因，在日志统计”Container marked as failed:”出现次数。</li>
 </ul>
 </li>
 </ul>
@@ -617,201 +656,11 @@
 <p>通过这些黑名单的设置可以避免由于 task 反复调度在有问题的 <code>executor/node</code> （坏盘，磁盘满了，shuffle fetch 失败，环境错误等）上，进而导致整个 <code>Application</code> 运行失败的情况。</p>
 </li>
 </ol>
-<h2 id="Shuffle参数"><a href="#Shuffle参数" class="headerlink" title="Shuffle参数"></a>Shuffle参数</h2><table>
-<thead>
-<tr>
-<th>配置</th>
-<th>默认值</th>
-<th>描述</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>spark.shuffle.readHostLocalDisk</code></td>
-<td>true</td>
-<td>当<code>spark.shuffle.useOldFetchProtocol</code>关闭，<code>spark.shuffle.service.enabled</code>开启。从运行在同一个主机上block manager获取block shuffle可以直接读取本地磁盘而不是走remote方式远程拉取。</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.backLog</code></td>
-<td>8192</td>
-<td>shuffle 服务的接收队列的长度。默认128</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.serverThreads</code></td>
-<td>6</td>
-<td>shuffle 服务线程数</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.connectionTimeout</code></td>
-<td>120s</td>
-<td>shuffle client连接超时时间</td>
-</tr>
-<tr>
-<td><code>spark.network.timeout</code></td>
-<td>300s</td>
-<td></td>
-</tr>
-<tr>
-<td><code>spark.shuffle.service.index.cache.size</code></td>
-<td>2048m</td>
-<td>shuffle文件的索引大小</td>
-</tr>
-<tr>
-<td><code>spark.dynamicAllocation.executorIdleTimeout</code></td>
-<td>1800s</td>
-<td></td>
-</tr>
-<tr>
-<td><code>spark.reducer.maxSizeInFlight</code></td>
-<td>48m</td>
-<td>从每个reduce任务同时抓取map输出数据的最大大小，由于每个输出数据需要创建一个缓冲区来接受，是每个reduce任务固定的内存开销，因此需要设置一个较小的值，除非有大量的内存</td>
-</tr>
-<tr>
-<td><code>spark.reducer.maxReqsInFlight</code></td>
-<td>Int.MaxValue</td>
-<td>限制了每个主机每次进行reduce操作时可以被多少台远程主机拉取文件块，配置在任何给定节点获取块的请求远程请求数，当集群中主机数量增加时，可能会导致一个或者多个节点的入站连接数量非常多，导致负载失败，限制次参数，可以缓解这种情况</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.compress</code></td>
-<td>true</td>
-<td>是否压缩map输出文件，默认压缩 true，spark2.2之前默认压缩方式snappy，spark2.2之后默认是lz4</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.file.buffer</code></td>
-<td>32k</td>
-<td>在内存输出流中 每个shuffle文件占用内存大小，适当提高 可以减少磁盘读写 io次数，初始值为32k</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.maxRetries</code></td>
-<td>3</td>
-<td>shuffle read task从shuffle write task所在节点拉取属于自己的数据时，如果因为网络异常导致拉取失败，是会自动进行重试的。该参数就代表了可以重试的最大次数。如果在指定次数之内拉取还是没有成功，就可能会导致作业执行失败。 对于那些包含了特别耗时的shuffle操作的作业，建议增加重试最大次数（比如60次），以避免由于JVM的full gc或者网络不稳定等因素导致的数据拉取失败。在实践中发现，对于针对超大数据量（数十亿~上百亿）的shuffle过程，调节该参数可以大幅度提升稳定性。</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.numConnectionsPerPeer</code></td>
-<td>1</td>
-<td>机器之间的可以重用的网络连接，主要用于在大型集群中减小网络连接的建立开销，如果一个集群的机器并不多，可以考虑增加这个值</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.preferDirectBufs</code></td>
-<td>true</td>
-<td>启用堆外内存，可以避免shuffle过程的频繁gc，如果堆外内存非常紧张，则可以考虑关闭这个选项</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.io.retryWait</code></td>
-<td>5s</td>
-<td>每次重试拉取数据的等待间隔，默认是5s，建议加大时长，理由同上，保证shuffle操作的稳定性</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.service.enabled</code></td>
-<td>false</td>
-<td>启用外部shuffle服务，这个服务会安全地保存shuffle过程中，executor写的磁盘文件，因此executor即使挂掉也不要紧，必须配合<code>spark.dynamicAllocation.enabled</code>属性设置为true，才能生效，而且外部shuffle服务必须进行安装和启动，才能启用这个属性</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.service.port</code></td>
-<td>7337</td>
-<td>外部shuffle服务的端口号，具体解释同上</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.service.index.cache.entries</code></td>
-<td>1024</td>
-<td>在shuffle服务的索引缓存中最大条目数</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.sort.bypassMergeThreshold</code></td>
-<td>200</td>
-<td>对于sort-based ShuffleManager，如果没有进行map side聚合，而且reduce task数量少于这个值，那么就不会进行排序，如果你使用sort ShuffleManager，而且不需要排序，那么可以考虑将这个值加大，直到比你指定的所有task数量都大，以避免进行额外的sort，从而提升性能</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.spill.compress</code></td>
-<td>true</td>
-<td>shuffle过程中溢出的文件是否压缩，默认true，使用<code>spark.io.compression.codec</code>压缩。spark2.2之前默认压缩方式snappy，spark2.2之后默认是lz4</td>
-</tr>
-<tr>
-<td><code>spark.shuffle.accurateBlockThreshold</code></td>
-<td>100 <em> 1024 </em> 1024</td>
-<td>以字节为单位的阈值，高于该阈值可准确记录HighlyCompressedMapStatus中随机块的大小。这有助于通过避免在获取shuffle块时低估shuffle块大小来防止OOM。</td>
-</tr>
-<tr>
-<td><code>spark.io.encryption.enabled</code></td>
-<td>false</td>
-<td>是否启用加密，目前支持除mesos外的所有模式，建议使用前先开启RPC加密</td>
-</tr>
-<tr>
-<td><code>spark.io.encryption.keySizeBits</code></td>
-<td>128</td>
-<td>IO加密密钥大小，单位是位</td>
-</tr>
-<tr>
-<td><code>spark.io.encryption.keygen.algorithm</code></td>
-<td>HmacSHA1</td>
-<td>生成IO加密密钥时使用的算法</td>
-</tr>
-</tbody>
-</table>
-<h3 id="BlackList参数"><a href="#BlackList参数" class="headerlink" title="BlackList参数"></a>BlackList参数</h3><table>
-<thead>
-<tr>
-<th>配置</th>
-<th>默认值</th>
-<th>描述</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>spark.blacklist.enabled</code></td>
-<td>false</td>
-<td>是否开启黑名单机制</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.timeout</code></td>
-<td>1h</td>
-<td>对于被加入 application 黑名单的 executor/节点 ，多长时间后无条件的移出黑名单以运行新任务</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.task.maxTaskAttemptsPerExecutor</code></td>
-<td>1</td>
-<td>对于同一个 task 在某个 executor 中的失败重试阈值。达到阈值后，在执行这个 task 时，该 executor 将被加入黑名单</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.task.maxTaskAttemptsPerNode</code></td>
-<td>2</td>
-<td>对于同一个 task 在某个节点上的失败重试阈值。达到阈值后，在执行这个 task 时，该节点将被加入黑名单</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.stage.maxFailedTasksPerExecutor</code></td>
-<td>2</td>
-<td>一个 stage 中，不同的 task 在同一个 executor 的失败阈值。达到阈值后，在执行这个 stage 时该 executor 将会被加入黑名单</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.stage.maxFailedExecutorsPerNode</code></td>
-<td>2</td>
-<td>一个 stage 中，不同的 executor 加入黑名单的阈值。达到阈值后，在执行这个 stage 时该节点将会被加入黑名单</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.application.maxFailedTasksPerExecutor</code></td>
-<td>2</td>
-<td>在同一个 executor 中，不同的 task的失败阈值 。达到阈值后，在整个 appliction 运行期间，该 executor 都会被加入黑名单，加入时间超过 <code>spark.blacklist.timeout</code> 后，自动从黑名单中移除。值得注意的是，如果开启了 <code>dynamic allocation</code>，这些 executor 可能会由于空闲时间过长被回收。</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.application.maxFailedExecutorsPerNode</code></td>
-<td>2</td>
-<td>在一个节点中，不同 executor 加入 application 黑名单的阈值。达到这个阈值后，该节点会进入 application 黑名单，加入时间超过 <code>spark.blacklist.timeout</code> 后，自动从黑名单中移除。值得注意的是，如果开启了 <code>dynamic allocation</code>，该节点上的 executor 可能会由于空闲时间过长被回收。</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.killBlacklistedExecutors</code></td>
-<td>false</td>
-<td>如果开启该配置，spark 会自动关闭并重启加入黑名单的 executor，如果整个节点都加入了黑名单，则该节点上的所有 executor 都会被关闭。</td>
-</tr>
-<tr>
-<td><code>spark.blacklist.application.fetchFailure.enabled</code></td>
-<td>false</td>
-<td>如果开启该配置，当发生 <code>fetch failure</code>时，立即将该 executor 加入到黑名单。要是开启了 <code>external shuffle service</code>，整个节点都会被加入黑名单。</td>
-</tr>
-</tbody>
-</table>
 <h3 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h3><ul>
 <li><a href="https://mp.weixin.qq.com/s/_KWwb80dlkEtu1SeRK4jqw" target="_blank" rel="noopener">Apache Spark 完全替代传统数仓的技术挑战及实践</a>，马刚@eBay，大数据团队成员</li>
-<li><a href="https://www.yuque.com/docs/share/e9b1c574-d0c3-44dd-8bbe-b8b2d235aec1?#" target="_blank" rel="noopener">Spark Task执行过程解析</a></li>
+<li><a href="https://time.geekbang.org/column/intro/400" target="_blank" rel="noopener">Spark性能调优实战</a>，吴磊，FreeWheel机器学习团队负责人</li>
+<li><a href="https://databricks.com/blog" target="_blank" rel="noopener">https://databricks.com/blog</a></li>
+<li><a href="https://www.yuque.com/tonyshu/gnfipq/tbeihk" target="_blank" rel="noopener">Spark性能调优指南笔记</a>，笔者</li>
 </ul>
 ]]></content>
       <categories>
@@ -1214,6 +1063,7 @@
 <h1 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h1><ul>
 <li><a href="http://matt33.com/2019/03/07/apache-calcite-process-flow/" target="_blank" rel="noopener">Apache Calcite 处理流程详解（一）</a></li>
 <li><a href="http://matt33.com/2019/03/17/apache-calcite-planner/" target="_blank" rel="noopener">Apache Calcite 优化器详解（二）</a></li>
+<li><a href="https://mp.weixin.qq.com/mp/homepage?__biz=MzI3MDU3OTc1Nw==&amp;hid=6&amp;sn=573b51439d7f9b0662c54462490df5c2&amp;scene=1&amp;devicetype=Windows+7+x64&amp;version=63030073&amp;lang=zh_CN&amp;nettype=3gnet&amp;ascene=1&amp;session_us=gh_f3c6b41464e9&amp;wx_header=1&amp;uin=&amp;key=&amp;fontgear=2" target="_blank" rel="noopener">Calcite系列</a> | 麒思妙想</li>
 </ul>
 ]]></content>
       <categories>
@@ -1846,8 +1696,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>SparkSQL</tag>
         <tag>Spark</tag>
+        <tag>SparkSQL</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
