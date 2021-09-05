@@ -545,45 +545,54 @@
   <entry>
     <title>Spark性能调优实战</title>
     <url>/blog/19c2ab93.html</url>
-    <content><![CDATA[<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Spark（Spark SQL）在离线计算场景应用广泛，为了保证Spark应用更好地满足业务场景需求，同时能够在线上稳定地运行，我们需要关注Spark的调优工作。首先，需要了解Spark对外的接口并如何高效地使用；其次要搞清楚内部的运行机制以及参数配置体系；最后是要能够深入分析spark的日志信息。进一步来讲，对于Spark的深度使用者，需要关注社区各个版本的迭代、bug修复以及性能优化的情况，才能更好地打开思路，提高解决问题的效率。</p>
+    <content><![CDATA[<h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>Spark（Spark SQL）在离线计算场景应用广泛，为了保证Spark应用更好地满足业务场景需求，同时能够在线上稳定地运行，我们需要关注Spark的调优工作。首先，需要了解Spark对外的接口并如何高效地使用；其次要搞清楚内部的运行机制以及参数配置体系；最后是要能够深入分析spark的日志信息。进一步来讲，对于Spark的深度使用者，需要关注社区各个版本的迭代、bug修复以及性能优化的情况，才能更好地打开思路，提高解决问题的效率。<font color="red">主要途径有：spark的release-note、databricks官方博客、源码。</font></p>
 <p>为了方便Spark相关性能问题的排查，本文记录了日常Spark使用过程中遇到的问题和解决思路，用于积累过程中进行复盘总结，强化Spark的深入理解和实战经验。</p>
 <a id="more"></a>
 <h2 id="FAQ"><a href="#FAQ" class="headerlink" title="FAQ"></a>FAQ</h2><ol>
-<li><p>针对<code>CET</code>达到几百规模的大SQL在上千规模Hadoop集群的执行性能调优？（仅限SQL层面）</p>
+<li><p>针对CET达到几百规模的大SQL在上千规模Hadoop集群的执行性能调优？</p>
+<p>SparkSQL thriftserver 侧的优化：</p>
 <ul>
-<li><code>SparkSQL thriftserver</code>侧的优化：<ul>
 <li>元数据读写一些锁的优化，从比较大的锁粒度降到比较小的锁粒度；</li>
 <li>引入多线程，提高解析每个互不依赖的子查询的并行度。</li>
 </ul>
-</li>
-<li><code>DAGScheduler</code>侧的优化：<ul>
+<p>DAGScheduler侧的优化：</p>
+<ul>
 <li>引入线程池提高Task被调度到Executor的效率，降低调度延迟；</li>
-<li>适当调小<code>spark.locality.wait.node</code>，降低延迟调度的时间，提高调度的效率；</li>
-<li>适当调大<code>spark.resultGetter.threads</code>的数值，提高处理返回结果的效率。</li>
-</ul>
-</li>
+<li>适当调小spark.locality.wait.node，降低延迟调度的时间，提高调度的效率；</li>
+<li>适当调大spark.resultGetter.threads的数值，提高处理返回结果的效率。</li>
 </ul>
 </li>
 <li><p>建模分析时，判断一批IP地址是否在原始海量的IP段范围中，性能不理想。抽象为非等值JOIN的优化？</p>
-<p>分析物理算子<code>org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec</code>，扩展出一个<code>BroadcastRangeJoinExec</code>算子，通过给那个小表做索引并排序，Join时候就不需要每一条都扫描，只扫描一部分就可以了。<a href="https://github.com/apache/spark/pull/21109" target="_blank" rel="noopener">SPARK-24020</a></p>
+<p>分析物理算子org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec，扩展出一个BroadcastRangeJoinExec算子，通过给那个小表做索引并排序，Join时候就不需要每一条都扫描，只扫描一部分就可以了。<a href="https://github.com/apache/spark/pull/21109" target="_blank" rel="noopener">SPARK-24020</a></p>
 </li>
 <li><p>建模分析时，少量重点人员账号与原始数据进行碰撞，性能不理想。在大小表基于非分区字段join时，大表读取的数据过多，执行性能较差？</p>
-<p>可以采用<code>Runtime Filter</code>的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，<code>Runtime Filter</code>可以把一些非分区字段条件形成一个filter放到大表上，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
-<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">IndexJoinRule</span>(<span class="params">sparkSession: <span class="type">SparkSession</span></span>) </span></span><br><span class="line"><span class="class">							<span class="keyword">extends</span> <span class="title">Rule</span>[<span class="type">LogicalPlan</span>] </span></span><br><span class="line"><span class="class">							<span class="keyword">with</span> <span class="title">Logging</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>(plan: <span class="type">LogicalPlan</span>):<span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        <span class="keyword">val</span> convertedPlan = applyIndexJoinRule(<span class="type">Plan</span>)</span><br><span class="line">        convertedPlan    </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">applyIndexJoinRule</span></span>(plan: <span class="type">LogicalPlan</span>) = plan transform &#123;</span><br><span class="line">        <span class="comment">// select a.col1, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Project</span>(_,lFilter<span class="meta">@Filter</span>(lConditon,_))),</span><br><span class="line">        	right<span class="meta">@Proejct</span>(_, rFilter<span class="meta">@Filter</span>(rCondition, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond),_) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line">        <span class="comment">// select a.*, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Filter</span>(lCondition, _), </span><br><span class="line">            right<span class="meta">@Project</span>(_, rFilter<span class="meta">@Filter</span>(rCondtion, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond), _) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line"> 		<span class="comment">//其他计划规则</span></span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">convertInnerJoin</span></span>(j: <span class="type">Join</span>,</span><br><span class="line">                                left: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                lFilter: <span class="type">Filter</span>,</span><br><span class="line">                                lConditon： <span class="type">EXpression</span>，</span><br><span class="line">                                right: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                rFilter: <span class="type">Filter</span>,</span><br><span class="line">                                rCondition: <span class="type">Expression</span>,</span><br><span class="line">                                joinCond: <span class="type">Expression</span>) : <span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">//基于统计信息和配置来确定是否转换logicalplan</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment">//将小表的索引列值查询出来追加到大表的过滤条件</span></span><br><span class="line">        <span class="comment">//小表结果</span></span><br><span class="line">        <span class="keyword">val</span> result = &#123;</span><br><span class="line">            <span class="keyword">val</span> qe = sparkSession.sessionState.executePlan(planToQuery)</span><br><span class="line">            qe.assertAnalyzed()</span><br><span class="line">            <span class="keyword">new</span> <span class="type">DataSet</span>[<span class="type">Row</span>](qe, <span class="type">RowEncoder</span>(qe.analyzed.schema))</span><br><span class="line">        &#125;.collect().map&#123;row=&gt;<span class="type">Literal</span>.create(row.get(<span class="number">0</span>), joinCol.dataType)&#125;.distinct</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">val</span> newJoin = &#123;</span><br><span class="line">            <span class="comment">//转为in条件</span></span><br><span class="line">            <span class="keyword">val</span> inCond = <span class="type">In</span>(getJoinAttr(joinCond， right).get, result)</span><br><span class="line">            <span class="keyword">val</span> newCond = <span class="type">And</span>(rCondition, inCond)</span><br><span class="line">            <span class="keyword">val</span> newRight = right.transform&#123;</span><br><span class="line">                <span class="keyword">case</span> f<span class="meta">@Filter</span>(_,_) =&gt; f.copy(condition = newCond)</span><br><span class="line">            &#125;</span><br><span class="line">            j.copy(right = newRight)</span><br><span class="line">        &#125;</span><br><span class="line">        newJoin.copy(left, right)</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>可以采用Runtime Filter的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，Runtime Filter可以把一些非分区字段条件形成一个filter放到大表上，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
+<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">IndexJoinRule</span>(<span class="params">sparkSession: <span class="type">SparkSession</span></span>) </span></span><br><span class="line"><span class="class">				<span class="keyword">extends</span> <span class="title">Rule</span>[<span class="type">LogicalPlan</span>] </span></span><br><span class="line"><span class="class">				<span class="keyword">with</span> <span class="title">Logging</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>(plan: <span class="type">LogicalPlan</span>):<span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        <span class="keyword">val</span> convertedPlan = applyIndexJoinRule(<span class="type">Plan</span>)</span><br><span class="line">        convertedPlan    </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">applyIndexJoinRule</span></span>(plan: <span class="type">LogicalPlan</span>) = plan transform &#123;</span><br><span class="line">        <span class="comment">// select a.col1, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Project</span>(_,lFilter<span class="meta">@Filter</span>(lConditon,_))),</span><br><span class="line">        	right<span class="meta">@Proejct</span>(_, rFilter<span class="meta">@Filter</span>(rCondition, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond),_) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line">        <span class="comment">// select a.*, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Filter</span>(lCondition, _), </span><br><span class="line">            right<span class="meta">@Project</span>(_, rFilter<span class="meta">@Filter</span>(rCondtion, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond), _) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line"> 		<span class="comment">//其他计划规则</span></span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">convertInnerJoin</span></span>(j: <span class="type">Join</span>,</span><br><span class="line">                                left: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                lFilter: <span class="type">Filter</span>,</span><br><span class="line">                                lConditon： <span class="type">EXpression</span>，</span><br><span class="line">                                right: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                rFilter: <span class="type">Filter</span>,</span><br><span class="line">                                rCondition: <span class="type">Expression</span>,</span><br><span class="line">                                joinCond: <span class="type">Expression</span>) : <span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">//基于统计信息和配置来确定是否转换logicalplan</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment">//将小表的索引列值查询出来追加到大表的过滤条件</span></span><br><span class="line">        <span class="comment">//小表结果</span></span><br><span class="line">        <span class="keyword">val</span> result = &#123;</span><br><span class="line">            <span class="keyword">val</span> qe = sparkSession.sessionState.executePlan(planToQuery)</span><br><span class="line">            qe.assertAnalyzed()</span><br><span class="line">            <span class="keyword">new</span> <span class="type">DataSet</span>[<span class="type">Row</span>](qe, <span class="type">RowEncoder</span>(qe.analyzed.schema))</span><br><span class="line">        &#125;.collect().map&#123;row=&gt;<span class="type">Literal</span>.create(row.get(<span class="number">0</span>), joinCol.dataType)&#125;.distinct</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">val</span> newJoin = &#123;</span><br><span class="line">            <span class="comment">//转为in条件</span></span><br><span class="line">            <span class="keyword">val</span> inCond = <span class="type">In</span>(getJoinAttr(joinCond， right).get, result)</span><br><span class="line">            <span class="keyword">val</span> newCond = <span class="type">And</span>(rCondition, inCond)</span><br><span class="line">            <span class="keyword">val</span> newRight = right.transform&#123;</span><br><span class="line">                <span class="keyword">case</span> f<span class="meta">@Filter</span>(_,_) =&gt; f.copy(condition = newCond)</span><br><span class="line">            &#125;</span><br><span class="line">            j.copy(right = newRight)</span><br><span class="line">        &#125;</span><br><span class="line">        newJoin.copy(left, right)</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
 <ol start="4">
-<li><p><code>java.lang.OutOfMemoryError: GC overhead limit exceeded</code></p>
+<li><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">org.apache.spark.shuffle.FetchFailedException: </span><br><span class="line">Failed to send RPC XXX to /xxx:<span class="number">7337</span>:java.nio.channels.ColsedChannelException</span><br></pre></td></tr></table></figure>
+<ul>
+<li>原因：external shuffle服务将数据发送给container时，发现container已经关闭连接，出现该异常应该和org.apache.spark.shuffle.FetchFailedException: Connection from /xxx:7337 closed同时出现；</li>
+<li>解决方案：参考org.apache.spark.shuffle.FetchFailedException: Connection from /xxx:7337 closed的解决方案。</li>
+<li>进一步补充：<ul>
+<li>在验证中发现关闭参数spark.shuffle.readHostLocalDisk，可以规避该异常的出现；</li>
+<li>顺着上述参数发现在spark3.0.0中org.apache.spark.network.shuffle.ExternalBlockStoreClient#getHostLocalDirs指定rpc操作后默认关闭了RPC client，导致后续其他任务使用该client时出现已经关闭的情况。排查发现社区在<a href="https://issues.apache.org/jira/browse/SPARK-32663" target="_blank" rel="noopener">SPARK-32663</a>已经修复了该问题。</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>java.lang.OutOfMemoryError: GC overhead limit exceeded</p>
 <ul>
 <li>原因：数据量太大，内存不够。</li>
 <li>解决方案：<ul>
-<li>增大<code>spark.executor.memory</code>的值，减小<code>spark.executor.cores</code> </li>
+<li>增大spark.executor.memory的值，减小spark.executor.cores</li>
 <li>减少输入数据量，将原来的数据量分几次任务完成，每次读取其中一部分</li>
 </ul>
 </li>
 </ul>
 </li>
-<li><p><code>ERROR An error occurred while trying to connect to the Java server (127.0.0.1:57439) Connection refused</code></p>
+<li><p>ERROR An error occurred while trying to connect to the Java server (127.0.0.1:57439) Connection refused</p>
 <ul>
 <li>原因：<ul>
 <li>节点上运行的container多，每个任务shuffle write到磁盘的量大，导致磁盘满，节点重启 </li>
@@ -599,7 +608,7 @@
 </li>
 </ul>
 </li>
-<li><p><code>org.apache.spark.shuffle.FetchFailedException: Failed to connect to /9.4.36.40:7337</code></p>
+<li><p>org.apache.spark.shuffle.FetchFailedException: Failed to connect to /9.4.36.40:7337</p>
 <ul>
 <li>背景：shuffle过程包括shuffle read和shuffle write两个过程。对于spark on yarn，shuffle write是container写数据到本地磁盘(路径由core-site.xml中hadoop.tmp.dir指定)过程； shuffle read是container请求external shuffle服务获取数据过程，external shuffle是NodeManager进程中的一个服务，默认端口是7337，或者通过spark.shuffle.service.port指定。</li>
 <li>定位过程：拉取任务运行日志，查看container日志；查看对应ip上NodeManager进程运行日志，路径由yarn-env.sh中YARN_LOG_DIR指定。</li>
@@ -617,17 +626,6 @@
 </li>
 </ul>
 </li>
-<li><p><code>org.apache.spark.shuffle.FetchFailedException: Failed to send RPC XXX to /xxx:7337:java.nio.channels.ColsedChannelException</code></p>
-<ul>
-<li>原因：external shuffle服务将数据发送给container时，发现container已经关闭连接，出现该异常应该和<code>org.apache.spark.shuffle.FetchFailedException: Connection from /xxx:7337 closed</code>同时出现；</li>
-<li>解决方案：参考<code>org.apache.spark.shuffle.FetchFailedException: Connection from /xxx:7337 closed</code>的解决方案。</li>
-<li>进一步补充：<ul>
-<li>在验证中发现关闭参数<code>spark.shuffle.readHostLocalDisk</code>，可以规避该异常的出现；</li>
-<li>顺着上述参数发现在<code>spark3.0.0</code>中<code>org.apache.spark.network.shuffle.ExternalBlockStoreClient#getHostLocalDirs</code>指定rpc操作后默认关闭了RPC client，导致后续其他任务使用该client时出现已经关闭的情况。排查发现社区在<a href="https://issues.apache.org/jira/browse/SPARK-32663" target="_blank" rel="noopener">SPARK-32663</a>已经修复了该问题。</li>
-</ul>
-</li>
-</ul>
-</li>
 <li><p>spark任务中stage有retry</p>
 <ul>
 <li>原因：<ul>
@@ -637,23 +635,23 @@
 </li>
 <li>解决方案：<ul>
 <li>针对原因(1)，查看进程是否正常，查看机器资源是否正常，比如磁盘是否满或者其他；</li>
-<li>针对原因(2)，调大超时时间，如调大<code>spark.network.timeout</code>值。</li>
+<li>针对原因(2)，调大超时时间，如调大spark.network.timeout值。</li>
 </ul>
 </li>
 </ul>
 </li>
-<li><p><code>Final app status: FAILED, exitCode: 11, (reason: Max number of executor failures (200) reached)</code></p>
+<li><p>Final app status: FAILED, exitCode: 11, (reason: Max number of executor failures (200) reached)</p>
 <ul>
 <li>原因：executor失败重试次数达到阈值</li>
 <li>解决方案：<ul>
 <li>调整运行参数，减少executor失败次数；</li>
-<li>调整<code>spark.yarn.max.executor.failures</code>的值，可在<code>spark-defaults.conf</code>中调整。确定方式，在日志中搜索”Final app status:”，确定原因，在日志统计”Container marked as failed:”出现次数。</li>
+<li>调整spark.yarn.max.executor.failures的值，可在spark-defaults.conf中调整。确定方式，在日志中搜索”Final app status:”，确定原因，在日志统计”Container marked as failed:”出现次数。</li>
 </ul>
 </li>
 </ul>
 </li>
 <li><p>task反复调度到有问题的executor？</p>
-<p>通过这些黑名单的设置可以避免由于 task 反复调度在有问题的 <code>executor/node</code> （坏盘，磁盘满了，shuffle fetch 失败，环境错误等）上，进而导致整个 <code>Application</code> 运行失败的情况。</p>
+<p>通过这些黑名单的设置可以避免由于 task 反复调度在有问题的 executor/node （坏盘，磁盘满了，shuffle fetch 失败，环境错误等）上，进而导致整个 Application 运行失败的情况。</p>
 </li>
 </ol>
 <h3 id="扩展阅读"><a href="#扩展阅读" class="headerlink" title="扩展阅读"></a>扩展阅读</h3><ul>
