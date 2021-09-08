@@ -572,15 +572,31 @@
 <li>适当调大spark.resultGetter.threads的数值，提高处理返回结果的效率。</li>
 </ul>
 </li>
+<li><p>如何利用到ReuseExchange的特性？</p>
+<p>比如有这样一个场景，读取一批parque文件，都是按照A字段做group by后，进行两个场景的计算。</p>
+<figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="comment">//方式1</span></span><br><span class="line"><span class="keyword">val</span> filePath: <span class="type">String</span> = _</span><br><span class="line"><span class="keyword">val</span> df = spark.read.parquet(filePath) </span><br><span class="line"><span class="keyword">val</span> dfPV = df.groupBy(<span class="string">"userId"</span>).agg(count(<span class="string">"page"</span>).alias(<span class="string">"value"</span>)).withColumn(<span class="string">"metrics"</span>, lit(<span class="string">"PV"</span>))</span><br><span class="line"><span class="keyword">val</span> dfUV = df.groupBy(<span class="string">"userId"</span>).agg(countDistinct(<span class="string">"page"</span>).alias(<span class="string">"value"</span>)).withColumn(<span class="string">"metrics "</span>, lit(<span class="string">"UV"</span>)) </span><br><span class="line">dfPV.union(dfUV).show()</span><br><span class="line"></span><br><span class="line"><span class="comment">//方式2</span></span><br><span class="line"><span class="keyword">val</span> filePath: <span class="type">String</span> = _</span><br><span class="line"><span class="comment">//预先分好组，当然如果dfPV和dfUV有过滤的操作的话（结果集较小），强行reuse就不太适合了</span></span><br><span class="line"><span class="keyword">val</span> df = spark.read.parquet(filePath).repartition($<span class="string">"userId"</span>) </span><br><span class="line"><span class="comment">//下面两个dfPV和dfUV，就会复用df</span></span><br><span class="line"><span class="keyword">val</span> dfPV = df.groupBy(<span class="string">"userId"</span>).agg(count(<span class="string">"page"</span>).alias(<span class="string">"value"</span>)).withColumn(<span class="string">"metrics"</span>, lit(<span class="string">"PV"</span>))</span><br><span class="line"><span class="keyword">val</span> dfUV = df.groupBy(<span class="string">"userId"</span>).agg(countDistinct(<span class="string">"page"</span>).alias(<span class="string">"value"</span>)).withColumn(<span class="string">"metrics "</span>, lit(<span class="string">"UV"</span>)) </span><br><span class="line">dfPV.union(dfUV).show()</span><br></pre></td></tr></table></figure>
+<p>前提条件：</p>
+<ul>
+<li>多个查询所依赖的<strong>分区规则要与 Shuffle 中间数据的分区规则</strong>保持一致</li>
+<li>多个查询所涉及的字段（Attributes）要保持一致</li>
+</ul>
+</li>
+<li><p>Spark集群机器选型一般依据是什么？</p>
+<ul>
+<li>如果你的计算场景涉及到大量的聚合、排序、哈希计算、数值计算等等，那么你的机器配置就要加强CPU；</li>
+<li>如果你的计算场景需要反复消耗同一份或是同一批数据集，比如机器学习、数据分析、图计算，那么为了把需要频繁访问的数据缓存进内存，你自然需要加大内存配置；</li>
+<li>如果你的计算场景会引入大量shuffle，又不能通过广播来消除Shuffle，那么你就需要配置足够的SSD以及高吞吐网络。</li>
+</ul>
+</li>
 <li><p>建模分析时，判断一批IP地址是否在原始海量的IP段范围中，性能不理想。抽象为非等值JOIN的优化？</p>
 <p>分析物理算子org.apache.spark.sql.execution.joins.BroadcastNestedLoopJoinExec，扩展出一个BroadcastRangeJoinExec算子，通过给那个小表做索引并排序，Join时候就不需要每一条都扫描，只扫描一部分就可以了。<a href="https://github.com/apache/spark/pull/21109" target="_blank" rel="noopener">SPARK-24020</a></p>
 </li>
 <li><p>建模分析时，少量重点人员账号与原始数据进行碰撞，性能不理想。在大小表基于非分区字段join时，大表读取的数据过多，执行性能较差？</p>
-<p>可以采用Runtime Filter的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，Runtime Filter可以把一些非分区字段条件形成一个filter放到大表上，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
+<p>可以采用Runtime Filter的方式，它的原理和DPP（动态分区裁剪）类似，因为DPP要求你的Join条件中包含了分区字段才会开启DPP，Runtime Filter可以把一些非分区字段条件形成一个filter放到大表上，类似传统数据库Query Rewrite，如果表大表能够过滤较多数据，从而可以提高JOIN的性能。</p>
 <figure class="highlight scala"><table><tr><td class="code"><pre><span class="line"><span class="keyword">case</span> <span class="class"><span class="keyword">class</span> <span class="title">IndexJoinRule</span>(<span class="params">sparkSession: <span class="type">SparkSession</span></span>) </span></span><br><span class="line"><span class="class">				<span class="keyword">extends</span> <span class="title">Rule</span>[<span class="type">LogicalPlan</span>] </span></span><br><span class="line"><span class="class">				<span class="keyword">with</span> <span class="title">Logging</span> </span>&#123;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">override</span> <span class="function"><span class="keyword">def</span> <span class="title">apply</span></span>(plan: <span class="type">LogicalPlan</span>):<span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        <span class="keyword">val</span> convertedPlan = applyIndexJoinRule(<span class="type">Plan</span>)</span><br><span class="line">        convertedPlan    </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">applyIndexJoinRule</span></span>(plan: <span class="type">LogicalPlan</span>) = plan transform &#123;</span><br><span class="line">        <span class="comment">// select a.col1, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Project</span>(_,lFilter<span class="meta">@Filter</span>(lConditon,_))),</span><br><span class="line">        	right<span class="meta">@Proejct</span>(_, rFilter<span class="meta">@Filter</span>(rCondition, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond),_) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line">        <span class="comment">// select a.*, b.col2</span></span><br><span class="line">        <span class="keyword">case</span> j<span class="meta">@Join</span>(</span><br><span class="line">            left<span class="meta">@Filter</span>(lCondition, _), </span><br><span class="line">            right<span class="meta">@Project</span>(_, rFilter<span class="meta">@Filter</span>(rCondtion, _)),_,</span><br><span class="line">        	<span class="type">Some</span>(joinCond), _) =&gt;</span><br><span class="line">        	convertInnerJoin(j, left, lFilter,lConditon, </span><br><span class="line">                             right, rFilter,rConditon, joinCond)</span><br><span class="line"> 		<span class="comment">//其他计划规则</span></span><br><span class="line">        </span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">private</span> <span class="function"><span class="keyword">def</span> <span class="title">convertInnerJoin</span></span>(j: <span class="type">Join</span>,</span><br><span class="line">                                left: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                lFilter: <span class="type">Filter</span>,</span><br><span class="line">                                lConditon： <span class="type">EXpression</span>，</span><br><span class="line">                                right: <span class="type">LogicalPlan</span>,</span><br><span class="line">                                rFilter: <span class="type">Filter</span>,</span><br><span class="line">                                rCondition: <span class="type">Expression</span>,</span><br><span class="line">                                joinCond: <span class="type">Expression</span>) : <span class="type">LogicalPlan</span> = &#123;</span><br><span class="line">        </span><br><span class="line">        <span class="comment">//基于统计信息和配置来确定是否转换logicalplan</span></span><br><span class="line">        </span><br><span class="line">        <span class="comment">//将小表的索引列值查询出来追加到大表的过滤条件</span></span><br><span class="line">        <span class="comment">//小表结果</span></span><br><span class="line">        <span class="keyword">val</span> result = &#123;</span><br><span class="line">            <span class="keyword">val</span> qe = sparkSession.sessionState.executePlan(planToQuery)</span><br><span class="line">            qe.assertAnalyzed()</span><br><span class="line">            <span class="keyword">new</span> <span class="type">DataSet</span>[<span class="type">Row</span>](qe, <span class="type">RowEncoder</span>(qe.analyzed.schema))</span><br><span class="line">        &#125;.collect().map&#123;row=&gt;<span class="type">Literal</span>.create(row.get(<span class="number">0</span>), joinCol.dataType)&#125;.distinct</span><br><span class="line">        </span><br><span class="line">        <span class="keyword">val</span> newJoin = &#123;</span><br><span class="line">            <span class="comment">//转为in条件</span></span><br><span class="line">            <span class="keyword">val</span> inCond = <span class="type">In</span>(getJoinAttr(joinCond， right).get, result)</span><br><span class="line">            <span class="keyword">val</span> newCond = <span class="type">And</span>(rCondition, inCond)</span><br><span class="line">            <span class="keyword">val</span> newRight = right.transform&#123;</span><br><span class="line">                <span class="keyword">case</span> f<span class="meta">@Filter</span>(_,_) =&gt; f.copy(condition = newCond)</span><br><span class="line">            &#125;</span><br><span class="line">            j.copy(right = newRight)</span><br><span class="line">        &#125;</span><br><span class="line">        newJoin.copy(left, right)</span><br><span class="line">    &#125;</span><br><span class="line">    </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 </li>
 </ol>
-<ol start="5">
+<ol start="7">
 <li><figure class="highlight java"><table><tr><td class="code"><pre><span class="line">org.apache.spark.shuffle.FetchFailedException: </span><br><span class="line">Failed to send RPC XXX to /xxx:<span class="number">7337</span>:java.nio.channels.ColsedChannelException</span><br></pre></td></tr></table></figure>
 <ul>
 <li>原因：external shuffle服务将数据发送给container时，发现container已经关闭连接，出现该异常应该和org.apache.spark.shuffle.FetchFailedException: Connection from /xxx:7337 closed同时出现；</li>
@@ -3669,9 +3685,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
-        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
+        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
@@ -4387,8 +4403,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>NoSQL</tag>
         <tag>redis</tag>
+        <tag>NoSQL</tag>
       </tags>
   </entry>
   <entry>
@@ -4488,8 +4504,8 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
-        <tag>HBase</tag>
         <tag>NoSQL</tag>
+        <tag>HBase</tag>
       </tags>
   </entry>
   <entry>
