@@ -1726,8 +1726,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>Spark</tag>
         <tag>SparkSQL</tag>
+        <tag>Spark</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
@@ -4413,6 +4413,7 @@
     <content><![CDATA[<p>收藏中间件、算法、大数据、人工智能等领域业界大牛、团队博客、论坛、站点等链接，研究、探索和跟踪前沿技术。持续更新中…</p>
 <p><img src="/blog/ec4cdf4c/fczlm.jpg" alt></p>
 <h4 id="个人博客"><a href="#个人博客" class="headerlink" title="个人博客"></a>个人博客</h4><ol>
+<li><a href="https://mofanpy.com/" target="_blank" rel="noopener">莫烦Python</a> | 机器学习,深度学习, 腾讯</li>
 <li><a href="https://chasezhang.me" target="_blank" rel="noopener">张茄子</a> | 算法、 分布式技术和函数式编程爱好者</li>
 <li><a href="http://www.gatorsmile.io/" target="_blank" rel="noopener">Lixiao</a> | Spark Committer In Databricks |专注SparkSQL等</li>
 <li><a href="https://www.linkedin.com/in/liancheng/" target="_blank" rel="noopener">连城</a> |Spark PMC/Committer In Databricks | 专注SparkSQL</li>
