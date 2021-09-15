@@ -1758,8 +1758,8 @@
         <category>论文阅读</category>
       </categories>
       <tags>
-        <tag>Spark</tag>
         <tag>SparkSQL</tag>
+        <tag>Spark</tag>
         <tag>Catalyst</tag>
       </tags>
   </entry>
@@ -4454,6 +4454,7 @@
 <li><a href="http://aleiwu.com/" target="_blank" rel="noopener">Aylei’s Blog</a>  | 吴叶磊 | PingCAP Cloud方向工程师 </li>
 <li><a href="https://ericfu.me/" target="_blank" rel="noopener">Eric Fu</a> | 专注于数据库及大数据系统</li>
 <li><a href="http://neoremind.com" target="_blank" rel="noopener">neoremind</a>  | <a href="https://www.zhihu.com/people/neoremind" target="_blank" rel="noopener">知乎</a> | 阿里专家 | 关注Service Backend、Big Data、Storage、Ads技术 </li>
+<li><a href="www.cnkirito.moe">Kirito的技术分享</a> | 阿里云 | 关注Java生态，布式服务治理，微服务，性能调优，各类源码分析</li>
 <li><a href="https://blog.csdn.net/v_JULY_v/" target="_blank" rel="noopener">July </a> | 深入数据结构与算法  <a href="https://www.julyedu.com/" target="_blank" rel="noopener">七月在线</a>创始人，专注AI教育</li>
 <li><a href="https://www.geekxh.com/" target="_blank" rel="noopener">geekxh</a> | 公众号-小浩算法 | 漫画图解算法</li>
 <li><a href="https://www.iteblog.com" target="_blank" rel="noopener">过往记忆</a> 吴阳平（花名：明慧 ） | 阿里云HBASE业务架构 热衷于大数据技术（Hadoop、HBase、Spark）等</li>
