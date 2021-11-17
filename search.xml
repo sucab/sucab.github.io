@@ -5,6 +5,29 @@
     <url>/blog/2e4fb37a.html</url>
     <content><![CDATA[<p><strong>从书上学·在事中练·与高人聊！心力!</strong></p>
 <p>极客邦访谈100位牛人，通过直播方式为程序员提供知识服务，从技术、架构、业务、管理、思想等多方面来给正在路上的技术人提供一些参考，解答一些疑惑。现将听取的部分大牛的讲话内容记录下来，以此来总结反思自己。</p>
+<h3 id="张雪峰"><a href="#张雪峰" class="headerlink" title="张雪峰"></a>张雪峰</h3><p>2005年至2011年，张雪峰曾在微软任职超过5年，之后为携程国际事业部CTO。2015年3月，受时任饿了么联合创始人兼产品负责人汪渊的邀请，张雪峰正式加入饿了么担任首席技术官。2020年8月，张雪峰刚刚调任阿里巴巴本地生活服务公司CEO助理一职。</p>
+<p>今天的访谈由于个人是带着耳机在路上听的，聊的内容也有些宽泛，所以也没有get到一些自己关注的点，于是就找了一下极客时间关于张老师的一些介绍和专栏信息，后面会附上链接。</p>
+<p>整体的访谈对话上来看，张老师是一个比较谦虚、直白、“负面性”的人，看问题的level也比较高。毕竟在饿了么搭建并领导上千号的技术团队，承载饿了么日均千万级订单量的基础架构。也回答了以下几个问题？</p>
+<ul>
+<li><p>如何看待架构？</p>
+<p>他认为后端架构层面的东西，没有标准化好坏之分，关键是要在实践中去检验它是否合理。</p>
+</li>
+<li><p>技术驱动业务？</p>
+<p>国内大部分公司不要想着技术来驱动业务，还达不到那样的level，除了google等这样的公司。优先做小而美的业务，做的深入了再说，要有核心竞争力和差异化，然后才是广度。不要一上来就要蕴量一个颠覆性的产品，超越微信、抖音之类的。</p>
+</li>
+<li><p>国内和国外程序员差异？</p>
+<p>单从工程师文化来看，国内的人其实更加适合，只是过去大环境所导致的。现在已经越来越向好的方向发展，不一定非要去硅谷才能发展，谈到了像左耳朵耗子、黄东旭等大佬的成功经历。</p>
+</li>
+<li><p>研发效能问题？</p>
+<p>张老师提到，还是要看最终的结果以及业务价值等。而不是想着如何提高效率，来提升业绩，比如一些规模在50人以内的公司。当时在饿了么，技术的团队为了检验产品提出的需求有效性，跟踪上线后的效果，最终也没有一个相对合理的衡量标准，特别是过了业务增长期了，如何迭代产品特性，后来也是不了了之了。</p>
+</li>
+</ul>
+<p>最后，张老师给出建议，追寻自己的内心，抓住自己的兴趣点深入下去就可以了。</p>
+<p>参考链接：</p>
+<ul>
+<li><a href="https://zhuanlan.zhihu.com/p/426886113" target="_blank" rel="noopener">前饿了么 CTO 张雪峰：如何从程序员走到CTO？</a></li>
+<li>极客专栏，<a href="https://time.geekbang.org/column/intro/100095401" target="_blank" rel="noopener">《超级访谈：对话张雪峰》</a></li>
+</ul>
 <h3 id="周志明"><a href="#周志明" class="headerlink" title="周志明"></a>周志明</h3><p>周志明老师，就职于华为从事架构师、研发管理等工作，个人详情查看<a href="https://lk.linkedin.com/in/icyfenix" target="_blank" rel="noopener">领英</a>链接或<a href="http://icyfenix.cn/" target="_blank" rel="noopener">个人网站</a>，很多人认识他的应该是通过《深入理解Java虚拟机》这本书。本次连麦讨论的内容主要围绕参与者在线上提出的内容展开，以下记录整理部分个人比较关注的内容。</p>
 <ul>
 <li><p>Java在云原生下的趋势？</p>
@@ -981,8 +1004,8 @@
 <td style="text-align:left">当你有选择的时候，选择更重要；而当你没有选择的时候，努力才重要。努力是为了让你有更好的选择。</td>
 </tr>
 <tr>
-<td style="text-align:center"></td>
-<td style="text-align:left"></td>
+<td style="text-align:center">28</td>
+<td style="text-align:left">管理是重器，保长远；经营是利器，赢天下。<br>管理=管人+理事，经营人才，就是经营企业。<br>管理者能扛多大的责任，承受多大的压力，就能带多大的队伍，做多大的事情。建强队列，才能干好业务。</td>
 </tr>
 <tr>
 <td style="text-align:center"></td>
@@ -1565,9 +1588,9 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
+        <tag>大数据</tag>
         <tag>OLAP</tag>
         <tag>数据库</tag>
-        <tag>大数据</tag>
       </tags>
   </entry>
   <entry>
@@ -2773,9 +2796,9 @@
         <category>计算引擎</category>
       </categories>
       <tags>
-        <tag>大数据</tag>
         <tag>SQL引擎</tag>
         <tag>Drill</tag>
+        <tag>大数据</tag>
         <tag>MPP</tag>
       </tags>
   </entry>
@@ -2802,9 +2825,9 @@
         <category>数据库与大数据</category>
       </categories>
       <tags>
+        <tag>大数据</tag>
         <tag>数据库</tag>
         <tag>行列存储</tag>
-        <tag>大数据</tag>
       </tags>
   </entry>
   <entry>
@@ -3749,9 +3772,9 @@
         <category>存储引擎</category>
       </categories>
       <tags>
+        <tag>B+树</tag>
         <tag>InnoDB</tag>
         <tag>RocksDB</tag>
-        <tag>B+树</tag>
         <tag>LSM树</tag>
         <tag>存储引擎</tag>
       </tags>
@@ -4477,6 +4500,7 @@
     <content><![CDATA[<p>收藏中间件、算法、大数据、人工智能等领域业界大牛、团队博客、论坛、站点等链接，研究、探索和跟踪前沿技术。持续更新中…</p>
 <p><img src="/blog/ec4cdf4c/fczlm.jpg" alt></p>
 <h4 id="个人博客"><a href="#个人博客" class="headerlink" title="个人博客"></a>个人博客</h4><ol>
+<li><a href="https://icyfenix.cn/" target="_blank" rel="noopener">凤凰架构</a> | <a href="https://icyfenix.cn/introduction/about-me.html" target="_blank" rel="noopener">周志明</a>，从事大型企业级软件的架构与研发</li>
 <li><a href="https://mofanpy.com/" target="_blank" rel="noopener">莫烦Python</a> | 机器学习,深度学习, 腾讯</li>
 <li><a href="https://chasezhang.me" target="_blank" rel="noopener">张茄子</a> | 算法、 分布式技术和函数式编程爱好者</li>
 <li><a href="http://www.gatorsmile.io/" target="_blank" rel="noopener">Lixiao</a> | Spark Committer In Databricks |专注SparkSQL等</li>
@@ -4527,6 +4551,7 @@
 <li><a href="https://github.com/databricks" target="_blank" rel="noopener">Databricks Github</a> | Spark商业公司</li>
 <li><a href="https://github.com/apachecn" target="_blank" rel="noopener">ApacheCN</a> 可能是东半球最大的 AI 社区 | <a href="http://apachecn.org/" target="_blank" rel="noopener">iBooker 布客</a></li>
 <li><a href="https://kylin.apache.org/cn/blog/" target="_blank" rel="noopener">Apache Kylin博客</a></li>
+<li><a href="https://www.infoq.cn/" target="_blank" rel="noopener">InfoQ</a> | 极客邦 知识创新与传播</li>
 </ol>
 ]]></content>
       <categories>
@@ -4720,16 +4745,20 @@
     <title>我的书单</title>
     <url>/blog/fa1b3b3e.html</url>
     <content><![CDATA[<h2 id="在读"><a href="#在读" class="headerlink" title="在读"></a>在读</h2><ul>
+<li>数据密集性应用系统设计，电子稿</li>
+<li>数据库系统内幕，纸质书</li>
+</ul>
+<h2 id="待读"><a href="#待读" class="headerlink" title="待读"></a>待读</h2><ul>
 <li><a href="https://book.douban.com/subject/30296615/" target="_blank" rel="noopener">SparkSQL内核剖析</a></li>
 <li><a href="http://e.dangdang.com/products/1900396912.html" target="_blank" rel="noopener">大规模分布式存储系统:原理解析与架构实战</a></li>
 <li><a href="http://product.dangdang.com/23462041.html" target="_blank" rel="noopener">大型网站系统与Java中间件实践</a></li>
 <li><a href="https://book.douban.com/subject/1467587/" target="_blank" rel="noopener">Unix编程艺术</a></li>
 <li><a href="http://product.dangdang.com/25184920.html" target="_blank" rel="noopener">Kafka入门与实践</a></li>
 <li>MySQL技术内幕 InnoDB存储引擎第2版</li>
-<li>编程之法-面试和算法心得</li>
-</ul>
-<h2 id="待读"><a href="#待读" class="headerlink" title="待读"></a>待读</h2><ul>
-<li><a href="http://e.dangdang.com/products/1900679392.html" target="_blank" rel="noopener">企业IT架构转型之道：阿里巴巴中台战略思想与架构实战</a></li>
+<li><p>编程之法-面试和算法心得</p>
+</li>
+<li><p><a href="http://e.dangdang.com/products/1900679392.html" target="_blank" rel="noopener">企业IT架构转型之道：阿里巴巴中台战略思想与架构实战</a></p>
+</li>
 <li><a href="http://e.dangdang.com/products/1900752857.html" target="_blank" rel="noopener">淘宝技术这十年</a></li>
 <li><a href="http://product.dangdang.com/23690515.html" target="_blank" rel="noopener">Netty权威指南(第2版)</a></li>
 <li><a href="http://product.dangdang.com/25107115.html" target="_blank" rel="noopener">大数据之路：阿里巴巴大数据实践</a></li>
